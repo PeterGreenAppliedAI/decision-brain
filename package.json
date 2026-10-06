@@ -1,0 +1,21 @@
+{
+  "name": "decision-brain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Graph Hacks 2026 entry (pre-event scaffold): an agent that answers why a codebase is the way it is, with the path behind every answer.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "graph:up": "docker compose up -d falkordb",
+    "graph:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.3",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
