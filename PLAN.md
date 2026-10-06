@@ -19,11 +19,25 @@ and **shows the path** behind every answer.
 **No FalkorDB client code, no Cypher, no ingestion before the event opens.** Git history timestamps
 the line; say so in the submission.
 
-## Track
+## Tracks — one build, all three
 
-**Track 03 — Company Brain** ("connect people, projects, documents, and decisions… tracing decisions
-back to their source… keeping knowledge current… answers with clear sources"). Secondary fit: Track 01
-(graph queries as agent tools through MCP, multi-hop reasoning, explainable results).
+The event page: "Build for one, or for all three at once. Each track has its own prize." One project,
+judged on three fronts — each earned by something the build needs anyway:
+
+| Track | What earns it |
+|---|---|
+| **03 Company Brain** (primary) | The decision graph: decisions traced to evidence, commits and files; answers with sources |
+| **02 Memory & Coordination** | The **extraction team** — several local agents ingest the corpus in parallel, coordinating through a shared **board graph** (claims, findings, handoffs) — plus memory across sessions: questions asked, answers the owner confirmed or corrected |
+| **01 Agents on Connected Data** | Graph queries as MCP tools the agent chooses between, multi-hop answers with their path, and one action: the **drift agent** runs `still_true` over the docs and opens a fix list |
+
+The story: *a team of local agents builds a company brain together, then answers from it with receipts.*
+
+**Open question to confirm on the event page:** whether "all three at once" means one submission
+judged in several tracks, or separate submissions. The FAQ "Can I enter more than one track?" answer
+was not captured.
+
+**Fallback:** if Day 2 slips, the single-agent build is a complete Track 03 entry on its own. The extra
+tracks are upside, never a dependency.
 
 ## The corpus (data, not implementation)
 
@@ -76,9 +90,36 @@ by data, not by the model.
 Graph algorithms worth one tool each if time allows: shortest path between two concepts
 ("how is the router connected to memory?"), and centrality ("which files carry the most decisions?").
 
-## The agent
+## The extraction team (Track 02)
 
-A thin loop over the MCP tools. Rules: every answer cites node ids; the UI renders the cited subgraph;
+Turning ~1,900 lines of DECISIONS.md into nodes and edges is the slow, model-heavy part — the natural
+place for parallel agents, and the reason the team exists (not decoration).
+
+- **Workers:** 3–4 extraction agents on the local coding model served with real concurrency (vLLM/SGLang
+  on the GB10 box — glm-5.3-flash; keep `think` on: with thinking off it narrates deliberation into the
+  answer). Each fills ONE fixed JSON shape per section (grammar-constrained); code builds the edges.
+- **The board** — a separate FalkorDB graph from the brain itself:
+  ```
+  (:Section {id, lines})                          // a unit of work: one DECISIONS entry
+  (:Agent {name, model})
+  (:Agent)-[:CLAIMED {at, expiresAt}]->(:Section) // claims expire: a crashed worker can't hold a section
+  (:Finding {kind, text, confidence})-[:FROM]->(:Agent)
+  (:Finding)-[:ABOUT]->(:Section)
+  (:Finding {kind:'cross_ref'})-[:POINTS_TO]->(:Section)   // "this entry supersedes one in August" — a handoff
+  ```
+- **Rules carried from Invarail's memory work:** every board write records which agent and whether code
+  verified it; a finding informs, it never authorizes (an agent can't skip validation because a finding
+  says so); the same-fact check keeps parallel writers from flooding the board with rewordings.
+- **The integrator** (code, not a model) promotes verified findings from the board into the brain graph
+  and resolves cross-references into SUPERSEDES / DISPROVED edges.
+
+## Memory across sessions (Track 02)
+
+The brain remembers its conversations: `(:Question)-[:ANSWERED_WITH]->(:Path)`, plus the owner's
+verdict on each answer (confirmed / corrected). A corrected answer becomes evidence the next time the
+same path is walked. Small, and it shows persistence that updates over time.
+
+## The agent Rules: every answer cites node ids; the UI renders the cited subgraph;
 "I don't know" when no path exists. Runs on a local model (the point of the parent project) — qwen3.5:9b
 measured best on this hardware class.
 
@@ -96,10 +137,13 @@ measured best on this hardware class.
 
 | Day | Goal | Done when |
 |---|---|---|
-| 1 (Oct 14–15) | Schema in code; ingest git history + DECISIONS headings/dates/commit refs | `trace` works on 10 hand-picked decisions |
-| 2 | Extract measurements, experiments, SUPERSEDES/DISPROVED edges (LLM-assisted, grammar-constrained, human spot-check) | Demo questions 1–2 answer with paths |
-| 3 | MCP server + agent + "show the path" view (rendered subgraph) | All five demo questions, on a local model |
+| 1 (Oct 14–15) | Schema in code; ingest git history + DECISIONS headings/dates/commit refs (deterministic) | `trace` works on 10 hand-picked decisions |
+| 2 | The extraction team: board graph, claims with expiry, 3–4 parallel workers filling the fixed JSON shape, the integrator promoting verified findings into SUPERSEDES/DISPROVED/BECAUSE edges; human spot-check | Demo questions 1–2 answer with paths; board shows who extracted what |
+| 3 | MCP server + agent + "show the path" view; question memory; the drift agent's fix list | All five demo questions on a local model; one drift finding surfaced |
 | 4 | Second repo ingested; README, demo video, blog post (side prize) | Submitted with a day to spare |
+
+If Day 2's team is not working by the end of Day 2, fall back to a single sequential extractor and keep
+the Track 03 entry whole.
 
 ## Judging angles to make explicit
 
@@ -112,3 +156,7 @@ measured best on this hardware class.
 
 - Extraction quality from prose → keep the LLM's job to filling a fixed JSON shape; code builds edges.
 - Scope → the five demo questions are the spec; anything else is Day 4 or never.
+- The team adds moving parts → claims expire, the integrator is code, and the sequential fallback is
+  one flag away.
+- Model concurrency → the A5000 serves one 27B at a time (parallel jobs queue and time out); parallel
+  workers belong on the box with batched serving.

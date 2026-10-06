@@ -8,7 +8,10 @@ Start here. Read this, then PLAN.md. Written 2026-10-06 at the end of a long Inv
 (FalkorDB × WeMakeDevs, online, Oct 14 2:31 PM → Oct 18 2:29 PM EDT, $20K prizes; Peter is
 registered). An agent that answers "why is this codebase the way it is?" by walking a FalkorDB graph of
 decisions → evidence → commits → files, and **shows the path** behind every answer.
-Target: **Track 03 Company Brain** (secondary fit Track 01). Plan, schema draft, MCP tool list, demo
+Target: **all three tracks with one build** (2026-10-06 decision) — Track 03 Company Brain primary;
+Track 02 via a parallel extraction team coordinating through a board graph + question memory; Track 01
+via graph queries as MCP tools and a drift agent. The single-agent Track 03 build is the fallback.
+Confirm on the event page whether multiple tracks means one submission or several. Plan, schema draft, MCP tool list, demo
 questions and the four-day schedule: **PLAN.md**.
 
 ## The rule that shapes everything
