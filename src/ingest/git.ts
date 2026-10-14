@@ -1,6 +1,7 @@
 /**
- * Git history → (:Commit), (:File), (:Person). Deterministic: no model. Re-running is idempotent
- * (MERGE on keys), so a repeat run picks up new commits without a rebuild.
+ * Git history → (:Commit), (:File), (:Person). Deterministic: no model. Re-running converges on the
+ * repo as it is now: new commits are merged in, and commits no longer in the history (a rewrite)
+ * are removed along with anything left orphaned.
  */
 import { execFileSync } from 'node:child_process';
 import { config } from '../config.js';
@@ -19,19 +20,29 @@ export interface GitCommit {
 const RS = '\x1e', FS = '\x1f', TS = '\x1d';
 const FORMAT = `${RS}%H${FS}%h${FS}%an${FS}%aI${FS}%s${FS}%(trailers:key=Co-authored-by,valueonly,separator=${TS})`;
 
+export class GitError extends Error {}
+
+function git(repo: string, args: string[]): string {
+  try {
+    // core.quotePath=false: non-ASCII paths come back as-is, not as quoted octal escapes
+    return execFileSync('git', ['-C', repo, '-c', 'core.quotePath=false', ...args], {
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    const stderr = String((err as { stderr?: unknown }).stderr ?? err).trim().split('\n')[0];
+    throw new GitError(`git ${args[0]} failed in ${repo}: ${stderr}`);
+  }
+}
+
 export function readGitLog(repo: string): string {
-  return execFileSync('git', ['-C', repo, 'log', '--name-only', `--format=${FORMAT}`], {
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  return git(repo, ['log', '--name-only', `--format=${FORMAT}`]);
 }
 
 /** The commit that last wrote each line of a file (index = line - 1), from one porcelain blame. */
 export function blameLines(repo: string, file: string): string[] {
-  const raw = execFileSync('git', ['-C', repo, 'blame', '--porcelain', '--', file], {
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  const raw = git(repo, ['blame', '--porcelain', '--', file]);
   const out: string[] = [];
   for (const line of raw.split('\n')) {
     const m = /^([0-9a-f]{40}) \d+ (\d+)/.exec(line);
@@ -63,6 +74,12 @@ export async function ingestGit(graph: Graph, commits: GitCommit[]): Promise<voi
      SET x.short = c.short, x.date = c.date, x.message = c.subject`,
     commits.map(({ sha, short, date, subject }) => ({ sha, short, date, subject })));
 
+  // A rewritten history leaves commits that no longer exist: remove them.
+  await graph.query('MATCH (c:Commit) WHERE NOT c.sha IN $shas DETACH DELETE c',
+    { params: { shas: commits.map((c) => c.sha) } });
+  // Authorship is rewritten whole, so a changed alias or agent pattern takes effect on re-ingest.
+  await graph.query('MATCH (:Person)-[r:AUTHORED]->(:Commit) DELETE r');
+
   await writeRows(graph,
     `UNWIND $rows AS r
      MERGE (p:Person {name: r.name}) SET p.kind = r.kind
@@ -79,4 +96,10 @@ export async function ingestGit(graph: Graph, commits: GitCommit[]): Promise<voi
      MERGE (f:File {path: r.path})
      MERGE (c)-[:TOUCHED]->(f)`,
     commits.flatMap((c) => c.files.map((path) => ({ sha: c.sha, path }))));
+}
+
+/** After a full ingest: drop files nothing touches or mentions, and people with no commits. */
+export async function removeOrphans(graph: Graph): Promise<void> {
+  await graph.query('MATCH (f:File) WHERE NOT (f)<-[:TOUCHED]-() AND NOT (f)<-[:MENTIONS]-() DELETE f');
+  await graph.query('MATCH (p:Person) WHERE NOT (p)-[:AUTHORED]->() DELETE p');
 }

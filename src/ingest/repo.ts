@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { Graph } from '../graph/db.js';
 import { ensureSchema } from '../graph/schema.js';
 import { ingestDecisions, parseDecisions, resolveRefs, type RefResolution } from './decisions.js';
-import { blameLines, ingestGit, parseGitLog, readGitLog } from './git.js';
+import { blameLines, ingestGit, parseGitLog, readGitLog, removeOrphans } from './git.js';
 
 export interface IngestReport {
   commits: number;
@@ -17,14 +17,19 @@ export interface IngestReport {
 }
 
 export async function ingestRepo(graph: Graph, repo: string, decisionsFile = 'DECISIONS.md'): Promise<IngestReport> {
-  await ensureSchema(graph);
+  // Read git first: a path that is not a repo, or a repo with no commits, fails before any graph exists.
   const commits = parseGitLog(readGitLog(repo));
+  await ensureSchema(graph);
   await ingestGit(graph, commits);
   const files = new Set(commits.flatMap((c) => c.files));
 
-  if (!existsSync(join(repo, decisionsFile))) return { commits: commits.length, files: files.size, decisions: null, refs: null };
+  if (!existsSync(join(repo, decisionsFile))) {
+    await removeOrphans(graph);
+    return { commits: commits.length, files: files.size, decisions: null, refs: null };
+  }
   const entries = parseDecisions(readFileSync(join(repo, decisionsFile), 'utf8'));
   const refs = resolveRefs(entries, commits.map((c) => c.sha), files, blameLines(repo, decisionsFile));
   await ingestDecisions(graph, entries, refs, decisionsFile);
+  await removeOrphans(graph);
   return { commits: commits.length, files: files.size, decisions: entries.length, refs };
 }

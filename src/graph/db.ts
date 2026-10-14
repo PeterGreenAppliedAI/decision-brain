@@ -7,8 +7,14 @@ import { config } from '../config.js';
 
 export type { Graph };
 
+export class GraphConnectError extends Error {}
+
 export async function connect(url = config.falkordbUrl): Promise<FalkorDB> {
-  return FalkorDB.connect({ url });
+  try {
+    return await FalkorDB.connect({ url });
+  } catch (err) {
+    throw new GraphConnectError(`FalkorDB not reachable at ${url} (${(err as Error).message}) — is it running? npm run graph:up`);
+  }
 }
 
 /** Write rows in batches through one UNWIND query; `$rows` is the batch. */

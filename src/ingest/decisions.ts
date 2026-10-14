@@ -18,6 +18,7 @@ export interface DecisionEntry {
   datePrecision: 'day' | 'month' | null;
   category: string | null;          // the `##` section a `###` entry sits under
   status: string;
+  statusText: string | null;        // the entry's own "**Status:** …" line, verbatim
   lineStart: number;                // 1-based, inclusive
   lineEnd: number;
   body: string;
@@ -31,28 +32,68 @@ const M = MONTHS.join('|');
 // "(August 11-12 2026)", "(April-May 2026)", "(June 2026, AI Dev Summit)", "(May 4, 2026)"
 const DATE_RE = new RegExp(`\\((${M})(?:-(?:${M}))?(?: (\\d{1,2})(?:-\\d{1,2})?,?)? (\\d{4})[^)]*\\)`);
 
-/** Category sections whose entries carry a status by where they are filed. */
+/** Category sections whose entries carry a status by where they are filed — the weakest signal. */
 const CATEGORY_STATUS: Record<string, string> = {
   'Failed Approaches': 'failed',
   'Known Issues': 'open_issue',
   'Future Ideas (Stashed)': 'idea',
 };
 
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
 export function parseDate(heading: string): { date: string; precision: 'day' | 'month' } | null {
   const m = DATE_RE.exec(heading);
   if (!m) return null;
-  const month = String(MONTHS.indexOf(m[1]) + 1).padStart(2, '0');
-  return m[2]
-    ? { date: `${m[3]}-${month}-${m[2].padStart(2, '0')}`, precision: 'day' }
+  const mi = MONTHS.indexOf(m[1]);
+  const month = String(mi + 1).padStart(2, '0');
+  const day = m[2] ? Number(m[2]) : 0;
+  // an impossible day ("September 31") keeps only the month rather than inventing a date
+  return day >= 1 && day <= DAYS_IN_MONTH[mi]
+    ? { date: `${m[3]}-${month}-${String(day).padStart(2, '0')}`, precision: 'day' }
     : { date: `${m[3]}-${month}`, precision: 'month' };
 }
 
-/** Status from the heading's own words, else from its category, else active. */
-export function deriveStatus(heading: string, category: string | null): string {
+/** Status words in a heading ("— SUPERSEDED by …", "KILLED Same Day", "NO BUILD"), or null. */
+export function statusFromHeading(heading: string): string | null {
   if (/superseded/i.test(heading)) return 'superseded';
-  if (/\b(KILLED|FAILED)\b|tried and reverted|\breverted\b|— removed/i.test(heading)) return 'failed';
+  // KILLED / FAILED are markers only in capitals: "Failed Approaches" is a section name, and a title
+  // that describes a failure is not itself a failed decision.
+  if (/\b(KILLED|FAILED)\b/.test(heading) || /tried and reverted|\breverted\b|— removed/i.test(heading)) return 'failed';
   if (/NO BUILD|parked/i.test(heading)) return 'parked';
-  return (category && CATEGORY_STATUS[category]) ?? 'active';
+  return null;
+}
+
+/** The entry's own "**Status:** …" line, verbatim (null when it has none). */
+export function statusLine(body: string): string | null {
+  const m = /^\*\*Status:?\*\*:?\s*(.+)$/m.exec(body);
+  return m ? m[1].trim() : null;
+}
+
+/** A free-text status line → a status. Most say "Active"; the rest are mapped by their words. */
+export function statusFromLine(text: string): string {
+  if (/\b(removed|reverted|gone|killed|abandoned|shelved)\b/i.test(text)) return 'failed';
+  if (/\b(stashed|deferred|parked)\b/i.test(text)) return 'parked';
+  if (/^(documented|logged for investigation|under re-evaluation)/i.test(text)) return 'open_issue';
+  return 'active';
+}
+
+/**
+ * Strongest signal first: the heading's own words, then the parent heading's words, then the
+ * entry's Status line, then the category it is filed under, else active.
+ *
+ * Headings outrank Status lines because status words in a heading are amendments: in the corpus a
+ * whole section was later marked "— superseded by DeepSeek-V4-Flash swap above" while each entry in
+ * it still says "**Status:** Active." from when it was written. The verbatim line is kept on the node
+ * (statusText), so both are visible. Being filed under "Failed Approaches" is weakest: many such
+ * entries end "**Status:** Active" — they record what failed on the way to a decision that stands.
+ */
+export function deriveStatus(heading: string, body: string, parentHeading: string | null, category: string | null): string {
+  const line = statusLine(body);
+  return statusFromHeading(heading)
+    ?? (parentHeading ? statusFromHeading(parentHeading) : null)
+    ?? (line ? statusFromLine(line) : null)
+    ?? (category ? CATEGORY_STATUS[category] : null)
+    ?? 'active';
 }
 
 function titleOf(heading: string): string {
@@ -67,21 +108,29 @@ function slug(s: string): string {
 
 // Hex runs of 7–40 with at least one a–f letter and one digit: commit-hash shaped.
 const COMMIT_RE = /\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/g;
-const PATH_RE = /`([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+\/?)`/g;
+// Any backticked text with a slash is a candidate path; resolveRefs keeps only what git has, so
+// the net can be wide (non-ASCII names, spaces) without inventing links.
+const PATH_RE = /`([^`\n]*\/[^`\n]*)`/g;
 
 export function extractRefs(body: string): { commitRefs: string[]; fileRefs: string[] } {
   const commitRefs = [...new Set(body.match(COMMIT_RE) ?? [])];
-  const fileRefs = [...new Set([...body.matchAll(PATH_RE)].map((m) => m[1].replace(/\/$/, '')))];
+  const fileRefs = [...new Set([...body.matchAll(PATH_RE)].map((m) => m[1].trim().replace(/^\.\//, '').replace(/\/$/, '')))];
   return { commitRefs, fileRefs };
 }
 
 export function parseDecisions(md: string): DecisionEntry[] {
-  const lines = md.split('\n');
+  const lines = md.split(/\r?\n/);
+  // headings inside fenced code blocks are not headings
+  const fenced = new Set<number>();
+  let inFence = false;
+  lines.forEach((l, i) => { if (/^\s*(```|~~~)/.test(l)) inFence = !inFence; else if (inFence) fenced.add(i); });
+  const isHeading = (i: number, level: 2 | 3) => !fenced.has(i) && new RegExp(`^#{${level}} `).test(lines[i]);
   const h2: number[] = [];
-  lines.forEach((l, i) => { if (/^## /.test(l)) h2.push(i); });
+  lines.forEach((_, i) => { if (isHeading(i, 2)) h2.push(i); });
 
   const entries: DecisionEntry[] = [];
-  const make = (start: number, end: number, category: string | null) => {
+  const make = (start: number, end: number, parentHeading: string | null) => {
+    const category = parentHeading ? titleOf(parentHeading) : null;
     while (end > start && /^\s*(---)?\s*$/.test(lines[end])) end--;   // trailing blanks and separators
     const heading = lines[start].replace(/^#+\s*/, '').trim();
     const parsed = parseDate(heading);
@@ -89,7 +138,7 @@ export function parseDecisions(md: string): DecisionEntry[] {
     entries.push({
       id: '', title: titleOf(heading), heading,
       date: parsed?.date ?? null, datePrecision: parsed?.precision ?? null,
-      category, status: deriveStatus(heading, category),
+      category, status: deriveStatus(heading, body, parentHeading, category), statusText: statusLine(body),
       lineStart: start + 1, lineEnd: end + 1, body, ...extractRefs(body),
     });
   };
@@ -98,12 +147,12 @@ export function parseDecisions(md: string): DecisionEntry[] {
     const end = (k + 1 < h2.length ? h2[k + 1] : lines.length) - 1;
     const heading = lines[start].replace(/^##\s*/, '').trim();
     const h3: number[] = [];
-    for (let i = start + 1; i <= end; i++) if (/^### /.test(lines[i])) h3.push(i);
+    for (let i = start + 1; i <= end; i++) if (isHeading(i, 3)) h3.push(i);
     // A category section: undated itself, or every child is a dated entry of its own.
     const isCategory = !parseDate(heading)
       || (h3.length >= 2 && h3.every((i) => parseDate(lines[i])));
     if (!isCategory || h3.length === 0) return make(start, end, null);
-    h3.forEach((s, j) => make(s, (j + 1 < h3.length ? h3[j + 1] : end + 1) - 1, titleOf(heading)));
+    h3.forEach((s, j) => make(s, (j + 1 < h3.length ? h3[j + 1] : end + 1) - 1, heading));
   });
 
   // ids: date + title slug, unique
@@ -158,15 +207,24 @@ export function resolveRefs(entries: DecisionEntry[], shas: string[], files: Set
 
 export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], refs: RefResolution,
   sourceFile = 'DECISIONS.md'): Promise<void> {
+  // Converge on the file as it is now: entries that no longer exist (removed, or retitled — the id
+  // follows the title) go, and this ingest's own link types are rebuilt. Edges other passes add
+  // (SUPERSEDES, BECAUSE, …) on surviving entries are left alone.
+  await graph.query('MATCH (d:Decision {sourceFile: $file}) WHERE NOT d.id IN $ids DETACH DELETE d',
+    { params: { file: sourceFile, ids: entries.map((e) => e.id) } });
+  await graph.query('MATCH (d:Decision {sourceFile: $file})-[r:RECORDED_IN|CITES|MENTIONS]->() DELETE r',
+    { params: { file: sourceFile } });
+
   await writeRows(graph,
     `UNWIND $rows AS r
      MERGE (d:Decision {id: r.id})
      SET d.title = r.title, d.heading = r.heading, d.date = r.date, d.datePrecision = r.datePrecision,
-         d.category = r.category, d.status = r.status, d.source = r.source, d.body = r.body`,
+         d.category = r.category, d.status = r.status, d.statusText = r.statusText,
+         d.source = r.source, d.sourceFile = r.sourceFile, d.body = r.body`,
     entries.map((e) => ({
       id: e.id, title: e.title, heading: e.heading, date: e.date, datePrecision: e.datePrecision,
-      category: e.category, status: e.status, body: e.body,
-      source: `${sourceFile}:${e.lineStart}-${e.lineEnd}`,
+      category: e.category, status: e.status, statusText: e.statusText, body: e.body,
+      source: `${sourceFile}:${e.lineStart}-${e.lineEnd}`, sourceFile,
     })));
 
   await writeRows(graph,

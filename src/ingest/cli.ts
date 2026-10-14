@@ -6,7 +6,8 @@
  */
 import { basename, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { connect } from '../graph/db.js';
+import { connect, GraphConnectError } from '../graph/db.js';
+import { GitError } from './git.js';
 import { ingestRepo } from './repo.js';
 
 const { positionals, values } = parseArgs({
@@ -20,18 +21,26 @@ if (!positionals[0]) {
 const repo = resolve(positionals[0]);
 const graphName = values.graph ?? basename(repo).toLowerCase();
 
-const db = await connect();
+const db = await connect().catch((err) => {
+  if (!(err instanceof GraphConnectError)) throw err;
+  console.error(err.message);
+  process.exit(1);
+});
 try {
   const r = await ingestRepo(db.selectGraph(graphName), repo, values.decisions);
   console.log(`[${graphName}] git: ${r.commits} commits, ${r.files} files`);
   if (r.refs) {
     console.log(`[${graphName}] decisions: ${r.decisions} entries, ${r.refs.recordedIn.length} recorded-in, ` +
       `${r.refs.commits.length} cited commits (${r.refs.unresolvedCommits.length} unresolved), ` +
-      `${r.refs.files.length} file links (${r.refs.unresolvedFiles.length} unresolved)`);
+      `${r.refs.files.length} file links (${r.refs.unresolvedFiles.length} backticked paths not in git)`);
     if (r.refs.unresolvedCommits.length) console.log(`  unresolved commits: ${r.refs.unresolvedCommits.join(' ')}`);
   } else {
     console.log(`[${graphName}] no ${values.decisions} — git history only`);
   }
+} catch (err) {
+  if (!(err instanceof GitError)) throw err;
+  console.error(err.message);
+  process.exitCode = 1;
 } finally {
   await db.close();
 }

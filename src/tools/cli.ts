@@ -3,7 +3,7 @@
  * npm run trace -- --graph <name> --find <text>        decision ids whose title contains text
  */
 import { parseArgs } from 'node:util';
-import { connect } from '../graph/db.js';
+import { connect, GraphConnectError } from '../graph/db.js';
 import { trace } from './trace.js';
 
 const { positionals, values } = parseArgs({
@@ -15,7 +15,11 @@ if (!values.graph || (!values.find && !positionals[0])) {
   process.exit(2);
 }
 
-const db = await connect();
+const db = await connect().catch((err) => {
+  if (!(err instanceof GraphConnectError)) throw err;
+  console.error(err.message);
+  process.exit(1);
+});
 try {
   const graph = db.selectGraph(values.graph);
   if (values.find) {

@@ -2,7 +2,8 @@
  * The decision graph's schema. Nodes and edges (PLAN.md has the full draft; Day 1 builds the
  * deterministic part):
  *
- *   (:Decision {id, title, heading, date, datePrecision, category, status, source, body})
+ *   (:Decision {id, title, heading, date, datePrecision, category, status, statusText,
+ *               source, sourceFile, body})
  *   (:Commit   {sha, short, date, message})
  *   (:File     {path})
  *   (:Person   {name, kind: human|agent})          // by name only — git emails stay out of the graph
@@ -25,6 +26,7 @@ import type { Graph } from './db.js';
 const RANGE_INDEXES: Array<[label: string, property: string]> = [
   ['Decision', 'id'],
   ['Decision', 'date'],
+  ['Decision', 'sourceFile'],
   ['Commit', 'sha'],
   ['Commit', 'short'],
   ['File', 'path'],

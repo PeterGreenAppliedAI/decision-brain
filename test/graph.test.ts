@@ -73,3 +73,63 @@ describe.skipIf(!reachable)('ingest + trace on a real FalkorDB', () => {
     expect(await trace(graph, 'no-such-decision')).toBeNull();
   });
 });
+
+describe.skipIf(!reachable)('re-ingest converges on the repo as it is now', () => {
+  let db: Awaited<ReturnType<typeof connect>>;
+  let graph: Graph;
+  let repo: string;
+  const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  const count = async (q: string) => (await graph.roQuery<{ n: number }>(q)).data![0].n;
+  const write = (path: string, text: string) => { mkdirSync(join(repo, path, '..'), { recursive: true }); writeFileSync(join(repo, path), text); };
+
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-converge-'));
+    git('init', '-q');
+    git('config', 'user.name', 'Ada Dev');
+    git('config', 'user.email', 'ada@example.com');
+    write('docs/ünïcode café.md', 'x\n');
+    write('DECISIONS.md', '# D\n\n## Old Title (May 1 2026)\n\nSee `docs/ünïcode café.md`.\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'first');
+    write('b.ts', 'b\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'second, to be rewritten away');
+    db = await connect();
+    graph = db.selectGraph(`test-converge-${process.pid}-${Date.now()}`);
+    await ingestRepo(graph, repo);
+  });
+
+  afterAll(async () => {
+    await graph?.delete().catch(() => {});
+    await db?.close();
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('keeps non-ASCII paths as written, so mentions resolve', async () => {
+    const t = await trace(graph, '2026-05-01-old-title');
+    expect(t!.mentions).toEqual(['docs/ünïcode café.md']);
+  });
+
+  it('drops a retitled entry and commits a history rewrite removed, with their orphans', async () => {
+    expect(await count('MATCH (c:Commit) RETURN count(c) AS n')).toBe(2);
+    git('reset', '-q', '--hard', 'HEAD~1');                       // the rewrite: "second" is gone
+    write('DECISIONS.md', '# D\n\n## New Title (May 1 2026)\n\nNo mentions now.\n');
+    git('commit', '-q', '-am', 'retitle');
+    await ingestRepo(graph, repo);
+
+    const ids = (await graph.roQuery<{ id: string }>('MATCH (d:Decision) RETURN d.id AS id')).data!.map((r) => r.id);
+    expect(ids).toEqual(['2026-05-01-new-title']);
+    const messages = (await graph.roQuery<{ m: string }>('MATCH (c:Commit) RETURN c.message AS m ORDER BY m')).data!.map((r) => r.m);
+    expect(messages).toEqual(['first', 'retitle']);
+    expect(await count("MATCH (f:File {path: 'b.ts'}) RETURN count(f) AS n")).toBe(0);
+    expect(await count('MATCH (:Decision)-[r:MENTIONS]->() RETURN count(r) AS n')).toBe(0);
+  });
+
+  it('refuses a path that is not a repo before creating anything', async () => {
+    const empty = mkdtempSync(join(tmpdir(), 'db-empty-'));
+    const g = db.selectGraph(`test-never-${process.pid}`);
+    await expect(ingestRepo(g, empty)).rejects.toThrow(/not a git repository/);
+    expect(await db.list()).not.toContain(`test-never-${process.pid}`);
+    rmSync(empty, { recursive: true, force: true });
+  });
+});

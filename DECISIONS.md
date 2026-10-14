@@ -4,6 +4,44 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Day 1 Audit: What the First Pass Got Wrong (October 14 2026)
+
+Peter: *"We are done with day 1 stuff? No way we tested enough to review edge cases."* He was right.
+Day 1 had been called done on one fixture test and ten traces. The audit read all 151 parsed entries
+against the file, probed git edge cases on throwaway repos, and found eight real defects:
+
+1. **Status from the category was wrong.** Everything filed under "Failed Approaches" was `failed`,
+   but many of those entries end "**Status:** Active." — they record what failed on the way to a
+   decision that stands (`!save` dual-write, the analytics pipeline). 86 entries carry an explicit
+   Status line; it now outranks the category, and is kept verbatim as `statusText`.
+2. **A section's own status was lost.** "## Multi-Backend Inference & MiniMax Swap (June 2026) —
+   superseded by DeepSeek-V4-Flash swap above" is a section; its three entries came out `active`.
+   Parent-heading status now passes down — and outranks the entries' own "Status: Active." lines,
+   because a status word in a heading is an amendment, newer than the line written with the entry.
+3. **"Failed Approaches" matched the FAILED marker.** The fix for (2) made the section name itself
+   mark 13 entries failed — caught by a test, not by eye. KILLED / FAILED are markers only in
+   capitals (as the corpus writes them); a title that describes a failure is not a failed decision.
+   Result: superseded 1 → 4, failed 22 → 11, and the eleven read correctly one by one.
+4. **The six "stale hashes" were not commits** — see the correction below.
+5. **Non-ASCII paths came back git-quoted** (`"docs/\303\274…"`), so they could never match.
+   `core.quotePath=false`; the path regex was ASCII-only too and is now any backticked text with a
+   slash — safe because resolution keeps only what git has.
+6. **Re-ingest did not converge.** MERGE only adds: a retitled entry left its old node, and a
+   rewritten history (Invarail's happened on Sep 30) would have left its old commits. Ingest now
+   removes decisions no longer in the file, commits no longer in the history, rebuilds its own link
+   types, and drops orphaned files and people. Edges other passes add are left alone.
+7. **A bad path crashed with a stack trace — and created an empty graph first.** Git is now read
+   before the graph is touched; a non-repo, an empty repo, or FalkorDB down each give one clear line.
+8. **Source ranges included trailing blank lines** (found earlier the same day by the fixture test).
+
+Also checked and fine: lowercase `co-authored-by` trailers, renames, merge commits (no files), no
+duplicate ids, no overlapping or uncovered lines, no headings in code fences (now handled anyway),
+CRLF (now handled), impossible dates (keep the month only). Citations dated after their entry: five,
+all one day later on entries spanning two days ("July 5-6") — no false matches.
+
+**Open, not fixed:** a decision's id follows its title, so retitling an entry gives it a new id.
+Question memory (Day 3) must not key on ids alone.
+
 ## Day 1: The Deterministic Spine (October 14 2026)
 
 **Built:** git history → `(:Commit)`, `(:File)`, `(:Person)`; Invarail's DECISIONS.md → 151
@@ -27,8 +65,12 @@ commit itself, which touched `src/router/prompt.ts`. All 151 entries get a RECOR
 visible in the OpenCode entry: blame returns the commit that *last* wrote the heading, so an amended
 heading ("— SUPERSEDED by the Pi swap") points at the amendment.
 
-**Six cited hashes do not resolve** (`ce77ec57 48f03018 db4dff42 44b13056 15e8b662 3fa2c1b9`) —
-consistent with the Sep 30 history rewrite. Reported, never guessed.
+**Six cited hashes do not resolve** (`ce77ec57 48f03018 db4dff42 44b13056 15e8b662 3fa2c1b9`).
+Reported, never guessed. *(Corrected 2026-10-14, same day: this first said they were "consistent
+with the Sep 30 history rewrite". That was a guess written as a finding. Read in context they are not
+commits at all — ledger, cron and experience ids, which are also 8-hex: `confirm 48f03018`,
+`cancel 15e8b662`, `commit:db4dff42` on an Experience node. Unique-prefix resolution against git is
+what keeps them out; the regex alone cannot.)*
 
 **People by name only.** Git emails carry a tailnet hostname; the graph never stores them. Agents
 (Co-Authored-By: Claude …) are `Person {kind: 'agent'}` — 8 Claude identities across the history.

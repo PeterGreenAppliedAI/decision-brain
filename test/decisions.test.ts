@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveStatus, extractRefs, parseDate, parseDecisions, resolveRefs } from '../src/ingest/decisions.js';
+import { deriveStatus, extractRefs, parseDate, parseDecisions, resolveRefs, statusFromLine } from '../src/ingest/decisions.js';
 
 const MD = `# Decisions
 
@@ -57,16 +57,56 @@ describe('parseDecisions', () => {
 
   it('derives status from the heading, then the category', () => {
     expect(es.map((e) => e.status)).toEqual(['active', 'active', 'failed', 'superseded']);
-    expect(deriveStatus('Completion Contracts — Built, Measured, KILLED Same Day', null)).toBe('failed');
-    expect(deriveStatus('Polar (August 23 2026, NO BUILD)', null)).toBe('parked');
+    expect(deriveStatus('Completion Contracts — Built, Measured, KILLED Same Day', '', null, null)).toBe('failed');
+    expect(deriveStatus('Polar (August 23 2026, NO BUILD)', '', null, null)).toBe('parked');
+  });
+
+  it("lets an entry's own Status line beat the category it is filed under", () => {
+    // Found in the corpus: "Failed Approaches" entries that end "**Status:** Active."
+    const md = `## Failed Approaches\n\n### Analytics pipeline (May 2026)\n**Problem:** x\n**Status:** Active. Routed.\n\n` +
+      `### Phone calls (April 2026)\n**Conclusion:** Shelved.\n`;
+    const [a, b] = parseDecisions(md);
+    expect([a.status, a.statusText]).toEqual(['active', 'Active. Routed.']);
+    expect([b.status, b.statusText]).toEqual(['failed', null]);
+  });
+
+  it("passes a section heading's own status down to its entries", () => {
+    // Found in the corpus: "## Multi-Backend … (June 2026) — superseded by DeepSeek-V4-Flash swap above"
+    // …and each entry in it still says "**Status:** Active." from when it was written: the heading is newer.
+    const md = `## Multi-Backend (June 2026) — superseded by the swap above\n\n### vLLM backend (June 2026)\n**Status:** Active.\n\n` +
+      `### Context window (June 2026)\ny\n`;
+    expect(parseDecisions(md).map((e) => [e.category, e.status])).toEqual([
+      ['Multi-Backend', 'superseded'], ['Multi-Backend', 'superseded'],
+    ]);
+  });
+
+  it('maps free-text status lines', () => {
+    expect(statusFromLine('Active, default native')).toBe('active');
+    expect(deriveStatus('Why the cache failed us (May 2026)', '', 'Failed Approaches', 'Failed Approaches')).toBe('failed');
+    expect(deriveStatus('Why the cache failed us (May 2026)', '**Status:** Active.', 'Failed Approaches', 'Failed Approaches')).toBe('active');
+    expect(statusFromLine('Removed entirely')).toBe('failed');
+    expect(statusFromLine('Stashed')).toBe('parked');
+    expect(statusFromLine('Documented, watch')).toBe('open_issue');
+  });
+
+  it('ignores headings inside code fences and reads CRLF files', () => {
+    const md = '## Real (May 1 2026)\r\n\r\n```md\r\n## Not a heading (May 2 2026)\r\n```\r\n';
+    const es = parseDecisions(md);
+    expect(es.map((e) => e.title)).toEqual(['Real']);
+    expect(es[0].heading).toBe('Real (May 1 2026)');
+  });
+
+  it('keeps only the month for an impossible day', () => {
+    expect(parseDate('X (September 31 2026)')).toEqual({ date: '2026-09', precision: 'month' });
+    expect(parseDate('X (February 29 2028)')).toEqual({ date: '2028-02-29', precision: 'day' });
   });
 });
 
 describe('references', () => {
   it('finds hash-shaped runs and backticked paths, and nothing that only looks close', () => {
-    const r = extractRefs('in 54359df and abcdef0123; 2026092, decade. `src/a.ts` `evals/x/` `notapath`');
+    const r = extractRefs('in 54359df and abcdef0123; 2026092, decade. `src/a.ts` `evals/x/` `notapath` `./docs/café b.md`');
     expect(r.commitRefs).toEqual(['54359df', 'abcdef0123']);
-    expect(r.fileRefs).toEqual(['src/a.ts', 'evals/x']);
+    expect(r.fileRefs).toEqual(['src/a.ts', 'evals/x', 'docs/café b.md']);
   });
 
   it('links only what git has: unique prefixes, exact or unique-suffix paths, blame by heading line', () => {
