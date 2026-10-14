@@ -120,27 +120,35 @@ Track 01 names them. Every tool takes the graph (repo) name — one graph per re
 Turning ~1,900 lines of DECISIONS.md into nodes and edges is the slow, model-heavy part — the natural
 place for parallel agents, and the reason the team exists (not decoration).
 
-- **Workers:** 3–4 extraction agents on the local coding model served with real concurrency (vLLM/SGLang
-  on the GB10 box — glm-5.3-flash; keep `think` on: with thinking off it narrates deliberation into the
-  answer). Each fills ONE fixed JSON shape per section (grammar-constrained); code builds the edges.
-- **The board** — a separate FalkorDB graph from the brain itself:
+- **Workers:** 3–4 extraction agents, **all local** — glm-5.3-flash on the GB10's vLLM (URL in `.env`).
+  No paid API anywhere (Peter, 2026-10-14). Concurrency verified: 4 parallel requests → vLLM reports 4
+  running, 0 waiting; ~1.6× throughput over sequential. Thinking stays on; the answer is
+  grammar-constrained JSON (`response_format: json_schema`) and the reasoning arrives separately.
+- **The board** — its own FalkorDB graph per repo (`<repo>__board`), separate from the brain:
   ```
-  (:Section {id, lines})                          // a unit of work: one DECISIONS entry
-  (:Agent {name, model})
-  (:Agent)-[:CLAIMED {at, expiresAt}]->(:Section) // claims expire: a crashed worker can't hold a section
-  (:Finding {kind, text, confidence})-[:FROM]->(:Agent)
-  (:Finding)-[:ABOUT]->(:Section)
-  (:Finding {kind:'cross_ref'})-[:POINTS_TO]->(:Section)   // "this entry supersedes one in August" — a handoff
+  (:Section {id, title, status: pending|claimed|done|failed, attempts, claimedBy, expiresAt})
+  (:Agent {name, model, lastSeen})
+  (:Agent)-[:CLAIMED {at, expiresAt}]->(:Section)    // claims expire: a crashed worker can't hold work
+  (:Finding {kind, data, quote, verified, reason})-[:FROM]->(:Agent), -[:ABOUT]->(:Section)
+  (:Handoff {relation, status: open|claimed|confirmed|rejected})-[:FOR]->(:Section)
+  (:Finding {kind:'cross_ref'})-[:RAISED]->(:Handoff)
+  (:Event {at, kind, agent, section, text})          // the feed the board view streams
   ```
-- **Rules carried from Invarail's memory work:** every board write records which agent and whether code
-  verified it; a finding informs, it never authorizes (an agent can't skip validation because a finding
-  says so); the same-fact check keeps parallel writers from flooding the board with rewordings.
-- **The integrator** (code, not a model) promotes verified findings from the board into the brain graph
-  and resolves cross-references into SUPERSEDES / DISPROVED edges.
-- **The demo moment for Track 02 is the handoff, not the claims machinery:** worker A, reading an
-  entry, finds it supersedes another; it posts a `cross_ref`; worker B (holding that other section)
-  picks it up and the integrator draws the edge. Without that the team is just a parallel map — show it
-  in the board view and the video.
+  Writes to one graph are serialized by FalkorDB, so a claim is one atomic query — no locks in code.
+- **The handoff is the coordination:** worker A reads an entry and says it supersedes/revises/disproves
+  entry X (chosen from an id list, so code can check it exists). That opens a Handoff on X. Another
+  worker claims the handoff, reads X, and confirms or rejects with a quote from X. Only a confirmed
+  handoff becomes an edge — two agents agreed, each with evidence from their own side.
+- **Code verifies every finding** (the model never authorizes): quotes must appear verbatim in the
+  section; a measurement's value must appear in its quote; concepts and models must appear in the
+  text; a cross-ref target must exist and differ from the section. Failed checks stay on the board,
+  marked unverified with the reason — visible, never promoted.
+- **The integrator** (code, not a model) promotes verified findings into the brain graph —
+  `(:Measurement)`, `(:Experiment)`, `(:Concept)`, `(:Model)` — and confirmed handoffs into
+  SUPERSEDES / REVISES / DISPROVES edges, each carrying who extracted it.
+- **Considered and dropped (2026-10-14):** a mixed team with frontier agents on public repos and local
+  agents on private ones, the rule enforced in the claim query. Strong story, but it needs a paid API
+  to be real in the product. Local only.
 
 ## Memory across sessions (Track 02)
 
@@ -167,6 +175,21 @@ measured best on this hardware class.
 3. "If I change `src/memory/fact-store.ts`, what decisions should I re-check?" → `what_breaks`.
 4. "What has been tried and disproven about memory?" → `disproven("memory")`.
 5. "Is CLAUDE.md still right about code_gen?" → `still_true` — it caught exactly this drift by hand.
+
+## The frontend (one small app, three views)
+
+The video and the live deployment both need something to look at; it is also how we debug the team.
+One Node HTTP server in this repo, static HTML, Cytoscape.js from a CDN, server-sent events for live
+updates. No framework, no build step, read-only, no auth — the same build judges get.
+
+| View | Shows | Track | When |
+|---|---|---|---|
+| **Board** (live) | The extraction team working: sections claimed, findings arriving, a cross_ref handoff drawn between two workers, an expired claim taken over | 02 | Day 2 |
+| **Ask** | A question, the agent's tool calls streaming in, the answer with every cited node clickable | 01 | Day 3 |
+| **Path** | The cited subgraph: decision → evidence → commit → files → people, each linked to its source lines | 03 | Day 3 (never cut) |
+
+Plain and functional: dark, monospace, one accent colour per node type. The FalkorDB Browser (:3030)
+covers raw exploration — no custom explorer.
 
 ## Deployment
 

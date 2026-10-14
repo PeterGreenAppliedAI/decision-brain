@@ -1,0 +1,80 @@
+:root {
+  --bg: #0b0e14; --panel: #11151d; --line: #1f2633; --text: #c9d1d9; --dim: #6e7681;
+  --pending: #2b3342; --claimed: #e3b341; --done: #3fb950; --failed: #f85149;
+  --agent: #58a6ff; --handoff: #bc8cff; --confirmed: #3fb950; --rejected: #f85149;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.45 var(--mono); }
+header { display: flex; align-items: center; gap: 20px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 600; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+.brand .sub { color: var(--dim); font-weight: 400; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--agent); box-shadow: 0 0 10px var(--agent); }
+.picker { color: var(--dim); }
+select { background: var(--panel); color: var(--text); border: 1px solid var(--line); font: inherit; padding: 2px 6px; border-radius: 4px; }
+.counts { display: flex; gap: 14px; }
+.counts b { font-weight: 600; }
+.counts .pending b { color: #8b95a7; } .counts .claimed b { color: var(--claimed); }
+.counts .done b { color: var(--done); } .counts .failed b { color: var(--failed); } .counts .ho b { color: var(--handoff); }
+.live { margin-left: auto; color: var(--dim); }
+.live.on::before { content: "● "; color: var(--done); }
+
+main { display: grid; grid-template-columns: 280px 1fr 340px; height: calc(100% - 49px); min-height: 0; }
+main > section { min-height: 0; overflow: auto; }
+.agents, .feed { padding: 12px 14px; background: var(--panel); }
+.agents { border-right: 1px solid var(--line); }
+.feed { border-left: 1px solid var(--line); }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 6px 0 10px; font-weight: 500; }
+h2:not(:first-child) { margin-top: 22px; }
+
+.agent { border: 1px solid var(--line); border-left: 3px solid var(--agent); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+.agent.left { border-left-color: var(--dim); opacity: .7; }
+.agent.silent { border-left-color: var(--failed); }
+.agent .name { font-weight: 600; display: flex; justify-content: space-between; }
+.agent .state { color: var(--dim); font-weight: 400; }
+.agent .holding { color: var(--claimed); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent .meta { color: var(--dim); }
+
+.handoff { border: 1px solid var(--line); border-left: 3px solid var(--handoff); border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; }
+.handoff.confirmed { border-left-color: var(--confirmed); }
+.handoff.rejected { border-left-color: var(--rejected); }
+.handoff .rel { color: var(--handoff); font-weight: 600; }
+.handoff .who { color: var(--dim); }
+.handoff .ids { overflow-wrap: anywhere; }
+.empty { color: var(--dim); }
+
+.canvas { position: relative; }
+#cy { position: absolute; inset: 0; }
+.legend { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 12px; color: var(--dim); background: #0b0e14cc; padding: 4px 8px; border-radius: 4px; flex-wrap: wrap; }
+.legend span { white-space: nowrap; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.sw.pending { background: var(--pending); } .sw.claimed { background: var(--claimed); }
+.sw.done { background: var(--done); } .sw.failed { background: var(--failed); }
+.ln { display: inline-block; width: 16px; height: 0; border-top: 2px dashed var(--handoff); margin-right: 5px; vertical-align: 3px; }
+.ln.confirmed { border-top: 2px solid var(--confirmed); }
+
+.detail { position: absolute; right: 12px; top: 12px; width: min(420px, calc(100% - 24px)); max-height: calc(100% - 60px); overflow: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.detail h3 { margin: 0 0 4px; font-size: 14px; }
+.detail .src { color: var(--dim); margin-bottom: 8px; }
+.detail .close { float: right; cursor: pointer; color: var(--dim); background: none; border: 0; font: inherit; }
+.detail .commit { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--line); }
+.detail .sha { color: var(--agent); }
+
+#events { list-style: none; margin: 0; padding: 0; }
+#events li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+#events .t { color: var(--dim); margin-right: 6px; }
+#events .k { display: inline-block; min-width: 72px; color: var(--dim); }
+#events .a { color: var(--agent); margin-right: 4px; }
+#events li.handoff_raised .k, #events li.handoff_claim .k { color: var(--handoff); }
+#events li.handoff_confirmed .k, #events li.done .k { color: var(--done); }
+#events li.handoff_rejected .k, #events li.lost .k, #events li.release .k { color: var(--failed); }
+#events li.takeover { background: #e3b34114; } #events li.takeover .k { color: var(--claimed); }
+#events li.fresh { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: #58a6ff33; } to { background: transparent; } }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; height: auto; }
+  .canvas { height: 60vh; }
+  .agents, .feed { border: 0; border-top: 1px solid var(--line); }
+}

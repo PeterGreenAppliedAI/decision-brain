@@ -14,7 +14,9 @@
     "graph:up": "docker compose up -d falkordb",
     "graph:down": "docker compose down",
     "ingest": "tsx --env-file-if-exists=.env src/ingest/cli.ts",
-    "trace": "tsx --env-file-if-exists=.env src/tools/cli.ts"
+    "trace": "tsx --env-file-if-exists=.env src/tools/cli.ts",
+    "team": "tsx --env-file-if-exists=.env src/team/cli.ts",
+    "web": "tsx --env-file-if-exists=.env src/web/server.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -23,6 +25,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "cytoscape": "^3.34.3",
     "falkordb": "^6.8.0"
   }
 }

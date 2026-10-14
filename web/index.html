@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Brain · Board</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span> Decision Brain <span class="sub">extraction board</span></div>
+    <label class="picker">graph <select id="graph"></select></label>
+    <div class="counts" id="counts"></div>
+    <div class="live" id="live">connecting…</div>
+  </header>
+  <main>
+    <section class="agents">
+      <h2>Agents</h2>
+      <div id="agents"></div>
+      <h2>Handoffs</h2>
+      <div id="handoffs"></div>
+    </section>
+    <section class="canvas">
+      <div id="cy"></div>
+      <div class="legend">
+        <span><i class="sw pending"></i>pending</span><span><i class="sw claimed"></i>claimed</span>
+        <span><i class="sw done"></i>done</span><span><i class="sw failed"></i>failed</span>
+        <span><i class="ln handoff"></i>handoff</span><span><i class="ln confirmed"></i>confirmed</span>
+      </div>
+      <div class="detail" id="detail" hidden></div>
+    </section>
+    <section class="feed">
+      <h2>Events</h2>
+      <ol id="events"></ol>
+    </section>
+  </main>
+  <script src="/vendor/cytoscape.min.js"></script>
+  <script src="/board.js"></script>
+</body>
+</html>

@@ -14,8 +14,18 @@ export const config = {
   /** OpenAI-compatible endpoint for the extraction workers (vLLM). Host lives in .env, never here. */
   llmUrl: process.env.LLM_URL ?? 'http://127.0.0.1:8000/v1',
   llmModel: process.env.LLM_MODEL ?? 'glm-5.3-flash',
+  /** Let the extraction model think before answering (GLM chat template: enable_thinking). */
+  llmThink: (process.env.LLM_THINK ?? 'true') !== 'false',
   /** Abort a request when no token has arrived for this long (thinking counts as tokens). */
   llmIdleTimeoutMs: Number(process.env.LLM_IDLE_TIMEOUT_MS ?? 120_000),
+  /** Extraction team: a claim lives this long without a heartbeat (workers beat every third of it). */
+  claimTtlMs: Number(process.env.CLAIM_TTL_MS ?? 120_000),
+  maxAttempts: Number(process.env.MAX_ATTEMPTS ?? 3),
+  idlePollMs: Number(process.env.IDLE_POLL_MS ?? 2_000),
+  /** A concept found in more than this share of all entries (and at least conceptMinCount of them)
+   *  is too generic to link entries by — usually the project's own name. */
+  conceptMaxShare: Number(process.env.CONCEPT_MAX_SHARE ?? 0.2),
+  conceptMinCount: Number(process.env.CONCEPT_MIN_COUNT ?? 5),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };
