@@ -37,7 +37,7 @@ Keep the line visible in git history and say so in the submission.
 
 ## The corpus
 
-The Invarail repo at `/Users/petergreen/LocalClaw` (public: github.com/PeterGreenAppliedAI/Invarail):
+The Invarail repo — a local clone of github.com/PeterGreenAppliedAI/Invarail (path passed to `npm run ingest`):
 `DECISIONS.md` (~1,900 lines, dated entries incl. disproven theories), git history (~800 commits;
 note: public history was rewritten 2026-09-30, so hashes cited in old notes may be stale — DECISIONS
 itself was remapped), `evals/*`, `docs/*`, `CLAUDE.md`. Read it; never modify it from this project.
