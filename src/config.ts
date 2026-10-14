@@ -44,6 +44,9 @@ export const config = {
     .split(',').map((g) => g.trim()).filter(Boolean),
   /** Larger files are shown to the model as head + tail, marked as cut. */
   fileMaxChars: Number(process.env.FILE_MAX_CHARS ?? 40_000),
+  /** Instruction files written for AI coding agents — intent sources with a version history. */
+  instructionFiles: (process.env.INSTRUCTION_FILES ?? '**/AGENTS.md,**/CLAUDE.md,**/GEMINI.md,**/.cursorrules,**/.cursor/rules/**,**/.github/copilot-instructions.md,**/.windsurfrules')
+    .split(',').map((g) => g.trim()).filter(Boolean),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };

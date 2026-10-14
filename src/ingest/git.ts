@@ -62,7 +62,8 @@ export function parseGitLog(raw: string): GitCommit[] {
     const [header, ...rest] = record.split('\n');
     const [sha, short, author, date, subject, trailers = ''] = header.split(FS);
     return {
-      sha, short, author, date, subject,
+      // UTC: git gives each author's local offset, and dates are compared as strings throughout
+      sha, short, author, date: new Date(date).toISOString(), subject,
       // "Name <email>" → "Name": emails stay out of the graph
       coauthors: trailers.split(TS).map((t) => t.replace(/<[^>]*>/, '').trim()).filter(Boolean),
       files: rest.map((l) => l.trim()).filter(Boolean),

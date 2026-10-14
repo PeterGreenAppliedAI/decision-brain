@@ -39,6 +39,9 @@ try {
     console.log(`[${graphName}] ADRs (${r.adrs.dir}): ${r.adrs.count} records, ${r.adrs.links} stated supersessions, ` +
       `${r.adrs.refs.recordedIn.length} recorded-in, ${r.adrs.refs.commits.length} cited commits, ${r.adrs.refs.files.length} file links`);
   }
+  if (r.instructions.files.length) {
+    console.log(`[${graphName}] agent instructions: ${r.instructions.files.join(', ')} — ${r.instructions.versions} versions, ${r.instructions.sections} section spans`);
+  }
   if (!r.refs && !r.adrs) console.log(`[${graphName}] no ${values.decisions} and no ADR directory — git history only`);
 } catch (err) {
   if (!(err instanceof GitError)) throw err;

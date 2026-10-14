@@ -4,6 +4,43 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Code Knowledge and AI Provenance (October 14 2026, evening)
+
+Three of Peter's ideas, built the same evening.
+
+**File and directory summaries — map-reduce on the board.** *"We can do traversal hops over the
+actual file that was changed, which should create a what does this file do… read by sub agents and
+then pulled back in as a single summary."* The board gained dependencies: `(Section)-[:PART_OF]->
+(Section)` with a `waiting` count; a directory is claimable only when every part is done, the repo
+root last; a part that fails for good still counts its parent down (otherwise the parent waits
+forever — caught before it shipped). Workers read each file at a commit; code keeps only the
+functions, exports and imports that actually appear in the file, and a directory summary may name
+only its own parts. Trial: 20 files + 12 directories in 140 s, mostly 90–100% of names verified.
+`origin(background.ts)`: born in `bfc444a` on Jun 2, "Add Chrome extension browser companion with
+page context injection", the same commit that recorded "Chrome extension: console API bypasses
+orchestrator". Bug found reading output, not tests: subdirectories listed as `name/` and the model
+copying the slash made the checker drop every subdirectory from a directory's parts.
+
+**The honesty line, stated by the question "will it know the original intent?"** What code *does*
+can be checked against the code; *why* must be something a person wrote — a decision, a commit
+message, an instruction file — quoted. Summaries are labelled "describes code, not intent";
+`origin()` returns `recordedIntent: null` when nothing was written down. Inferring a reason.md from
+code was considered and rejected: fabrication with good formatting.
+
+**Instruction files for AI agents — "what was the agent told when it wrote this?"** Peter: *"As AI
+code is more prolific shouldn't we also be searching for an agent.md? claude.md etc.?"* Every version
+of AGENTS.md / CLAUDE.md / .cursorrules / copilot-instructions… is split into sections; each distinct
+section text is a `Guidance` node with a lifespan (from the version that introduced it until the one
+that changed it), linked to the files it names and to the text it replaced. Deterministic, no model.
+Invarail: CLAUDE.md, 71 versions, 216 section spans, 683 Claude-co-authored commits.
+`told(54359df)`: co-written by Claude Opus 5.5; the CLAUDE.md in force was the version from Sep 29,
+14:57; its Testing section named two scripts the commit touched — and changed two days later.
+
+**Dates are UTC now.** Writing the told() test showed dates compared as strings while git gives each
+author's local offset: `21:36-04:00` vs `02:00+01:00` sorts wrong. Commits and guidance versions are
+stored in UTC (test added). Known approximation: decision-log dates are the author's calendar dates,
+so review's "as of" can shift by a day around midnight.
+
 ## The Agent: Local GLM, Tools Over MCP, Citations Checked by Code (October 14 2026)
 
 **MCP server** (`npm run mcp -- --graph <g>`, stdio): the nine graph tools — search, why, trace,

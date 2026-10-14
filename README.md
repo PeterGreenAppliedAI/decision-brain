@@ -63,6 +63,7 @@ extraction team.
 | `Concept` | `name, generic, share` | the team, verified |
 | `Model` | `name` | the team, verified |
 | `Module` | `path, purpose, parts, summarySha, summarizedBy` — a directory; `.` is the repo | summary team, checked |
+| `Guidance` | `id, path, heading, text, from, fromSha, until, untilSha` — one span of an instruction-file section | every version of AGENTS.md / CLAUDE.md / … (code) |
 
 `File` also carries `purpose, summary, summarySha, summarizedBy` once summarized: what the file does
 at that commit — every symbol the summary names is checked against the file.
@@ -81,6 +82,7 @@ at that commit — every symbol the summary names is checked against the file.
 | `(Decision)-[:SUPERSEDES\|REVISES\|DISPROVES {via, quote, targetQuote, raisedBy, confirmedBy}]->(Decision)` | newer → older; `via: 'status'` when an ADR's status line states it, `via: 'board'` when two agents agreed |
 | `(Decision)-[:RATIONALE {via}]->(File\|Decision)` | derived by code: "this decision's reasoning rests on that" — what PageRank and paths run over |
 | `(Module)-[:CONTAINS]->(File\|Module)` | the directory tree, for summaries |
+| `(Guidance)-[:IN]->(File)`, `-[:NAMES]->(File)`, `-[:REPLACES]->(Guidance)` | which instruction file, which files it names, the text it replaced |
 
 **Board graphs (`<repo>__board` for decisions, `<repo>__files` for summaries)** — sections may depend
 on others: `(Section)-[:PART_OF]->(Section)` with a `waiting` count, so a directory is claimable only
@@ -109,6 +111,7 @@ tools in `src/tools/graph-tools.ts`, `trace.ts` and `review.ts`.
 | `review(commit)` | What does this change touch, as of when it was made? | the deterministic review packet |
 | `what_is(target)` | What does this file or directory do now? | its summary — describes code at a commit, never intent; flags staleness |
 | `origin(file)` | What was it meant to do, and how did that change? | birth commit + decision recorded there, then every later decision on it |
+| `told(commit)` | What was the AI agent told when it wrote this? | instruction-file guidance in force at the commit, about its files; changed since? |
 
 ## Run it
 
@@ -139,7 +142,8 @@ workers.
 
 **Settings** come from the environment (see [.env.example](.env.example)): `FALKORDB_URL`, `LLM_URL`,
 `LLM_MODEL`, `LLM_REASONING_EFFORT`, `PERSON_ALIASES`, `AGENT_AUTHOR_PATTERN`, `ADR_DIRS`,
-`RATIONALE_EXCLUDE`, `CONCEPT_MAX_SHARE`, `CLAIM_TTL_MS` and a few more — nothing is hardcoded.
+`RATIONALE_EXCLUDE`, `CONCEPT_MAX_SHARE`, `CLAIM_TTL_MS`, `INSTRUCTION_FILES`, `FILE_EXTENSIONS`,
+`FILE_EXCLUDE` and a few more — nothing is hardcoded.
 
 `npm test` runs 62 tests, most against a real FalkorDB (fixture repos and graphs built per test);
 CI runs them on every push against the same pinned FalkorDB version.

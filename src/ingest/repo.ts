@@ -10,6 +10,7 @@ import { ensureSchema } from '../graph/schema.js';
 import { findAdrDir, parseAdrDir } from './adr.js';
 import { ingestDecisions, parseDecisions, resolveRefs, type RefResolution } from './decisions.js';
 import { blameLines, firstCommitOf, ingestGit, parseGitLog, readGitLog, removeOrphans } from './git.js';
+import { ingestInstructions } from './instructions.js';
 
 export interface IngestReport {
   commits: number;
@@ -17,6 +18,7 @@ export interface IngestReport {
   decisions: number | null;           // null: the repo has no decision log
   refs: RefResolution | null;
   adrs: { dir: string; count: number; links: number; refs: RefResolution } | null;
+  instructions: { files: string[]; sections: number; versions: number };
 }
 
 export async function ingestRepo(graph: Graph, repo: string, decisionsFile = 'DECISIONS.md'): Promise<IngestReport> {
@@ -49,7 +51,10 @@ export async function ingestRepo(graph: Graph, repo: string, decisionsFile = 'DE
     adrs = { dir, count: entries.length, links: entries.reduce((n, e) => n + (e.links?.length ?? 0), 0), refs: adrRefs };
   }
 
+  // Instruction files for AI agents, every version: what an agent was told, and when.
+  const instructions = await ingestInstructions(graph, repo, files);
+
   await removeOrphans(graph);
   await buildRationale(graph);
-  return { commits: commits.length, files: files.size, decisions, refs, adrs };
+  return { commits: commits.length, files: files.size, decisions, refs, adrs, instructions };
 }

@@ -12,7 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { connect, type Graph } from '../graph/db.js';
-import { connect as connectPath, disproven, loadBearing, origin, search, trace, whatBreaks, whatIs, whoKnows, why } from '../tools/graph-tools.js';
+import { connect as connectPath, disproven, loadBearing, origin, search, told, trace, whatBreaks, whatIs, whoKnows, why } from '../tools/graph-tools.js';
 import { review } from '../tools/review.js';
 
 const { values } = parseArgs({ options: { graph: { type: 'string' } } });
@@ -88,6 +88,11 @@ server.registerTool('origin', {
   description: 'Original intent of a file and how it evolved: the commit that created it (its message — the closest thing to stated intent) and any decision it recorded, every later decision resting on it in date order, and what it does now. recordedIntent is null when nothing was written down.',
   inputSchema: { file: z.string(), ...graphArg },
 }, run((g, a: { file: string }) => origin(g, a.file)));
+
+server.registerTool('told', {
+  description: "What an AI agent was told when it wrote a commit: the instruction-file guidance (CLAUDE.md, AGENTS.md, …) in force on the commit's date, about the files it touched — which agents co-wrote it, and whether that guidance has changed since.",
+  inputSchema: { commit: z.string(), ...graphArg },
+}, run((g, a: { commit: string }) => told(g, a.commit)));
 
 server.registerTool('review', {
   description: 'The deterministic review packet for a commit: the decision it records, standing decisions on its files to re-check (with measurements), disproven experiments, superseded reasoning, and reviewers — all as of the commit. Items have stable ids (C1, R1, D1, S1, P1).',

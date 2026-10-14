@@ -246,4 +246,49 @@ export async function origin(g: Graph, text: string) {
   };
 }
 
+/**
+ * What an AI agent was told when it wrote a commit: the instruction-file guidance in force at the
+ * commit's date (sections whose lifespan covers it), most relevant first — sections naming the files
+ * the commit touched, then sections naming files in the same directories. Says which agents co-wrote
+ * the commit, and whether each piece of guidance has changed since.
+ */
+export async function told(g: Graph, ref: string, limit = 6) {
+  const c = (await rows<{ sha: string; short: string; date: string; message: string; files: string[]; agents: string[]; humans: string[] }>(g,
+    `MATCH (c:Commit) WHERE c.sha STARTS WITH $ref
+     OPTIONAL MATCH (c)-[:TOUCHED]->(f:File)
+     WITH c, collect(DISTINCT f.path) AS files
+     OPTIONAL MATCH (p:Person)-[:AUTHORED]->(c)
+     RETURN c.sha AS sha, c.short AS short, c.date AS date, c.message AS message, files,
+            [x IN collect(DISTINCT p) WHERE x.kind = 'agent' | x.name] AS agents,
+            [x IN collect(DISTINCT p) WHERE x.kind = 'human' | x.name] AS humans LIMIT 2`, { ref }));
+  if (c.length !== 1) return { commit: null, error: c.length ? 'ambiguous commit prefix' : 'no such commit in the graph' };
+  const commit = c[0];
+  const dirs = [...new Set(commit.files.map((f) => (f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '')))].filter(Boolean);
+  const inForce = await rows<{ id: string; path: string; heading: string; text: string; from: string; until: string | null; names: string[]; replacedBy: string | null; replacedOn: string | null }>(g,
+    `MATCH (gd:Guidance) WHERE gd.from <= $date AND (gd.until IS NULL OR gd.until > $date)
+     OPTIONAL MATCH (gd)-[:NAMES]->(f:File)
+     WITH gd, collect(f.path) AS names
+     OPTIONAL MATCH (newer:Guidance)-[:REPLACES]->(gd)
+     RETURN gd.id AS id, gd.path AS path, gd.heading AS heading, gd.text AS text, gd.from AS from, gd.until AS until, names,
+            newer.id AS replacedBy, newer.from AS replacedOn`, { date: commit.date });
+  const score = (gd: { names: string[] }) =>
+    gd.names.filter((n) => commit.files.includes(n)).length * 10 + gd.names.filter((n) => dirs.some((d) => n.startsWith(d + '/'))).length;
+  const ranked = inForce.map((gd) => ({ ...gd, relevance: score(gd) })).filter((gd) => gd.relevance > 0)
+    .sort((a, b) => b.relevance - a.relevance || a.id.localeCompare(b.id)).slice(0, limit);
+  const versions = await rows<{ path: string; from: string }>(g,
+    `MATCH (gd:Guidance) WHERE gd.from <= $date RETURN gd.path AS path, max(gd.from) AS from`, { date: commit.date });
+  return {
+    commit: { sha: commit.sha, short: commit.short, date: commit.date, message: commit.message, files: commit.files.sort() },
+    aiCoAuthored: commit.agents.length > 0, agents: commit.agents.sort(), humans: commit.humans.sort(),
+    instructionVersions: versions.map((v) => ({ file: v.path, versionDate: v.from })),
+    guidance: ranked.map((gd) => ({
+      id: gd.id, file: gd.path, heading: gd.heading, since: gd.from,
+      text: gd.text.length > 900 ? gd.text.slice(0, 900) + ' …' : gd.text,
+      namesTouched: gd.names.filter((n) => commit.files.includes(n)).sort(),
+      changedSince: gd.until ? { on: gd.until, replacedBy: gd.replacedBy } : null,
+    })),
+    note: ranked.length ? undefined : 'no instruction section in force names these files or their directories',
+  };
+}
+
 export { trace };
