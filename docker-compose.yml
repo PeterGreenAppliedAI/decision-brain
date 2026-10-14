@@ -1,11 +1,11 @@
 # Stock FalkorDB, nothing project-specific — infrastructure, allowed before the event.
 services:
   falkordb:
-    image: falkordb/falkordb:latest
+    image: falkordb/falkordb:6.0.2       # pinned: local, CI and judges run the same version
     ports:
       - "127.0.0.1:6380:6379"   # 6380 on the host: the parent project's FalkorDB already owns 6379
       - "127.0.0.1:3030:3000"   # FalkorDB Browser
     volumes:
-      - falkordb-data:/data
+      - falkordb-data:/var/lib/falkordb/data   # where FalkorDB writes dump.rdb (not /data)
 volumes:
   falkordb-data:

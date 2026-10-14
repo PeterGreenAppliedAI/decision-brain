@@ -4,6 +4,30 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## FalkorDB 6.0.2, Pinned — and the Data Was Never in the Volume (October 14 2026)
+
+**The CI failure was a FalkorDB version difference, not randomness.** CI pulls `falkordb:latest`
+(6.0.2, Oct 8); the local container was the August image (4.20.3). On 6.0.2, any pattern comprehension
+that comes after one which *nests* a comprehension returns `[]` — whatever the variable names:
+`[(d)-[:R]->(rc) | rc {files: [(rc)-->(f) | f.path]}] AS a, [(d)-[:C]->(cc) | cc.sha] AS b` gives
+`b = []`. trace() was written exactly that way. It is now plain MATCH + collect, one small query per
+part; 60/60 tests pass on both versions. I logged two wrong causes first (load, then a 4%
+all-digit short hash) — each a plausible story written down before it was tested. The tell that
+finally pointed the right way: in CI the idempotency test (which asserts the CITES edge exists)
+passed while trace's cites list was empty — the data was right, the query was not.
+
+**Pinned to 6.0.2** in docker-compose and CI. A floating `latest` is how local and CI ended up a major
+version apart without anyone choosing it; judges get the version the tests ran on.
+
+**The data volume was mounted at the wrong path.** docker-compose mounted `falkordb-data:/data`;
+FalkorDB writes `dump.rdb` to `/var/lib/falkordb/data`. Every graph — including the 31-minute
+extraction — lived only in the container's writable layer: `docker compose down` would have deleted
+it. Found when the pre-upgrade volume backup came out at 156 bytes. The dump was copied out of the
+container first (3 MB), the mount fixed, the dump restored into the volume, and the upgrade verified:
+node and relationship counts identical for all four graphs, and 151 decisions still present after a
+full `down` + `up`. Also noted: the image's defaults include a 1 s query TIMEOUT and a 10,000-row
+RESULTSET_SIZE — fine today, worth remembering for large queries.
+
 ## The Full Runs: Invarail and content-publisher (October 14 2026)
 
 **Invarail: 151/151 sections in 31 minutes**, four GLM workers at Low effort (36–40 sections each),
@@ -39,7 +63,9 @@ was wrong. The first CI run on GitHub failed the same test, and its assertion sh
 The fixture cited a random 7-char short hash; the commit pattern requires a letter and a digit — so a
 date like 2026092 is never read as a hash — and a random 7-char hash is all digits ~4% of the time.
 Both failing tests depend on that citation. The fixture now cites the shortest prefix with a letter
-and a digit; the all-digit limit has its own test.)*
+and a digit; the all-digit limit has its own test.)* *(Corrected again, minutes later: that was not the
+cause either. CI failed identically after the fix. The real cause is below — a FalkorDB 6 regression.
+The 4% case is real arithmetic but never what happened; the fixture change stays as hardening.)*
 
 ## Day 2, Evening: Review Becomes the Track 01 Action (October 14 2026)
 

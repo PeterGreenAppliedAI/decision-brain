@@ -17,25 +17,34 @@ export interface TraceResult {
   supersededBy: Array<{ id: string; title: string }>;
 }
 
-// Every comprehension gets its own variable names: FalkorDB returns an empty list for a second
-// comprehension that reuses a name from an earlier one in the same RETURN (found 2026-10-14).
-const TRACE = `
-MATCH (d:Decision {id: $id})
-RETURN d {.id, .title, .date, .status, .category, .source} AS decision,
-  [(d)-[:RECORDED_IN]->(rc:Commit) | rc {.sha, .short, .date, .message,
-     authors: [(rp:Person)-[:AUTHORED]->(rc) | rp.name],
-     files: [(rc)-[:TOUCHED]->(rf:File) | rf.path]}] AS recordedIn,
-  [(d)-[:CITES]->(cc:Commit) | cc {.sha, .short, .date, .message,
-     authors: [(cp:Person)-[:AUTHORED]->(cc) | cp.name],
-     files: [(cc)-[:TOUCHED]->(cf:File) | cf.path]}] AS cites,
-  [(d)-[:MENTIONS]->(mf:File) | mf.path] AS mentions,
-  [(d)-[:SUPERSEDES]->(old:Decision) | old {.id, .title}] AS supersedes,
-  [(newer:Decision)-[:SUPERSEDES]->(d) | newer {.id, .title}] AS supersededBy`;
+// Plain MATCH + collect, one small query per part. Pattern comprehensions are avoided on purpose:
+//  - FalkorDB 4.x: a second comprehension reusing a variable name from the first returns [];
+//  - FalkorDB 6.x: any comprehension after one that NESTS a comprehension returns [] — whatever the
+//    names. Both found 2026-10-14, the second by CI running a newer image than the local one.
+const DECISION = `MATCH (d:Decision {id: $id}) RETURN d {.id, .title, .date, .status, .category, .source} AS decision`;
+const COMMITS = (rel: string) => `
+MATCH (:Decision {id: $id})-[:${rel}]->(c:Commit)
+OPTIONAL MATCH (p:Person)-[:AUTHORED]->(c)
+WITH c, collect(DISTINCT p.name) AS authors
+OPTIONAL MATCH (c)-[:TOUCHED]->(f:File)
+RETURN c.sha AS sha, c.short AS short, c.date AS date, c.message AS message, authors, collect(DISTINCT f.path) AS files
+ORDER BY date, sha`;
+const MENTIONS = 'MATCH (:Decision {id: $id})-[:MENTIONS]->(f:File) RETURN f.path AS path ORDER BY path';
+const SUPERSEDES = 'MATCH (:Decision {id: $id})-[:SUPERSEDES]->(o:Decision) RETURN DISTINCT o.id AS id, o.title AS title ORDER BY id';
+const SUPERSEDED_BY = 'MATCH (n:Decision)-[:SUPERSEDES]->(:Decision {id: $id}) RETURN DISTINCT n.id AS id, n.title AS title ORDER BY id';
 
 export async function trace(graph: Graph, id: string): Promise<TraceResult | null> {
-  const res = await graph.roQuery<TraceResult>(TRACE, { params: { id } });
-  const row = res.data?.[0];
-  if (!row) return null;
-  row.cites.sort((a, b) => a.date.localeCompare(b.date));
-  return row;
+  const q = async <T>(cypher: string) => (await graph.roQuery<T>(cypher, { params: { id } })).data ?? [];
+  const head = await q<{ decision: TraceResult['decision'] }>(DECISION);
+  if (!head.length) return null;
+  const [recordedIn, cites, mentions, supersedes, supersededBy] = await Promise.all([
+    q<TraceCommit>(COMMITS('RECORDED_IN')), q<TraceCommit>(COMMITS('CITES')),
+    q<{ path: string }>(MENTIONS), q<{ id: string; title: string }>(SUPERSEDES), q<{ id: string; title: string }>(SUPERSEDED_BY),
+  ]);
+  const tidy = (c: TraceCommit) => ({ ...c, authors: [...c.authors].sort(), files: [...c.files].sort() });
+  return {
+    decision: head[0].decision,
+    recordedIn: recordedIn.map(tidy), cites: cites.map(tidy),
+    mentions: mentions.map((m) => m.path), supersedes, supersededBy,
+  };
 }
