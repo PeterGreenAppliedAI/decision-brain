@@ -14,8 +14,11 @@ and **shows the path** behind every answer.
 | Agent (local GLM over MCP) + grounding check | done — demo questions 1–4 answered, Kubernetes declined |
 | `review <commit>` (Track 01 action) | done — deterministic, as-of-change |
 | Board view (live) | done |
-| Ask + Path views | next |
+| Ask + Path views | done — answer streamed with tool calls, citations clickable, cited subgraph drawn |
+| File and module summaries (map-reduce on the board, dependency-ordered) + `origin(file)` | next (Day 2) |
+| Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…) as intent sources; "what was the agent told when it wrote this?" | next (Day 2) |
 | Question memory | next |
+| "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
 | Deployment, demo video, blog post | Day 4 |
 
@@ -128,6 +131,26 @@ this as our code review tool if we can make it consistent."* Consistency is the 
 
 `npm run review -- --graph <g> <commit|range>` prints the packet (and the note with `--write`); the Ask
 view renders the same packet as a path. Demo: a real Invarail commit touching `src/router/prompt.ts`.
+
+## Code knowledge and AI provenance (Day 2, from Peter's ideas on Oct 14)
+
+- **File and module summaries — map-reduce on the board.** Each source file is a task: a worker reads
+  its current content and the commit messages already in the graph, and fills "what this file does"
+  (every claim naming symbols or lines code confirms exist at that sha). Module tasks become claimable
+  only when all their files are done; the repo summary when all modules are. Summaries carry the sha
+  they describe; a changed file is re-summarized, nothing else. **Labelled as description of code —
+  never presented as intent.**
+- **`origin(file)`** — intent at birth: the commit that added the file, its message, the decision that
+  commit recorded if any, then every later decision on the file in date order, then today's summary.
+  Where nothing was written, it says so.
+- **Agent-instruction files as intent sources.** AGENTS.md, CLAUDE.md, .cursorrules / .cursor/rules,
+  .github/copilot-instructions.md, GEMINI.md: rules and constraints extracted with quotes, linked to
+  files, concepts and decisions. Every version is in git, and the graph already knows which commits
+  were AI co-authored — so for an agent-written commit, **the instructions in force at that moment**
+  are a query: "what was the agent told when it wrote this?", "which agent-written files predate the
+  rule we changed?". Also feeds the drift check (CLAUDE.md vs decisions).
+- The honesty line holds throughout: *what* code does can be checked against code; *why* must be
+  something a person (or an instruction file) wrote, quoted.
 
 ## The extraction team (Track 02)
 

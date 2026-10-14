@@ -46,13 +46,14 @@ export async function openGraphTools(graph: string) {
   return { tools, close: () => client.close() };
 }
 
-export async function ask(question: string, opts: { graph: string; maxSteps?: number }): Promise<AgentResult> {
+export async function ask(question: string, opts: { graph: string; maxSteps?: number; onStep?: (s: Step) => void }): Promise<AgentResult> {
   const started = Date.now();
   const { tools, close } = await openGraphTools(opts.graph);
   try {
     const r = await runLoop({
       llm: createOpenAiChat() as never, model: config.llmModel, system: SYSTEM, user: question, tools,
       maxSteps: opts.maxSteps ?? 6, maxResultChars: 12_000,
+      onStep: opts.onStep,
       finalAnswer: 'Step budget reached. Answer now, only from the tool results above, citing ids in brackets — or say "I don\'t know — the graph has no path for this."',
     });
     return { question, answer: r.answer.trim(), steps: r.steps, grounding: ground(r.answer, r.steps), exhausted: r.exhausted, ms: Date.now() - started };

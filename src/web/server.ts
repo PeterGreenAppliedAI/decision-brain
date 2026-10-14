@@ -10,6 +10,8 @@ import { createServer, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { boardName } from '../board/board.js';
 import { connect, type Graph } from '../graph/db.js';
+import { ask } from '../agent/agent.js';
+import { buildPath } from '../agent/path.js';
 import { trace } from '../tools/trace.js';
 
 const ROOT = resolve(import.meta.dirname, '../../web');
@@ -83,6 +85,29 @@ const server = createServer(async (req, res) => {
         return;
       }
       if (parts[1] === 'board') return send(res, 200, await boardSnapshot(graph(boardName(name))));
+
+      // The agent, streamed: each tool call as it completes, then the answer, its grounding and its path.
+      if (parts[1] === 'ask' && parts[3] === 'stream') {
+        const question = (url.searchParams.get('q') ?? '').trim().slice(0, 500);
+        if (!question) return send(res, 400, { error: 'empty question' });
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+        const emit = (type: string, data: unknown) => res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+        const ping = setInterval(() => res.write(': keep-alive\n\n'), 10_000);
+        try {
+          const r = await ask(question, {
+            graph: name,
+            onStep: (st) => emit('step', { tool: st.tool, args: st.args, chars: st.result.length, error: Boolean(st.error), preview: st.result.slice(0, 400) }),
+          });
+          const path = await buildPath(graph(name), r.answer, r.steps, r.grounding);
+          emit('answer', { answer: r.answer, grounding: r.grounding, exhausted: r.exhausted, ms: r.ms, path });
+        } catch (err) {
+          emit('error', { message: (err as Error).message });
+        } finally {
+          clearInterval(ping);
+          res.end();
+        }
+        return;
+      }
       if (parts[1] === 'trace' && parts[3]) {
         const t = await trace(graph(name), parts[3]);
         return t ? send(res, 200, t) : send(res, 404, { error: 'no such decision' });

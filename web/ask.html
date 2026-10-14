@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Brain · Ask</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span> Decision Brain</div>
+    <nav><a href="/">Board</a><a href="/ask.html" class="on">Ask</a></nav>
+    <label class="picker">graph <select id="graph"></select></label>
+    <div class="live" id="status">ready</div>
+  </header>
+  <main class="ask">
+    <section class="qa">
+      <form id="form">
+        <textarea id="q" rows="3" placeholder="Why is this codebase the way it is? Ask about a file, a topic, a decision…"></textarea>
+        <button type="submit" id="go">Ask</button>
+      </form>
+      <div class="examples" id="examples"></div>
+      <div class="answer" id="answer" hidden></div>
+    </section>
+    <section class="canvas">
+      <div id="cy"></div>
+      <div class="legend">
+        <span><i class="sw k-decision"></i>decision</span><span><i class="sw k-commit"></i>commit</span>
+        <span><i class="sw k-file"></i>file</span><span><i class="sw k-measurement"></i>measurement</span>
+        <span><i class="sw k-experiment"></i>experiment</span>
+      </div>
+      <div class="detail" id="detail" hidden></div>
+      <div class="empty-canvas" id="empty">The path behind the answer appears here.</div>
+    </section>
+    <section class="feed">
+      <h2>Tool calls</h2>
+      <ol id="steps" class="steps"></ol>
+    </section>
+  </main>
+  <script src="/vendor/cytoscape.min.js"></script>
+  <script src="/ask.js"></script>
+</body>
+</html>

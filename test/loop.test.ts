@@ -58,4 +58,11 @@ describe('runLoop', () => {
     expect(last.tools).toBeUndefined();
     expect(last.messages.at(-1)!.content).toBe('Answer now.');
   });
+
+  it('reports each step as it completes', async () => {
+    const llm = scripted(reply({ toolCalls: [call('echo', { a: 1 }), call('echo', { a: 2 })] }), reply({ content: 'ok' }));
+    const seen: unknown[] = [];
+    await runLoop({ llm, model: 'm', system: 's', user: 'u', tools: [echo], onStep: (s) => seen.push(s.args) });
+    expect(seen).toEqual([{ a: 1 }, { a: 2 }]);
+  });
 });

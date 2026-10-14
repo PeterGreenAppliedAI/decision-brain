@@ -39,6 +39,8 @@ export interface LoopOptions {
   /** When the step budget runs out, make one last call with no tools so the model answers from what
    *  it has gathered (or says it cannot), instead of returning nothing. */
   finalAnswer?: string;
+  /** Called after each tool call completes — for streaming the path to a viewer as it is walked. */
+  onStep?: (step: Step) => void;
 }
 
 export async function runLoop(opts: LoopOptions): Promise<LoopResult> {
@@ -79,7 +81,9 @@ export async function runLoop(opts: LoopOptions): Promise<LoopResult> {
           error = true;
         }
       }
-      steps.push({ tool: name, args, result, ...(error ? { error } : {}) });
+      const step: Step = { tool: name, args, result, ...(error ? { error } : {}) };
+      steps.push(step);
+      opts.onStep?.(step);
       const seen = result.length > cap ? `${result.slice(0, cap)}\n… [${result.length - cap} more chars truncated]` : result;
       messages.push({ role: 'tool', content: seen, tool_name: name });
     }

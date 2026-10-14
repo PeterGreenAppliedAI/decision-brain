@@ -113,7 +113,7 @@ npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Brows
 
 npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph
 npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
-npm run web                                            # board view: http://127.0.0.1:4100
+npm run web                                            # board view http://127.0.0.1:4100, Ask view /ask.html
 
 npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
 npm run review -- --graph <name> <commit>                 # the review packet for a commit
@@ -138,8 +138,9 @@ CI runs them on every push against the same pinned FalkorDB version.
 
 Built: ingest (decision logs and ADRs), the extraction team and board, the integrator, the rationale
 graph, the nine tools, the MCP server, the agent with its grounding check, `review`, the live board
-view. Next: the Ask and Path views, question memory (answers and the owner's verdicts, persisted),
-deployment. The full record of what was decided, what failed and what was corrected is
+view, and the Ask view (the agent's tool calls streamed, the answer with clickable citations, the
+cited subgraph drawn). Next: file and module summaries, `origin(file)`, agent-instruction files as
+intent sources, question memory, deployment. The full record of what was decided, what failed and what was corrected is
 [DECISIONS.md](DECISIONS.md).
 
 ## The event's rules, and how this repo meets them
