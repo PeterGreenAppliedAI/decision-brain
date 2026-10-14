@@ -14,6 +14,10 @@ else {
   console.log('Path:');
   for (const s of r.steps) console.log(`  ${s.error ? '✗' : '→'} ${s.tool}(${JSON.stringify(s.args)})  ${s.result.length} chars`);
   const g = r.grounding;
-  console.log(`\nGrounding: ${g.grounded ? 'OK' : 'NOT GROUNDED'} — ${g.valid.length} valid citation(s)${g.invalid.length ? `, INVALID: ${g.invalid.join(', ')}` : ''}${g.declined ? ' (declined)' : ''} · ${(r.ms / 1000).toFixed(1)} s`);
+  console.log(`\nChecked by code: ${g.status.toUpperCase()}`);
+  console.log(`  citations   ${g.invalid.length ? `INVALID: ${g.invalid.join(', ')}` : `${g.valid.length} checked — each names something a tool returned`}`);
+  console.log(`  numbers     ${g.unsupportedNumbers.length ? `UNSUPPORTED: ${g.unsupportedNumbers.map((u) => u.number).join(', ')}` : `${g.numbersChecked} checked — each found in its citation's evidence`}`);
+  console.log(`  prose       model-written — not verified by code${g.declined ? ' (abstained)' : ''}`);
+  console.log(`  ${(r.ms / 1000).toFixed(1)} s`);
 }
 process.exit(0);

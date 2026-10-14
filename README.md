@@ -22,28 +22,65 @@ ADRs ─────┘ └─────────────────�
 > [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing] records that when the rule was
 > corrected, qwen2.5:7b stopped routing memory requests: **"New text: 0/20 to memory. Old text:
 > 16/20."** — the hypothesis that fixing the text would help was disproven. *(local GLM, 11.6 s,
-> 1 tool call, citation verified by code)*
+> 1 tool call; code checked the citation and both figures against the cited evidence — the wording
+> itself is the model's)*
 
 ## How it works
 
 1. **Ingest — code, no model.** Git history becomes commits, files and people (humans and AI
    co-authors, by name only). The decision log — a `DECISIONS.md`, or an ADR directory — becomes one
    `Decision` per entry with its date, status and exact source lines. `git blame` links each entry to
-   the commit that recorded it; hashes and paths the text names are linked if git has them.
+   the commit that recorded it; hashes and paths the text names are linked if git has them. Every
+   version of the repo's AI-agent instruction files (AGENTS.md, CLAUDE.md, .cursorrules, …) is kept
+   as dated section spans, so the guidance an agent had at any commit is a query (`told`).
 2. **Extract — a team of local agents.** Four workers claim entries from a shared **board graph**
    (claims expire; a crashed worker's work is taken over), fill one fixed JSON shape per entry —
    measurements, experiments and their verdicts, concepts, models, relations to other entries — and
-   **code verifies every item against a verbatim quote**. A relation one agent finds ("this entry
-   revises ADR 8") becomes a **handoff**: a *different* agent reads the other entry and must confirm it
-   with a quote from that side. Only verified findings and confirmed handoffs reach the brain.
+   **code checks every item's quote is verbatim in the entry** (and a measurement's value inside its
+   quote). The *interpretation* — a verdict of "disproven", a metric's name — is still the model's;
+   quote-matching proves provenance, not meaning. A relation one agent finds ("this entry revises
+   ADR 8") becomes a **handoff**: a *different* agent reads the other entry and must confirm it with a
+   quote from that side. Only quote-matched findings and confirmed handoffs reach the brain.
 3. **Answer — graph tools over MCP.** Nine read-only tools (below), deterministic in their ordering.
-   The agent — a local model — chooses among them over MCP and must cite the ids they returned; code
-   rejects any citation a tool never returned. "I don't know — the graph has no path for this" is a
-   valid answer; a guess is not.
+   The agent — a local model — chooses among them over MCP and must cite the ids they returned. Code
+   then reports three separate checks: **citations** (each names something a tool returned),
+   **figures** (each number appears in the evidence its citation brought — invented or altered
+   measurements fail), and **abstention** (an answer that opens with "I don't know" and makes no
+   claims). The wording itself is model-written and not verified by code; the answer says so.
 4. **Review — the action.** `review <commit>` builds a deterministic packet for a change: the decision
    it records, standing decisions resting on its files (with their measurements) to re-check,
    experiments already disproven there, superseded reasoning not to cite, and who knows the files —
-   all **as of the change**. Same commit, same packet, every time.
+   filtered **by date as of the change**. For a given state of the graph the packet is deterministic:
+   the same commit gives the same packet. It is not yet a reconstruction of the decision log *as it
+   stood* at that commit — later edits to an entry can show through (see Limitations).
+
+## What code checks — and what it doesn't
+
+| Claim | Checked by code? |
+|---|---|
+| A finding's quote appears verbatim in its source entry | **yes** |
+| A measurement's value appears inside its quote | **yes** |
+| An experiment's verdict (confirmed / disproven) matches what the quote says | no — model interpretation |
+| A relation between two entries | a second agent must confirm it with a quote from the other entry; still model judgment |
+| An answer's citations name things the tools returned | **yes** |
+| An answer's figures appear in the evidence its citations brought | **yes** |
+| An answer's prose is supported by its citations | no — model-written |
+| A summary's function / export / import names exist in the file | **yes** |
+| A summary's description of what the code does | no — model-written, labelled as description, never as intent |
+
+## Limitations (known, not yet fixed)
+
+- **Evidence is not yet invalidated when an entry is edited.** Re-ingest updates a decision's text,
+  but findings extracted from its old wording stay attached until the team re-runs. (Being fixed:
+  content hashes on entries, findings and board sections.)
+- **Historical review is approximate.** `review` filters the current graph by date; it does not yet
+  rebuild the decision log as it stood at the reviewed commit. Dates are UTC, and decision-log dates
+  are the author's calendar dates, so "as of" can shift by a day around midnight.
+- **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files
+  gets ownership, history and file summaries — not reasons. Commit messages and PR descriptions are
+  not mined yet.
+- **Tested on two repositories and one model server** (glm-5.3-flash on vLLM). Other OpenAI-compatible
+  servers (e.g. Ollama) are expected to work but are not yet verified.
 
 ## The graph data model
 
@@ -96,7 +133,7 @@ The Cypher lives with the code that runs it: ingest in `src/ingest/`, the board 
 promotion in `src/board/integrate.ts`, the derived rationale graph in `src/graph/rationale.ts`, the
 tools in `src/tools/graph-tools.ts`, `trace.ts` and `review.ts`.
 
-## Tools (MCP and CLI)
+## Tools (MCP and CLI) — twelve
 
 | Tool | Answers | Graph work |
 |---|---|---|
@@ -150,11 +187,12 @@ CI runs them on every push against the same pinned FalkorDB version.
 
 ## Status
 
-Built: ingest (decision logs and ADRs), the extraction team and board, the integrator, the rationale
-graph, the nine tools, the MCP server, the agent with its grounding check, `review`, the live board
-view, and the Ask view (the agent's tool calls streamed, the answer with clickable citations, the
-cited subgraph drawn). Next: file and module summaries, `origin(file)`, agent-instruction files as
-intent sources, question memory, deployment. The full record of what was decided, what failed and what was corrected is
+Built: ingest (decision logs, ADRs, agent-instruction files with their history), the extraction team
+and board (with task dependencies), the integrator, the rationale graph, file → directory → repo
+summaries, twelve tools, the MCP server, the agent with its code checks, `review`, and the Board and
+Ask views. In progress: invalidating evidence when an entry is edited, a labelled evaluation set
+against a plain-search baseline, rebuilding the decision log as of a reviewed commit, question memory,
+deployment. The full record of what was decided, what failed and what was corrected is
 [DECISIONS.md](DECISIONS.md).
 
 ## The event's rules, and how this repo meets them

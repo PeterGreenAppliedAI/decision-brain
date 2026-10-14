@@ -66,9 +66,13 @@ function renderAnswer(text, grounding) {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\[([^\]\s][^\]]{1,200})\]/g, (_, c) => `<span class="cite ${valid.has(c) ? 'ok' : 'bad'}" data-c="${esc(c)}">${esc(c.length > 34 ? c.slice(0, 32) + '…' : c)}</span>`)
     .split('\n').map((l) => /^\s*[-*] /.test(l) ? `<li>${l.replace(/^\s*[-*] /, '')}</li>` : /^\s*\d+\. /.test(l) ? `<li>${l.replace(/^\s*\d+\. /, '')}</li>` : l ? `<p>${l}</p>` : '').join('');
-  const badge = grounding.grounded
-    ? `<span class="badge ok">grounded · ${grounding.valid.length} citation${grounding.valid.length === 1 ? '' : 's'} checked${grounding.declined ? ' · declined' : ''}</span>`
-    : `<span class="badge bad">not grounded${grounding.invalid.length ? ` · invalid: ${esc(grounding.invalid.join(', '))}` : ' · no valid citation'}</span>`;
+  // Three labels, each claiming only what code checked.
+  const g = grounding;
+  const badge = `<div class="checks">
+    <span class="badge ${g.invalid.length ? 'bad' : 'ok'}" title="Each [id] names something a tool returned in this run">${g.invalid.length ? `invalid citation: ${esc(g.invalid.join(', '))}` : `${g.valid.length} citation${g.valid.length === 1 ? '' : 's'} checked`}</span>
+    <span class="badge ${g.unsupportedNumbers.length ? 'bad' : 'ok'}" title="Each figure appears in the evidence its citation brought">${g.unsupportedNumbers.length ? `unsupported: ${esc(g.unsupportedNumbers.map((u) => u.number).join(', '))}` : `${g.numbersChecked} figure${g.numbersChecked === 1 ? '' : 's'} matched to evidence`}</span>
+    ${g.declined ? '<span class="badge ok">abstained</span>' : '<span class="badge neutral" title="Code has not verified the wording">prose: model-written</span>'}
+  </div>`;
   return `${badge}<div class="text">${html}</div>`;
 }
 

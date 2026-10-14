@@ -122,3 +122,7 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .detail pre.body { white-space: pre-wrap; font: 12px/1.5 var(--mono); color: var(--text); max-height: 50vh; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
 .detail .rel-line { margin: 6px 0; }
 @media (max-width: 900px) { main.ask { grid-template-columns: 1fr; } .qa { border: 0; } }
+
+.checks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.checks .badge { margin-bottom: 0; }
+.badge.neutral { background: #8b949e1a; color: var(--dim); border: 1px solid #8b949e44; }
