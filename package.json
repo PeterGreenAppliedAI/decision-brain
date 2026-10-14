@@ -21,7 +21,10 @@
     "integrate": "tsx --env-file-if-exists=.env src/board/integrate-cli.ts",
     "mcp": "tsx --env-file-if-exists=.env src/mcp/server.ts",
     "ask": "tsx --env-file-if-exists=.env src/agent/cli.ts",
-    "summarize": "tsx --env-file-if-exists=.env src/files/cli.ts"
+    "summarize": "tsx --env-file-if-exists=.env src/files/cli.ts",
+    "eval:candidates": "tsx --env-file-if-exists=.env src/eval/candidates.ts",
+    "eval:run": "tsx --env-file-if-exists=.env src/eval/run.ts",
+    "eval:score": "tsx --env-file-if-exists=.env src/eval/run.ts --score"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

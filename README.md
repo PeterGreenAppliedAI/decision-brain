@@ -76,6 +76,15 @@ hash of the other entry its confirmer read. The integrator promotes only evidenc
 the entry's current text, and reports what it left out. Re-running the team after an entry is edited
 re-extracts exactly the changed entries and re-checks the relations that touch them.
 
+## Evaluation
+
+`eval/questions.json` holds 25 questions over both repos — questions with answers in specific
+decisions, questions with a false premise, questions the graph cannot answer, and an ownership
+question. `npm run eval:candidates` writes `eval/LABELS.md`, where a person ticks the decisions a
+good answer must rest on; `npm run eval:run` scores the agent against those labels **and against a
+baseline that simply keyword-searches the decision log**. Results land in `eval/RESULTS.md`. The
+system never grades itself.
+
 ## Limitations (known, not yet fixed)
 
 - **File summaries are flagged stale, not yet re-made automatically.** `what_is` reports when a file
@@ -177,6 +186,7 @@ npm run review -- --graph <name> <commit>                 # the review packet fo
 npm run trace -- --graph <name> --find "router"           # find a decision; then trace <decision-id>
 npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
+npm run eval:candidates && npm run eval:run              # labelled evaluation vs a keyword-search baseline
 npm run summarize -- --graph <name> --repo <path>         # file → directory → repo summaries (board <name>__files)
 ```
 
