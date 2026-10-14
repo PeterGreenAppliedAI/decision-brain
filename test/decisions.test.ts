@@ -109,6 +109,10 @@ describe('references', () => {
     expect(r.fileRefs).toEqual(['src/a.ts', 'evals/x', 'docs/café b.md']);
   });
 
+  it('does not read an all-digit run as a commit — a known limit: such a short hash is indistinguishable from a number', () => {
+    expect(extractRefs('released 2026092, see 1234567').commitRefs).toEqual([]);
+  });
+
   it('links only what git has: unique prefixes, exact or unique-suffix paths, blame by heading line', () => {
     const es = parseDecisions(MD);
     const sha = '54359df' + '0'.repeat(33);

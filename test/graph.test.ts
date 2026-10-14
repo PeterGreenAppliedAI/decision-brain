@@ -29,7 +29,10 @@ describe.skipIf(!reachable)('ingest + trace on a real FalkorDB', () => {
     writeFileSync(join(repo, 'src/router/prompt.ts'), 'export const rule = "wrong but load-bearing";\n');
     git('add', '.');
     git('commit', '-q', '-m', 'Router prompt: first version');
-    const firstSha = git('rev-parse', '--short', 'HEAD');
+    // Cite the shortest prefix (≥ 7) that has a letter and a digit, as a hash must to be recognised.
+    // A plain --short hash is all digits ~4% of the time ((10/16)^7) — this test used to flake on it.
+    const full = git('rev-parse', 'HEAD');
+    const firstSha = full.slice(0, Math.max(7, full.search(/[a-f]/) + 1, full.search(/\d/) + 1));
 
     writeFileSync(join(repo, 'src/router/prompt.ts'), 'export const rule = "restored";\n');
     writeFileSync(join(repo, 'DECISIONS.md'),

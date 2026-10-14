@@ -34,7 +34,12 @@ third Cypher trap: `RETURN m {…} AS m ORDER BY m.pos` sorts by the projected m
 
 **One unexplained test failure.** Two ingest tests failed once in the full suite while the
 content-publisher team and an integration were loading FalkorDB; 11 reruns passed. Best guess, not a
-finding: fixture setup timing out under load. Watching for it.
+finding: fixture setup timing out under load. Watching for it. *(Corrected the same evening: the guess
+was wrong. The first CI run on GitHub failed the same test, and its assertion showed `cites` empty.
+The fixture cited a random 7-char short hash; the commit pattern requires a letter and a digit — so a
+date like 2026092 is never read as a hash — and a random 7-char hash is all digits ~4% of the time.
+Both failing tests depend on that citation. The fixture now cites the shortest prefix with a letter
+and a digit; the all-digit limit has its own test.)*
 
 ## Day 2, Evening: Review Becomes the Track 01 Action (October 14 2026)
 
