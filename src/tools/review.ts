@@ -10,7 +10,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import type { Graph } from '../graph/db.js';
-import { disproven, whatBreaks, type DecisionRef, type Measured, type Tried } from './graph-tools.js';
+import { disproven, whatBreaks, why, type DecisionRef, type Measured, type Tried } from './graph-tools.js';
 
 export interface ReviewItem {
   id: string;
@@ -18,6 +18,7 @@ export interface ReviewItem {
   file?: string;
   decision?: DecisionRef & { via?: string[] };
   measurements?: Measured[];
+  experiments?: Tried[];
   experiment?: Tried;
   supersededBy?: Array<{ id: string; title: string }>;
   reviewer?: { name: string; commits: number; files: string[] };
@@ -66,7 +67,8 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
     "MATCH (d:Decision)-[:RECORDED_IN]->(:Commit {sha: $sha}) RETURN d {.id, .title, .date, .status, .source} AS d ORDER BY d.id",
     { sha: change.sha ?? '' })) {
     seen.add(`records|${d.d.id}`);
-    items.push({ kind: 'records', decision: d.d });
+    const own = (await why(g, d.d.id)).decisions[0];
+    items.push({ kind: 'records', decision: d.d, measurements: own?.measurements ?? [], experiments: own?.experiments ?? [] });
   }
   // Status as of the change: a decision was superseded at review time only if what superseded it is
   // dated on or before the change. With no known superseder there is no date to check — keep it.
@@ -125,8 +127,11 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
   };
 }
 
-/** The packet as Markdown — what the CLI prints and what a write-up is grounded in. */
-export function renderPacket(p: ReviewPacket): string {
+/** The packet as Markdown — what the CLI prints and what a write-up is grounded in. The JSON packet
+ *  keeps every measurement; the note shows the first few of each decision's, and says how many more. */
+export function renderPacket(p: ReviewPacket, perDecision = 3): string {
+  const few = <T>(list: T[] | undefined, show: (x: T) => string) => !list?.length ? ''
+    : list.slice(0, perDecision).map(show).join('; ') + (list.length > perDecision ? `; +${list.length - perDecision} more` : '');
   const c = p.change;
   const out = [`# Review packet — ${c.sha ? c.sha.slice(0, 7) : c.ref}`,
     c.message ? `> ${c.message.slice(0, 200)}` : '',
@@ -137,9 +142,11 @@ export function renderPacket(p: ReviewPacket): string {
     const list = p.items.filter((i) => i.kind === kind);
     if (list.length) out.push(`## ${title}`, ...list.map((i) => `- **${i.id}** ${line(i)}`), '');
   };
-  section('records', 'Decisions this change records', (i) => dec(i.decision!));
+  section('records', 'Decisions this change records', (i) => dec(i.decision!) +
+    (i.measurements?.length ? `\n  measured: ${few(i.measurements, (m) => `${m.metric} ${m.value}`)}` : '') +
+    (i.experiments?.length ? `\n  tried: ${few(i.experiments, (e) => `"${e.hypothesis}" (${e.verdict})`)}` : ''));
   section('recheck', 'Standing decisions that rest on these files — re-check', (i) =>
-    `\`${i.file}\` → ${dec(i.decision!)}${i.measurements?.length ? `; measured: ${i.measurements.map((m) => `${m.metric} ${m.value}`).join('; ')}` : ''}`);
+    `\`${i.file}\` → ${dec(i.decision!)}${i.measurements?.length ? `; measured: ${few(i.measurements, (m) => `${m.metric} ${m.value}`)}` : ''}`);
   section('disproven', 'Tried before and disproven — do not retry', (i) =>
     `\`${i.file}\` → "${i.experiment!.hypothesis}" — ${dec(i.decision!)}`);
   section('superseded', 'Superseded reasoning — do not cite', (i) =>

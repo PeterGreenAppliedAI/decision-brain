@@ -4,6 +4,7 @@
  *   (:Decision)-[:BECAUSE]->(:Measurement {id, metric, value, quote, extractedBy})
  *   (:Decision)-[:TESTED]->(:Experiment {id, hypothesis, verdict, quote, extractedBy})
  *   (:Decision)-[:ABOUT]->(:Concept {name})
+ *   (:Decision)-[:ABOUT_BROADLY]->(:Concept {name, generic: true, share})   // too common to link by
  *   (:Decision)-[:INVOLVES]->(:Model {name})
  *   (:Decision)-[:SUPERSEDES|REVISES|DISPROVES {via: 'board', quote, targetQuote, raisedBy, confirmedBy}]->(:Decision)
  *
@@ -19,7 +20,7 @@ import { normalize } from '../team/extract.js';
 
 export interface IntegrationReport {
   measurements: number; experiments: number; concepts: number; models: number; edges: number;
-  /** Concepts dropped as too generic, with the share of entries that contain them. */
+  /** Concepts too common to link entries by (ABOUT_BROADLY), with the share of entries containing them. */
   generic: Array<{ name: string; share: number }>;
 }
 
@@ -56,35 +57,59 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
     try { await brain.createNodeRangeIndex(label, prop); } catch (err) { if (!/already indexed/i.test(String(err))) throw err; }
   }
 
+  // Evidence order, deterministic: what the author bolded first (their own emphasis — "**New text:
+  // 0/20 to memory. Old text: 16/20.**"), then the order the entry gives it.
+  const raw = new Map(((await brain.roQuery<{ id: string; body: string }>('MATCH (d:Decision) RETURN d.id AS id, d.body AS body')).data ?? [])
+    .map((r) => [r.id, r.body ?? '']));
+  const bodyOf = new Map([...raw].map(([id, b]) => [id, normalize(b)]));
+  const pos = (section: string, quote: string | null) => {
+    const at = quote ? bodyOf.get(section)?.indexOf(normalize(quote)) ?? -1 : -1;
+    return at < 0 ? 1e9 : at;
+  };
+  const bolded = (section: string, quote: string | null) => {
+    if (!quote) return false;
+    if (/\*\*/.test(quote)) return true;
+    const core = quote.replace(/[*_`]/g, '').trim();
+    return [...(raw.get(section) ?? '').matchAll(/\*\*([^*]+)\*\*/g)].some((m) => normalize(m[1]).includes(normalize(core)) || normalize(core).includes(normalize(m[1])));
+  };
+  const rank = (section: string, quote: string | null) => (bolded(section, quote) ? 0 : 1e9) + pos(section, quote);
+
   // Rebuild what the integrator owns.
   await brain.query('MATCH (n) WHERE n:Measurement OR n:Experiment DETACH DELETE n');
-  await brain.query('MATCH (:Decision)-[r:ABOUT|INVOLVES]->() DELETE r');
+  await brain.query('MATCH (:Decision)-[r:ABOUT|ABOUT_BROADLY|INVOLVES]->() DELETE r');
   // Relation edges the board made; ones ingest read from an entry's own status line stay.
   await brain.query("MATCH (:Decision)-[r:SUPERSEDES|REVISES|DISPROVES {via: 'board'}]->() DELETE r");
 
-  const measurements = of('measurement');
+  const measurements = of('measurement').map((m) => ({ ...m, pos: rank(m.section, m.quote) }));
   await writeRows(brain,
     `UNWIND $rows AS r MATCH (d:Decision {id: r.section})
-     CREATE (m:Measurement {id: r.id, metric: r.metric, value: r.value, quote: r.quote, extractedBy: r.extractedBy})
+     CREATE (m:Measurement {id: r.id, metric: r.metric, value: r.value, quote: r.quote, extractedBy: r.extractedBy, pos: r.pos})
      CREATE (d)-[:BECAUSE]->(m)`, measurements);
-  const experiments = of('experiment');
+  const experiments = of('experiment').map((e) => ({ ...e, pos: rank(e.section, e.quote) }));
   await writeRows(brain,
     `UNWIND $rows AS r MATCH (d:Decision {id: r.section})
-     CREATE (e:Experiment {id: r.id, hypothesis: r.hypothesis, verdict: r.verdict, quote: r.quote, extractedBy: r.extractedBy})
+     CREATE (e:Experiment {id: r.id, hypothesis: r.hypothesis, verdict: r.verdict, quote: r.quote, extractedBy: r.extractedBy, pos: r.pos})
      CREATE (d)-[:TESTED]->(e)`, experiments);
   // Concept names are lower-cased so "Write gate" and "write gate" are one concept across entries.
-  // A concept nearly every entry contains (the project's own name) would join everything to
-  // everything, so it is measured against the whole log and dropped past the configured share.
+  // A concept a large share of the log contains ("router", "config") is still what those entries are
+  // about — why("router") must find them — but as a path it joins everything to everything. So it is
+  // measured against the whole log and, past the configured share, linked by ABOUT_BROADLY, which
+  // the topic tools read and connect() does not walk.
   const bodies = ((await brain.roQuery<{ body: string }>('MATCH (d:Decision) RETURN d.body AS body')).data ?? []).map((r) => normalize(r.body ?? ''));
   const generic = new Map<string, number>();
   for (const name of new Set(of('concept').map((c) => c.name.toLowerCase()))) {
     const hits = bodies.filter((b) => b.includes(normalize(name))).length;
     if (hits >= config.conceptMinCount && hits / bodies.length > config.conceptMaxShare) generic.set(name, hits / bodies.length);
   }
-  const concepts = of('concept').map((c) => ({ ...c, name: c.name.toLowerCase() })).filter((c) => !generic.has(c.name));
+  const concepts = of('concept').map((c) => ({ ...c, name: c.name.toLowerCase(), share: generic.get(c.name.toLowerCase()) ?? null }));
   await writeRows(brain,
     `UNWIND $rows AS r MATCH (d:Decision {id: r.section})
-     MERGE (c:Concept {name: r.name}) MERGE (d)-[:ABOUT]->(c)`, concepts);
+     MERGE (c:Concept {name: r.name}) SET c.generic = false, c.share = null MERGE (d)-[:ABOUT]->(c)`,
+    concepts.filter((c) => c.share === null));
+  await writeRows(brain,
+    `UNWIND $rows AS r MATCH (d:Decision {id: r.section})
+     MERGE (c:Concept {name: r.name}) SET c.generic = true, c.share = r.share MERGE (d)-[:ABOUT_BROADLY]->(c)`,
+    concepts.filter((c) => c.share !== null));
   const models = of('model');
   await writeRows(brain,
     `UNWIND $rows AS r MATCH (d:Decision {id: r.section})

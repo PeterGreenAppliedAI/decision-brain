@@ -48,7 +48,8 @@ describe.skipIf(!reachable)('graph tools', () => {
     expect(await resolveTarget(g, 'new')).toEqual({ kind: 'decision', id: 'new' });
     expect(await resolveTarget(g, 'prompt.ts')).toEqual({ kind: 'file', path: 'src/router/prompt.ts' });
     expect(await resolveTarget(g, 'Router Prompt')).toEqual({ kind: 'concept', name: 'router prompt' });
-    expect(await resolveTarget(g, 'router')).toMatchObject({ kind: 'none', suggestions: ['router prompt', 'src/router/prompt.ts'] });
+    expect(await resolveTarget(g, 'router')).toEqual({ kind: 'concept', name: 'router' });   // a word of "router prompt"
+    expect(await resolveTarget(g, 'rout')).toMatchObject({ kind: 'none', suggestions: ['router prompt', 'src/router/prompt.ts'] });
   });
 
   it('leaves the decision log, lockfiles and docs out of the rationale graph', async () => {
@@ -73,6 +74,12 @@ describe.skipIf(!reachable)('graph tools', () => {
     const d = await disproven(g, 'router prompt');
     expect(d.experiments.map((e) => [e.id, e.decision.id])).toEqual([['e1', 'old']]);
     expect(d.decisions.map((x) => x.id)).toEqual(['old']);
+  });
+
+  it('a topic finds every concept it is a whole word of, and nothing it is only a fragment of', async () => {
+    expect((await why(g, 'router')).decisions.map((d) => d.id)).toEqual(['new', 'old']);
+    expect((await why(g, 'prompt')).decisions.map((d) => d.id)).toEqual(['new', 'old']);
+    expect((await why(g, 'rout')).decisions).toEqual([]);
   });
 
   it('who_knows: humans ranked by commits on the file, agents listed apart', async () => {

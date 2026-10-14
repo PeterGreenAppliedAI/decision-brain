@@ -4,6 +4,38 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Full Runs: Invarail and content-publisher (October 14 2026)
+
+**Invarail: 151/151 sections in 31 minutes**, four GLM workers at Low effort (36–40 sections each),
+0 errors, 0 lost claims. Promoted: 443 measurements, 324 experiments, 580 concepts, 56 models, 9
+relation edges — each raised by one agent and confirmed by another (glm-3 → glm-4: "Coding Agent Swap:
+OpenCode → Pi" SUPERSEDES the OpenCode entry, the superseded_by fix working). The demo answers are in
+the graph with quotes: the router-prompt entry carries "Corrected router prompt text would fix the
+7B's memory routing" (disproven, "New text: 0/20 to memory. Old text: 16/20."); the misroutes entry
+carries "A handoff tool offered to arena specialists would improve rerouting" (disproven).
+
+**content-publisher: 16 ADRs in 81 seconds.** ADR 13 REVISES ADR 8 — the relation the ADRs only state
+through an in-text link — raised by one agent, confirmed by another quoting ADR 8's "always restrict"
+rule. ADR 14 REVISES ADR 6 (board) beside SUPERSEDES (ADR 6's own status line). The checker rejected
+"ADR 9 revises ADR 3" (9 follows 3 — right) and "ADR 6 superseded_by ADR 14" (ADR 14 never says it
+replaces ADR 6 — strict, defensible; the relation is in the graph twice anyway). It errs strict.
+
+**Generic concepts are kept, not dropped.** The share filter first dropped config, token, router,
+ollama, heartbeat and cron — real subjects, and why("router") needs them. They now link by
+ABOUT_BROADLY, which the topic tools read and connect() does not walk. A topic matches every concept
+it is a whole word of ("router" → "router prompt", "smart router"); models (INVOLVES) are not walked
+either — "both mention gemma4" is not a reason. connect(prompt.ts, fact-store.ts) now goes through
+the router-prompt decision, its REVISES edge to the misroutes decision, and config/schema.ts.
+
+**Evidence order: the author's emphasis, then the entry's order.** The review first listed
+"gemma4:12b memory routing 10/10" above the A/B that mattered; the entry bolds the headline
+("**New text: 0/20 to memory. Old text: 16/20.**"), and bold is now ranked first. Getting there hit a
+third Cypher trap: `RETURN m {…} AS m ORDER BY m.pos` sorts by the projected map (no pos), not the node.
+
+**One unexplained test failure.** Two ingest tests failed once in the full suite while the
+content-publisher team and an integration were loading FalkorDB; 11 reruns passed. Best guess, not a
+finding: fixture setup timing out under load. Watching for it.
+
 ## Day 2, Evening: Review Becomes the Track 01 Action (October 14 2026)
 
 Peter, watching the tools take shape: *"we are also inadvertently building a very good code review

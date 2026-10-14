@@ -176,7 +176,7 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     expect(events).toEqual([{ kind: 'takeover', text: 'took over from crashy (claim expired)' }]);
   });
 
-  it("drops a concept nearly every entry contains — the project's own name would join everything", async () => {
+  it("links a concept nearly every entry contains only broadly — kept for topics, never a path", async () => {
     await brain.query(`UNWIND range(1, 6) AS i CREATE (:Decision {id: 'x' + toString(i), title: 't', body: 'LocalClaw did thing ' + toString(i)})`);
     await brain.query("MATCH (d:Decision) WHERE d.id STARTS WITH 'd-' SET d.body = d.body + ' LocalClaw.'");
     await seedBoard(board, brain);
@@ -188,7 +188,8 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     ], 'test');
     const report = await integrate(board, brain);
     expect(report.generic).toEqual([{ name: 'localclaw', share: 1 }]);
-    expect((await brain.roQuery<{ c: string }>('MATCH (c:Concept) RETURN c.name AS c')).data!.map((r) => r.c)).toEqual(['thing 3']);
+    expect((await brain.roQuery<{ c: string; r: string }>('MATCH (:Decision)-[r]->(c:Concept) RETURN c.name AS c, type(r) AS r ORDER BY c')).data)
+      .toEqual([{ c: 'localclaw', r: 'ABOUT_BROADLY' }, { c: 'thing 3', r: 'ABOUT' }]);
   });
 
   it('an older entry pointing forward (superseded_by) becomes the same newer → older SUPERSEDES edge', async () => {

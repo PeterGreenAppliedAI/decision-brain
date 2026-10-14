@@ -20,6 +20,10 @@ const rows = async <T>(g: Graph, cypher: string, params: Record<string, unknown>
   (await g.roQuery<T>(cypher, { params: params as never })).data ?? [];
 
 const DECISION = 'd {.id, .title, .date, .status, .source}';
+/** A concept matches a topic when the topic is a whole word (or phrase) of its name: "router" finds
+ *  "router", "router prompt" and "smart router", not "rerouter". Parenthesized — FalkorDB binds
+ *  CONTAINS tighter than +. */
+const CONCEPT_MATCH = "(' ' + c.name + ' ') CONTAINS (' ' + $k + ' ')";
 /** Newest first; undated last; id breaks ties so the order never varies between runs. */
 const NEWEST = 'ORDER BY CASE WHEN d.date IS NULL THEN 1 ELSE 0 END, d.date DESC, d.id';
 
@@ -32,6 +36,9 @@ export async function resolveTarget(g: Graph, text: string): Promise<Target> {
   if (files.length === 1 || files[0]?.path === q) return { kind: 'file', path: files[0].path };
   const concept = await rows<{ name: string }>(g, 'MATCH (c:Concept {name: toLower($q)}) RETURN c.name AS name', { q });
   if (concept.length) return { kind: 'concept', name: concept[0].name };
+  // A topic that is a whole word of some concept names ("router" → "router prompt", "smart router").
+  const topic = await rows<{ n: number }>(g, `MATCH (c:Concept) WHERE ${CONCEPT_MATCH} RETURN count(c) AS n`, { k: q.toLowerCase() });
+  if (topic[0]?.n) return { kind: 'concept', name: q.toLowerCase() };
   const near = [
     ...await rows<{ s: string }>(g, 'MATCH (c:Concept) WHERE c.name CONTAINS toLower($q) RETURN c.name AS s ORDER BY size(c.name), s LIMIT 5', { q }),
     ...await rows<{ s: string }>(g, 'MATCH (f:File) WHERE f.path CONTAINS $q RETURN f.path AS s ORDER BY size(f.path), s LIMIT 5', { q }),
@@ -60,10 +67,12 @@ export async function search(g: Graph, text: string, limit = 8): Promise<Array<D
 }
 
 async function evidence(g: Graph, ids: string[]) {
+  // Projected under a different name than the node: ORDER BY after RETURN sees a same-named
+  // projection, not the node, and the projection has no pos — every row would sort equal.
   const m = await rows<{ d: string; m: Measured }>(g,
-    'MATCH (d:Decision)-[:BECAUSE]->(m:Measurement) WHERE d.id IN $ids RETURN d.id AS d, m {.id, .metric, .value, .quote} AS m ORDER BY m.id', { ids });
+    'MATCH (d:Decision)-[:BECAUSE]->(x:Measurement) WHERE d.id IN $ids RETURN d.id AS d, x {.id, .metric, .value, .quote} AS m ORDER BY coalesce(x.pos, 1e9), x.id', { ids });
   const e = await rows<{ d: string; e: Tried }>(g,
-    'MATCH (d:Decision)-[:TESTED]->(e:Experiment) WHERE d.id IN $ids RETURN d.id AS d, e {.id, .hypothesis, .verdict, .quote} AS e ORDER BY e.id', { ids });
+    'MATCH (d:Decision)-[:TESTED]->(x:Experiment) WHERE d.id IN $ids RETURN d.id AS d, x {.id, .hypothesis, .verdict, .quote} AS e ORDER BY coalesce(x.pos, 1e9), x.id', { ids });
   const by = <T>(list: Array<{ d: string } & Record<string, T>>, key: string) => {
     const out = new Map<string, T[]>();
     for (const r of list) out.set(r.d, [...(out.get(r.d) ?? []), r[key]]);
@@ -82,8 +91,8 @@ export async function why(g: Graph, text: string): Promise<{ target: Target; dec
     found = await rows(g, `MATCH (d:Decision)-[r:RATIONALE]->(:File {path: $p}) WITH d, collect(DISTINCT r.via) AS via
       RETURN ${DECISION} AS d, via ${NEWEST}`, { p: target.path });
   } else if (target.kind === 'concept') {
-    found = await rows(g, `MATCH (d:Decision)-[:ABOUT]->(:Concept {name: $n})
-      RETURN ${DECISION} AS d, ['about'] AS via ${NEWEST}`, { n: target.name });
+    found = await rows(g, `MATCH (d:Decision)-[:ABOUT|ABOUT_BROADLY]->(c:Concept) WHERE ${CONCEPT_MATCH}
+      WITH DISTINCT d RETURN ${DECISION} AS d, ['about'] AS via ${NEWEST}`, { k: target.name });
   } else if (target.kind === 'decision') {
     found = await rows(g, `MATCH (d:Decision {id: $id}) RETURN ${DECISION} AS d, ['self'] AS via`, { id: target.id });
   }
@@ -109,7 +118,7 @@ export async function disproven(g: Graph, text: string): Promise<{ target: Targe
   const target = await resolveTarget(g, text);
   // Nothing named exactly: fall back to the entries a text search finds, so a topic still works.
   const scope = target.kind === 'file' ? 'MATCH (d:Decision)-[:RATIONALE]->(:File {path: $k})'
-    : target.kind === 'concept' ? 'MATCH (d:Decision)-[:ABOUT]->(:Concept {name: $k})'
+    : target.kind === 'concept' ? `MATCH (d:Decision)-[:ABOUT|ABOUT_BROADLY]->(c:Concept) WHERE ${CONCEPT_MATCH} WITH DISTINCT d`
     : target.kind === 'decision' ? 'MATCH (d:Decision {id: $k})'
     : 'MATCH (d:Decision) WHERE d.id IN $k';
   const k = target.kind === 'file' ? target.path : target.kind === 'concept' ? target.name : target.kind === 'decision' ? target.id
@@ -128,7 +137,7 @@ export interface Knower { name: string; kind: string; commits: number; last: str
 export async function whoKnows(g: Graph, text: string, limit = 5): Promise<{ target: Target; people: Knower[]; agents: Knower[] }> {
   const target = await resolveTarget(g, text);
   const match = target.kind === 'file' ? 'MATCH (p:Person)-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(:File {path: $k})'
-    : target.kind === 'concept' ? 'MATCH (p:Person)-[:AUTHORED]->(c:Commit)<-[:RECORDED_IN]-(:Decision)-[:ABOUT]->(:Concept {name: $k})'
+    : target.kind === 'concept' ? `MATCH (p:Person)-[:AUTHORED]->(c:Commit)<-[:RECORDED_IN]-(:Decision)-[:ABOUT|ABOUT_BROADLY]->(cc:Concept) WHERE ${CONCEPT_MATCH.replace(/c\.name/g, 'cc.name')}`
     : null;
   if (!match) return { target, people: [], agents: [] };
   const k = target.kind === 'file' ? target.path : (target as { name: string }).name;
@@ -138,9 +147,13 @@ export async function whoKnows(g: Graph, text: string, limit = 5): Promise<{ tar
   return { target, people: all.filter((p) => p.kind === 'human').slice(0, limit), agents: all.filter((p) => p.kind === 'agent').slice(0, limit) };
 }
 
-const PATH_RELS = ['RATIONALE', 'ABOUT', 'INVOLVES', 'BECAUSE', 'TESTED'];
+// Models are hubs like common concepts — "both mention gemma4" is not a reason — so INVOLVES is not walked.
+const PATH_RELS = ['RATIONALE', 'ABOUT', 'BECAUSE', 'TESTED'];
 
-/** The shortest chain of reasoning between two things — through decisions, never through a person or the log file. */
+/**
+ * The shortest chain of reasoning between two things — through decisions and specific concepts;
+ * never through a person, the log file, or a concept so common it would join anything (ABOUT_BROADLY).
+ */
 export async function connect(g: Graph, a: string, b: string, maxLen = 6) {
   const [ta, tb] = await Promise.all([resolveTarget(g, a), resolveTarget(g, b)]);
   const match = (t: Target, v: string) => t.kind === 'file' ? `(${v}:File {path: $${v}})` : t.kind === 'concept' ? `(${v}:Concept {name: $${v}})`
