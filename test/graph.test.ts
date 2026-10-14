@@ -65,8 +65,11 @@ describe.skipIf(!reachable)('ingest + trace on a real FalkorDB', () => {
     await ingestRepo(graph, repo);
     const people = await graph.roQuery<{ name: string; kind: string }>('MATCH (p:Person) RETURN p.name AS name, p.kind AS kind ORDER BY name');
     expect(people.data).toEqual([{ name: 'Ada Dev', kind: 'human' }, { name: 'Claude Test', kind: 'agent' }]);
-    const edges = await graph.roQuery<{ n: number }>('MATCH ()-[r]->() RETURN count(r) AS n');
-    expect(edges.data![0].n).toBe(1 + 2 + 1 + 2 + 1 + 1 + 1); // AUTHORED×3, TOUCHED×3, RECORDED_IN, CITES, MENTIONS
+    const edges = await graph.roQuery<{ t: string; n: number }>('MATCH ()-[r]->() RETURN type(r) AS t, count(r) AS n ORDER BY t');
+    expect(Object.fromEntries(edges.data!.map((e) => [e.t, e.n]))).toEqual({
+      AUTHORED: 3, TOUCHED: 3, RECORDED_IN: 1, CITES: 1, MENTIONS: 1,
+      RATIONALE: 2,   // prompt.ts is named by the entry AND changed by its recording commit: one edge per via
+    });
   });
 
   it('returns null for an unknown decision', async () => {

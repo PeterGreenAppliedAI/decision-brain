@@ -14,6 +14,7 @@
 import { config } from '../config.js';
 import type { Graph } from '../graph/db.js';
 import { writeRows } from '../graph/db.js';
+import { buildRationale } from '../graph/rationale.js';
 import { normalize } from '../team/extract.js';
 
 export interface IntegrationReport {
@@ -100,6 +101,7 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
       edges.filter((h) => h.relation === rel));
   }
   await brain.query('MATCH (n) WHERE (n:Concept OR n:Model) AND NOT (n)<--() DELETE n');
+  await buildRationale(brain);
 
   return {
     measurements: measurements.length, experiments: experiments.length,

@@ -41,4 +41,10 @@ export async function ensureSchema(graph: Graph): Promise<void> {
       if (!/already indexed/i.test(String(err))) throw err;
     }
   }
+  // search(): free text over decision titles and bodies
+  try {
+    await graph.createNodeFulltextIndex('Decision', 'title', 'body');
+  } catch (err) {
+    if (!/already (indexed|exists)/i.test(String(err))) throw err;
+  }
 }

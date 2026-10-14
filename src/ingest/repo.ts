@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Graph } from '../graph/db.js';
+import { buildRationale } from '../graph/rationale.js';
 import { ensureSchema } from '../graph/schema.js';
 import { findAdrDir, parseAdrDir } from './adr.js';
 import { ingestDecisions, parseDecisions, resolveRefs, type RefResolution } from './decisions.js';
@@ -49,5 +50,6 @@ export async function ingestRepo(graph: Graph, repo: string, decisionsFile = 'DE
   }
 
   await removeOrphans(graph);
+  await buildRationale(graph);
   return { commits: commits.length, files: files.size, decisions, refs, adrs };
 }

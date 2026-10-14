@@ -4,6 +4,41 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Day 2, Evening: Review Becomes the Track 01 Action (October 14 2026)
+
+Peter, watching the tools take shape: *"we are also inadvertently building a very good code review
+tool"*, then *"we might end up using this as our code review tool if we can make it consistent."*
+`review <commit>` is now the Track 01 action, and consistency is its requirement: the **packet is
+deterministic** (fixed queries, fixed sort, item ids assigned after sorting — the same change yields
+the same packet, asserted by a test), and a model write-up, if any, may only cite packet items.
+
+**The rationale graph.** PageRank over commit→file edges gave every file the same score: "touched by
+a commit" says nothing about reasoning. A derived edge, `(:Decision)-[:RATIONALE {via}]->(:File |
+:Decision)`, built by code and rebuilt whole after each ingest or integration, now carries "this
+decision rests on that". `load_bearing` is PageRank over it; `connect` is shortest paths over it plus
+concept edges, undirected (`relDirection: 'both'`), never through a person.
+
+**Recording commits carry housekeeping.** The first `review 54359df` listed "Double message delivery
+on Discord" as resting on `scripts/backfill-entities.ts` — only because the commit that recorded that
+entry also touched the script. A recorded file now counts only if the entry names it: its stem, or a
+directory segment on fewer than 10% of paths ("chrome-extension", never "src"). 686 → 297 edges.
+
+**Review must be judged as of the change.** Reviewing a July commit first called its own decision
+"superseded" and its experiment "disproven" — true only since September. A decision is superseded at
+review time only if its superseder is dated on or before the change; decisions dated after are
+ignored, except the one the change itself records (an entry is often dated the morning after the
+commit that wrote it — `54359df` is Sep 29 21:36, its entry Sep 30). Reviewers exclude the change's
+authors and count only commits made before it. Each case has a fixture test.
+
+**Two more bugs of mine, found by output that looked wrong.** `load_bearing` ranked CLAUDE.md and
+README first: the glob converter rewrote the `?` of regex text it had just inserted, so `**/*.md`
+became `/^([^/]:.[^/]*\/)[^/][^/]*\.md$/` and matched nothing. Placeholders now; tests added. Search
+put a long entry full of common words above the one about the question: entries containing every
+word now rank before entries containing any.
+
+**A second FalkorDB quirk:** `f.path ENDS WITH '/' + $q` parses as `(f.path ENDS WITH '/') + $q` —
+"Type mismatch: expected Boolean but was String". Parenthesize the right-hand side.
+
 ## Day 2: The Team, and the Reasoning Effort Nobody Set (October 14 2026)
 
 **Built:** the board graph (`<repo>__board`), local GLM workers, the code verifier, the integrator,

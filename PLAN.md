@@ -39,7 +39,7 @@ judged on three fronts — each earned by something the build needs anyway:
 |---|---|
 | **03 Company Brain** (primary) | The decision graph: decisions traced to evidence, commits, files and the **people** who authored them ("who owns what, who knows what"); answers with sources; knowledge kept current (incremental ingest + drift) |
 | **02 Memory & Coordination** | The **extraction team** — several local agents ingest the corpus in parallel, coordinating through a shared **board graph** (claims, findings, handoffs) — plus memory across sessions: questions asked, answers the owner confirmed or corrected; **one graph per repo** (tenant isolation via FalkorDB multigraph) |
-| **01 Agents on Connected Data** | Graph queries **and graph algorithms** (shortest path, PageRank) as MCP tools the agent chooses between, multi-hop answers with their path, and one action: the **drift agent** runs `still_true` over the docs and opens a fix list |
+| **01 Agents on Connected Data** | Graph queries **and graph algorithms** (shortest path, PageRank) as MCP tools the agent chooses between, multi-hop answers with their path, and the action: **`review` a commit or diff** — the graph says which decisions, measurements and disproven theories the change touches and who knows the code (the drift fix list is a secondary action) |
 
 The story: *a team of local agents builds a company brain together, then answers from it with receipts.*
 
@@ -107,6 +107,7 @@ by data, not by the model.
 | `what_breaks(file)` | Decisions whose rationale depends on this file — "what do I need to re-check if I change it?" |
 | `disproven(concept)` | Theories tried and rejected around a concept — so nobody retries them |
 | `still_true(decision_id)` | Does the current doc still say what the decision says? Flags drift |
+| `review(commit_or_diff)` | The deterministic review packet for a change (see Review below) |
 | `search(text)` | Entry point when the question names nothing exact |
 | `who_knows(file_or_concept)` | People ranked by commits touching it and decisions they carried out |
 | `connect(a, b)` | Shortest path between two concepts/files — "how is the router connected to memory?" |
@@ -114,6 +115,23 @@ by data, not by the model.
 
 The two algorithm tools are core, not stretch: FalkorDB has them built in, each is one query, and
 Track 01 names them. Every tool takes the graph (repo) name — one graph per repo.
+
+## Review — the Track 01 action (2026-10-14)
+
+Peter: *"we are also inadvertently building a very good code review tool"* — and *"we might end up using
+this as our code review tool if we can make it consistent."* Consistency is the requirement, so:
+
+1. **The review packet is deterministic** — code only. Changed files (from a commit, a range, or a
+   diff) → decisions whose rationale depends on them (MENTIONS, or recorded/cited commits that touched
+   them), each with its measurements and status → disproven experiments and failed decisions on the
+   same files and concepts → superseded reasoning to ignore → who knows the files (human authors by
+   commits). Fixed queries, stable ordering: the same diff gives the same packet, every time.
+2. **The write-up is optional and bounded** — the local model turns the packet into a short review
+   note, citing packet item ids for every claim; code rejects a claim citing anything not in the
+   packet. The wording may vary; the facts cannot.
+
+`npm run review -- --graph <g> <commit|range>` prints the packet (and the note with `--write`); the Ask
+view renders the same packet as a path. Demo: a real Invarail commit touching `src/router/prompt.ts`.
 
 ## The extraction team (Track 02)
 

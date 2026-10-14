@@ -30,6 +30,13 @@ export const config = {
   /** Where repos keep architecture decision records; the first that exists is ingested. */
   adrDirs: (process.env.ADR_DIRS ?? 'docs/adr,docs/adrs,doc/adr,docs/architecture/decisions,docs/decisions,docs/architecture/adr,adr')
     .split(',').map((d) => d.trim()).filter(Boolean),
+  /** Files a decision's recording commit touched that are not part of its rationale: lockfiles and
+   *  docs (the decision logs themselves are always excluded). Globs, comma-separated. */
+  rationaleExclude: (process.env.RATIONALE_EXCLUDE ?? '**/*.lock,**/package-lock.json,**/yarn.lock,**/pnpm-lock.yaml,**/*.md')
+    .split(',').map((g) => g.trim()).filter(Boolean),
+  /** A directory segment on fewer than this share of paths is distinctive enough to count as an entry
+   *  naming the files under it ("chrome-extension", never "src"). */
+  distinctiveSegmentShare: Number(process.env.DISTINCTIVE_SEGMENT_SHARE ?? 0.1),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };
