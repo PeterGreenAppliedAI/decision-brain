@@ -1,46 +1,45 @@
 # CONTINUATION — handoff for the next session
 
-Start here. Read this, then PLAN.md. Written 2026-10-06 at the end of a long Invarail session.
+Start here, then README.md (what exists, how to run it, the data model), PLAN.md (progress table,
+what's next) and DECISIONS.md (why everything is the way it is — newest first). Rewritten 2026-10-14,
+evening of Day 1 of the event (Oct 14 2:31 PM → Oct 18 2:29 PM EDT). The Oct 6 pre-event version is
+in git history.
 
-## What this is
+## Where things stand
 
-**Decision Brain** (working name): Peter Green's entry for **Graph Hacks: Context for AI Agents**
-(FalkorDB × WeMakeDevs, online, Oct 14 2:31 PM → Oct 18 2:29 PM EDT, $20K prizes; Peter is
-registered). An agent that answers "why is this codebase the way it is?" by walking a FalkorDB graph of
-decisions → evidence → commits → files, and **shows the path** behind every answer.
-Target: **all three tracks with one build** (2026-10-06 decision) — Track 03 Company Brain primary;
-Track 02 via a parallel extraction team coordinating through a board graph + question memory; Track 01
-via graph queries as MCP tools and a drift agent. The single-agent Track 03 build is the fallback.
-Confirmed 2026-10-14 (event FAQ): one project can enter all three tracks. Plan, schema draft, MCP tool list, demo
-questions and the four-day schedule: **PLAN.md**.
+Day 1 evening, well ahead of the plan: ingest, the extraction team, the integrator, the nine graph
+tools, the MCP server, the agent with its grounding check, `review`, and the live board view are built
+and tested (62 tests; CI green on GitHub). Both corpora are extracted and integrated. **Next:** the Ask
+and Path views (the Track 03 proof — never cut), question memory (Track 02), then drift (secondary),
+then Day 4: deployment, demo video, blog post. The repo is private at
+github.com/PeterGreenAppliedAI/decision-brain; making it public before submitting is Peter's call.
 
-## The rule that shapes everything
+## Running things
 
-> "You may reuse general libraries, templates, and infrastructure. The submission and its main
-> FalkorDB implementation must be new work completed during the event."
+- `npm run graph:up` — FalkorDB **6.0.2, pinned** (compose and CI), host port 6380 (6379 is Invarail's
+  live FalkorDB — never touch it). Data persists in the `falkordb-data` volume at
+  `/var/lib/falkordb/data` (it was mis-mounted at `/data` until Oct 14 — see DECISIONS). A pre-upgrade
+  dump is in `data/backups/` (gitignored).
+- Corpora live in `data/corpora/` (gitignored); Invarail is ingested from its own local clone.
+  Graphs: `invarail`, `content-publisher`, and their `__board` graphs.
+- The model is `glm-5.3-flash` on the GB10's vLLM; `LLM_URL` is in `.env` (gitignored). **Anything
+  that calls the model — `npm run team`, `npm run ask` — must run inside the `lab` tmux session**
+  (`tmux send-keys -t lab:probe '…' Enter`); a plain shell on the Mac mini is denied LAN access.
+  Ingest, review, trace, mcp and web don't need the model and run anywhere.
+- `LLM_REASONING_EFFORT=low` matters: GLM-5.3's template defaults to Max (minutes per call, truncated
+  JSON). Low measured 2–3× faster at equal quality.
+- `npm run web` serves the board view on 127.0.0.1:4100; it survives FalkorDB restarts.
 
-So: **no FalkorDB client code, no Cypher, no ingestion, no agent before Oct 14 2:31 PM EDT.** Before
-then only general, graph-agnostic work is allowed. The pre-event commit (0251824) holds exactly that.
-Keep the line visible in git history and say so in the submission.
+## Traps already found (details in DECISIONS.md)
 
-## State at handoff
-
-- `lib/llm.ts` — Ollama chat client: always streams (undici kills header-less connections at 5 min),
-  collects tool calls across every chunk (reading only the last chunk dropped them all in Invarail),
-  retries 429/5xx and connection failures, not 4xx. `stripThinking` for `<think>` blocks.
-- `lib/loop.ts` — generic tool-calling loop returning `{answer, steps[], exhausted}`. The steps trace is
-  what the "show the path" view will render.
-- 11 tests pass (`npm test`), typecheck clean (`npm run typecheck`), CI workflow written.
-- `docker-compose.yml` — stock FalkorDB on host port **6380** (6379 is Invarail's live FalkorDB — do
-  not touch it) and the Browser on 3030. `npm run graph:up`.
-- Local git only. Not on GitHub yet — creating the public repo is Peter's call.
-
-## The corpus
-
-The Invarail repo — a local clone of github.com/PeterGreenAppliedAI/Invarail (path passed to `npm run ingest`):
-`DECISIONS.md` (~1,900 lines, dated entries incl. disproven theories), git history (~800 commits;
-note: public history was rewritten 2026-09-30, so hashes cited in old notes may be stale — DECISIONS
-itself was remapped), `evals/*`, `docs/*`, `CLAUDE.md`. Read it; never modify it from this project.
+- FalkorDB 4.x: a pattern comprehension reusing a variable name from an earlier one returns `[]`.
+- FalkorDB 6.x: any comprehension after one that nests a comprehension returns `[]` — avoid nesting.
+- `a ENDS WITH '/' + $q` parses as `(a ENDS WITH '/') + $q` — parenthesize.
+- `RETURN x {…} AS x ORDER BY x.prop` sorts by the projection, not the node — alias differently.
+- An unnamed multi-type relationship (`-[:A|B]->`) yields one row per node pair on 6.x; name it for
+  one row per edge.
+- A full-text query on a missing index returns `[]`, not an error — `search()` checks the index.
+- Re-ingesting while the team runs is harmless, but don't make a habit of it.
 
 ## How Peter works (carry these over)
 
@@ -48,26 +47,20 @@ itself was remapped), `evals/*`, `docs/*`, `CLAUDE.md`. Read it; never modify it
   in config." Personal things never get committed.
 - **Never revert or make a major change without explicit approval.** On a measured regression, revert
   to known-good rather than piling on tuning — and say so.
-- **Verify before claiming.** Check exit codes, rerun after "fixes", and correct your own wrong numbers
-  openly with a dated note (this session had to, twice).
-- **Small local models are first-class.** Design for 7–30B; never let a big model become load-bearing.
-  qwen3.5:9b is the measured small-tier pick. Code decides; the model fills small, bounded slots
-  (grammar-constrained JSON), and code builds the edges.
-- **Keep a decision log** (DECISIONS-style, including what failed) — it is also the blog post.
-- **Ask before destructive or outward actions** (force-push, public repo, deleting data).
-- **LAN access:** node processes started from a plain shell on the Mac mini are denied LAN access by
-  macOS (EHOSTUNREACH). Run anything that talks to the GPU boxes inside the `lab` tmux session
-  (`tmux send-keys -t lab '…' Enter`). Model hosts come from `OLLAMA_URL` — never hardcode addresses,
-  never commit them.
+- **Verify before claiming.** Check exit codes, rerun after "fixes", and correct your own wrong
+  conclusions openly with a dated note — this event has needed it several times already (the
+  "stale hashes", the queueing GPU, the CI flake's cause).
+- **Small local models are first-class.** Code decides; the model fills small, bounded slots
+  (grammar-constrained JSON), and code builds the edges. **No paid API, anywhere** (Peter, Oct 14).
+- **Keep the decision log** (DECISIONS.md, including what failed) — it is also the blog post.
+- **Ask before outward or destructive actions** (making the repo public, force-push, deleting data).
+- **Edge cases before "done".** Peter, on Day 1: *"No way we tested enough to review edge cases."* An
+  audit of real output found eight defects. Test against the real corpus, not just fixtures.
 
-## Day 1 (from Oct 14 2:31 PM EDT)
+## The rule that shapes everything
 
-1. Finalize the schema in PLAN.md; write it as code (`src/graph/schema.ts`) with indexes.
-2. Ingest git history (commits, files, `TOUCHED`) — deterministic, no model.
-3. Parse DECISIONS.md headings/dates/sections into `:Decision` nodes with source line ranges; link
-   cited commit hashes and file paths by regex — deterministic first.
-4. `trace(decision_id)` working end to end on 10 hand-picked decisions, with tests against a real
-   FalkorDB (compose, port 6380).
-Day 2 adds the model-assisted extraction (measurements, experiments, SUPERSEDES/DISPROVED) with a
-fixed JSON schema and human spot-checks; Day 3 the MCP server + agent + path view; Day 4 a second repo,
-README, demo video, blog post (side prize: AirPods).
+> "The main coding and design work must begin after the hackathon starts. You may discuss ideas,
+> create notes, sketch the graph model, or prepare diagrams beforehand." AI assistants allowed, but
+> disclosed. Data must be public, synthetic or owned.
+
+Never copy or adapt Invarail's own FalkorDB code (`src/memory/`, orchestrator, dispatch) — ideas only.

@@ -4,6 +4,21 @@
 decisions, the evidence behind them, the commits that carried them out, and the files they touched —
 and **shows the path** behind every answer.
 
+## Progress (updated 2026-10-14, evening of Day 1)
+
+| Piece | State |
+|---|---|
+| Ingest: git, DECISIONS.md, ADRs; convergent re-ingest | done |
+| Extraction team: board, claims/expiry, handoffs, code verification, integrator | done — Invarail 151/151 (31 min), content-publisher 16/16 (81 s) |
+| Rationale graph, nine tools, MCP server | done |
+| Agent (local GLM over MCP) + grounding check | done — demo questions 1–4 answered, Kubernetes declined |
+| `review <commit>` (Track 01 action) | done — deterministic, as-of-change |
+| Board view (live) | done |
+| Ask + Path views | next |
+| Question memory | next |
+| Drift (`still_true`) — secondary action | later |
+| Deployment, demo video, blog post | Day 4 |
+
 ## The rules boundary (read first)
 
 > "You may reuse general libraries, templates, and infrastructure. The submission and its main
@@ -70,33 +85,14 @@ folder or CHANGELOG. It carries three things: "does it work on anything else?", 
 (`who_knows`) for Track 03, and visible tenant isolation (its own graph) for Track 02. Pick it before the
 event opens.
 
-## Graph schema (draft — finalize Day 1)
+## Graph schema — as built
 
-```
-(:Decision  {id, title, date, summary, status: active|superseded|reverted})
-(:Experiment{id, title, date, hypothesis, verdict: confirmed|disproven|inconclusive})
-(:Measurement {id, metric, value, unit, n, source})      // "0/20 vs 16/20", "18/30 → 30/30"
-(:Commit    {sha, date, message})
-(:File      {path})
-(:Model     {name})                                        // qwen3.5:9b, phi4 — decisions are often model-specific
-(:Doc       {path, section})                               // where the claim is written down now
-(:Concept   {name})                                        // "reroute", "write gate", "prefix cache"
-(:Person    {name, email})                                 // from git authors (deterministic); co-author trailers too
-
-(:Person)-[:AUTHORED]->(:Commit)
-
-(:Decision)-[:BECAUSE]->(:Measurement|:Experiment)
-(:Decision)-[:SUPERSEDES]->(:Decision)
-(:Experiment)-[:DISPROVED|:SUPPORTED]->(:Decision)         // a disproven theory is first-class
-(:Decision)-[:IMPLEMENTED_BY]->(:Commit)-[:TOUCHED]->(:File)
-(:Decision)-[:ABOUT]->(:Concept)
-(:Measurement)-[:ON_MODEL]->(:Model)
-(:Doc)-[:DESCRIBES]->(:Concept)
-(:Decision)-[:CITED_IN]->(:Doc)
-```
-
-Every node keeps `source` (file + line range or commit) — the "show the path" requirement is answered
-by data, not by the model.
+The draft that stood here (written before the event, as the rules allow) is superseded by the schema
+in code; the README's **graph data model** section is the reference. Changes from the draft, each
+with its reason in DECISIONS.md: `IMPLEMENTED_BY` became `RECORDED_IN` (git blame) and `CITES` (a
+cited hash is evidence, not implementation); `Person`/`AUTHORED` added; `Doc`/`DESCRIBES` not built
+yet (drift); `RATIONALE` added as a derived edge for PageRank and paths; `ABOUT_BROADLY` for common
+concepts; ADRs ingest into the same `Decision` shape.
 
 ## MCP tools (the agent's only way to see the graph)
 
