@@ -6,6 +6,12 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports: ['6380:6379']
+    env:
+      FALKORDB_URL: redis://127.0.0.1:6380
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
