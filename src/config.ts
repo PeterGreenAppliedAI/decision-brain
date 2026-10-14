@@ -47,6 +47,10 @@ export const config = {
   /** Instruction files written for AI coding agents — intent sources with a version history. */
   instructionFiles: (process.env.INSTRUCTION_FILES ?? '**/AGENTS.md,**/CLAUDE.md,**/GEMINI.md,**/.cursorrules,**/.cursor/rules/**,**/.github/copilot-instructions.md,**/.windsurfrules')
     .split(',').map((g) => g.trim()).filter(Boolean),
+  /** Where each graph's repo is checked out ("graph=/path;graph2=/path") — lets review rebuild the
+   *  decision log at a commit from MCP and the web too. Personal paths: .env only. */
+  repoPaths: Object.fromEntries((process.env.REPO_PATHS ?? '').split(';').filter(Boolean)
+    .map((pair) => pair.split('=').map((s) => s.trim()) as [string, string])),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };

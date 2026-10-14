@@ -6,7 +6,7 @@
  */
 import { parseArgs } from 'node:util';
 import { connect, GraphConnectError } from '../graph/db.js';
-import { renderPacket, review } from './review.js';
+import { renderPacket, repoFor, review } from './review.js';
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -22,7 +22,7 @@ const db = await connect().catch((err) => {
   process.exit(1);
 });
 try {
-  const packet = await review(db.selectGraph(values.graph), positionals[0], { repo: values.repo, reviewers: Number(values.reviewers) });
+  const packet = await review(db.selectGraph(values.graph), positionals[0], { repo: repoFor(values.graph, values.repo), reviewers: Number(values.reviewers) });
   console.log(values.json ? JSON.stringify(packet, null, 2) : renderPacket(packet));
 } catch (err) {
   console.error((err as Error).message);

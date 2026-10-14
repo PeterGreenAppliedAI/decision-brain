@@ -77,12 +77,14 @@ export function parseAdr(file: string, text: string, idOf: (n: number) => string
   };
 }
 
-/** Every ADR in a directory; ids are "adr-" + the file's number as written ("adr-0013"). */
+/** ADR files (name + text) → entries; ids are "adr-" + the file's number as written ("adr-0013"). */
+export function parseAdrFiles(dir: string, files: Array<{ name: string; text: string }>): DecisionEntry[] {
+  const adrs = files.filter((f) => ADR_FILE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const byNumber = new Map(adrs.map((f) => [Number(ADR_FILE.exec(f.name)![1]), `adr-${ADR_FILE.exec(f.name)![1]}`]));
+  return adrs.map((f) => ({ ...parseAdr(f.name, f.text, (n) => byNumber.get(n)), id: `adr-${ADR_FILE.exec(f.name)![1]}`, file: `${dir}/${f.name}` }));
+}
+
+/** Every ADR in a directory of the working tree. */
 export function parseAdrDir(repo: string, dir: string): DecisionEntry[] {
-  const files = readdirSync(join(repo, dir)).filter((f) => ADR_FILE.test(f)).sort();
-  const byNumber = new Map(files.map((f) => [Number(ADR_FILE.exec(f)![1]), `adr-${ADR_FILE.exec(f)![1]}`]));
-  return files.map((f) => {
-    const e = parseAdr(f, readFileSync(join(repo, dir, f), 'utf8'), (n) => byNumber.get(n));
-    return { ...e, id: `adr-${ADR_FILE.exec(f)![1]}`, file: `${dir}/${f}` };
-  });
+  return parseAdrFiles(dir, readdirSync(join(repo, dir)).map((name) => ({ name, text: ADR_FILE.test(name) ? readFileSync(join(repo, dir, name), 'utf8') : '' })));
 }

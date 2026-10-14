@@ -4,6 +4,29 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Review As It Stood: the Log Rebuilt at the Commit (October 14 2026, night)
+
+The review's third point. `review` with the repo at hand now rebuilds the decision log as it stood at
+the reviewed commit, from git: only entries that existed then count, each with the status its own text
+gave it then, and extracted evidence is kept only where the entry's text is unchanged since (content
+hashes). Without the repo it falls back to date filtering and the packet says "approximate". Every
+packet carries its basis and a fingerprint of the graph state. The fixture holds the cases the review
+named — an entry written later but backdated (by-date lets it in; the rebuild does not), an entry
+edited after the commit (evidence omitted, flagged), an entry marked superseded later (standing then).
+Mutation-checked. On real data: `54359df` — 149 entries existed then (two were written later), 2 have
+been edited since; content-publisher `126a40b5`, the commit that allowed deleting access-limited
+editions, precedes ADR 13 by a week, and the rebuilt packet correctly does not cite it.
+A false alarm of mine on the way: "R2 disappeared" — I had cut the output one line short. Still open:
+a decision's id follows its title, so an entry whose heading was edited later is not recognised as
+its earlier self.
+
+**Evaluation labels: model-drafted, not human — said plainly.** Peter asked why GLM could not label
+and Claude check. It can, with the circularity named: GLM judges each candidate decision alone
+against its full text, quoting the sentence that makes it relevant (code checks the quote is in the
+entry); Claude reviews every label against those quotes before seeing any results; Peter spot-checks
+a sample and the agreement rate is reported. Ownership labels come from git. The README will say
+"model-drafted, quote-checked, Claude-reviewed, owner spot-checked k/25" — not "human-labelled".
+
 ## An Outside Review, and What It Was Right About (October 14 2026, night)
 
 Peter brought an outside review. Its verdict on the idea — "before changing this, here's why it

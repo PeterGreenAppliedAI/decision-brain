@@ -24,7 +24,8 @@
     "summarize": "tsx --env-file-if-exists=.env src/files/cli.ts",
     "eval:candidates": "tsx --env-file-if-exists=.env src/eval/candidates.ts",
     "eval:run": "tsx --env-file-if-exists=.env src/eval/run.ts",
-    "eval:score": "tsx --env-file-if-exists=.env src/eval/run.ts --score"
+    "eval:score": "tsx --env-file-if-exists=.env src/eval/run.ts --score",
+    "eval:draft": "tsx --env-file-if-exists=.env src/eval/label-draft.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

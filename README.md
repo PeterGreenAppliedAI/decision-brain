@@ -50,9 +50,11 @@ ADRs ─────┘ └─────────────────�
 4. **Review — the action.** `review <commit>` builds a deterministic packet for a change: the decision
    it records, standing decisions resting on its files (with their measurements) to re-check,
    experiments already disproven there, superseded reasoning not to cite, and who knows the files —
-   filtered **by date as of the change**. For a given state of the graph the packet is deterministic:
-   the same commit gives the same packet. It is not yet a reconstruction of the decision log *as it
-   stood* at that commit — later edits to an entry can show through (see Limitations).
+   **as of the change**: with the repo at hand, the decision log is rebuilt as it stood at that commit
+   from git — only entries that existed then, each with the status its own text gave it then, and
+   extracted evidence kept only where the entry's text is unchanged since (content hashes). Without
+   the repo, decisions are filtered by date, and the packet says it is approximate. Each packet
+   records its basis and a fingerprint of the graph state: same commit, same graph → same packet.
 
 ## What code checks — and what it doesn't
 
@@ -90,9 +92,11 @@ system never grades itself.
 - **File summaries are flagged stale, not yet re-made automatically.** `what_is` reports when a file
   changed since its summary; re-running `summarize` re-does every file, not only the changed ones.
   (Decision evidence *is* invalidated precisely: see "Evidence follows the text" above.)
-- **Historical review is approximate.** `review` filters the current graph by date; it does not yet
-  rebuild the decision log as it stood at the reviewed commit. Dates are UTC, and decision-log dates
-  are the author's calendar dates, so "as of" can shift by a day around midnight.
+- **A retitled entry looks new to a historical review.** A decision's id follows its title, so an
+  entry whose *heading* was edited after the reviewed commit is not matched to its earlier self, and
+  is treated as not existing then. (Text edits are handled; heading edits are not yet.)
+- **The by-date fallback is approximate** (no repo path given): an entry written later but dated
+  earlier shows through. Set `REPO_PATHS` (or pass `--repo`) for the rebuilt review.
 - **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files
   gets ownership, history and file summaries — not reasons. Commit messages and PR descriptions are
   not mined yet.

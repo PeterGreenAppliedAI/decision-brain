@@ -33,7 +33,8 @@ export function parseLabels(md: string): Map<string, Label> {
     if (add) cur.relevant.push(...add[1].split(/[,\s]+/).filter(Boolean));
     const rev = /^reviewers:\s*(.+)$/i.exec(line.trim());
     if (rev) cur.reviewers = rev[1].split(',').map((x) => x.trim()).filter(Boolean);
-    const done = /^labelled:\s*(yes|y|done)/i.exec(line.trim());
+    // "draft" (model-drafted) does not count; only a confirmed label does.
+    const done = /^labelled:\s*(yes|y|done)\b/i.exec(line.trim());
     if (done) cur.labelled = true;
     const note = /^note:\s*(.+)$/i.exec(line.trim());
     if (note) cur.note = note[1];

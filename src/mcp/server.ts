@@ -13,7 +13,7 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { connect, type Graph } from '../graph/db.js';
 import { connect as connectPath, disproven, loadBearing, origin, search, told, trace, whatBreaks, whatIs, whoKnows, why } from '../tools/graph-tools.js';
-import { review } from '../tools/review.js';
+import { repoFor, review } from '../tools/review.js';
 
 const { values } = parseArgs({ options: { graph: { type: 'string' } } });
 const defaultGraph = values.graph ?? process.env.DEFAULT_GRAPH;
@@ -97,7 +97,7 @@ server.registerTool('told', {
 server.registerTool('review', {
   description: 'The deterministic review packet for a commit: the decision it records, standing decisions on its files to re-check (with measurements), disproven experiments, superseded reasoning, and reviewers — all as of the commit. Items have stable ids (C1, R1, D1, S1, P1).',
   inputSchema: { commit: z.string().describe('A commit sha or unique prefix'), ...graphArg },
-}, run((g, a: { commit: string }) => review(g, a.commit)));
+}, run((g, a: { commit: string; graph?: string }) => review(g, a.commit, { repo: repoFor(a.graph ?? defaultGraph ?? '') })));
 
 await server.connect(new StdioServerTransport());
 console.error(`[mcp] decision-brain ready${defaultGraph ? ` (graph: ${defaultGraph})` : ''}`);

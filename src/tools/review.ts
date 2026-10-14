@@ -6,17 +6,25 @@
  * For each changed file the graph answers: which standing decisions rest on it (re-check them, on this
  * evidence), what was tried around it and failed (don't retry), which reasoning about it is
  * superseded (don't cite it), and who knows it (reviewers — never the change's own authors).
- * Reviewing a past commit uses only decisions dated up to that commit.
+ *
+ * As of the change. With the repo at hand, the decision log is rebuilt as it stood at the commit
+ * (from git): only entries that existed then count, each with the status its own text gave it then,
+ * and extracted evidence is kept only where the entry's text is unchanged since (content hashes).
+ * Without the repo, decisions are filtered by date — an approximation the packet names as such.
+ * Every packet records its basis and a fingerprint of the graph state it was built from.
  */
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { config } from '../config.js';
 import type { Graph } from '../graph/db.js';
+import { entriesAt, type EntryThen } from '../ingest/at-commit.js';
 import { disproven, whatBreaks, why, type DecisionRef, type Measured, type Tried } from './graph-tools.js';
 
 export interface ReviewItem {
   id: string;
   kind: 'records' | 'recheck' | 'disproven' | 'superseded' | 'reviewer';
   file?: string;
-  decision?: DecisionRef & { via?: string[] };
+  decision?: DecisionRef & { via?: string[]; statusThen?: string; evidence?: 'current' | 'omitted: entry edited since this commit' };
   measurements?: Measured[];
   experiments?: Tried[];
   experiment?: Tried;
@@ -27,7 +35,23 @@ export interface ReviewItem {
 export interface ReviewPacket {
   change: { ref: string; sha: string | null; date: string | null; authors: string[]; message: string | null; files: string[]; unknownFiles: string[] };
   asOf: string | null;
+  /** How "as of the change" was established, and which graph state the packet was built from. */
+  basis: { method: 'log-at-commit' | 'by-date'; entriesThen: number | null; editedSince: number | null; fingerprint: string };
   items: ReviewItem[];
+}
+
+/** Same graph state, same fingerprint: decisions' content hashes plus the counts of extracted evidence. */
+async function fingerprint(g: Graph): Promise<string> {
+  const ds = (await g.roQuery<{ id: string; h: string | null }>('MATCH (d:Decision) RETURN d.id AS id, d.contentHash AS h ORDER BY id')).data ?? [];
+  const n = (await g.roQuery<{ m: number; e: number; r: number }>(
+    `OPTIONAL MATCH (m:Measurement) WITH count(m) AS m OPTIONAL MATCH (e:Experiment) WITH m, count(e) AS e
+     OPTIONAL MATCH ()-[r:SUPERSEDES|REVISES|DISPROVES]->() RETURN m, e, count(r) AS r`)).data?.[0];
+  return createHash('sha1').update(JSON.stringify([ds, n])).digest('hex').slice(0, 12);
+}
+
+/** Where a graph's repo lives, from REPO_PATHS ("graph=/path;…" in .env) — so MCP and the web can rebuild too. */
+export function repoFor(graph: string, explicit?: string): string | undefined {
+  return explicit ?? config.repoPaths[graph];
 }
 
 const rows = async <T>(g: Graph, cypher: string, params: Record<string, unknown> = {}) =>
@@ -54,75 +78,88 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
   const asOf = change.date?.slice(0, 10) ?? null;
   const known = new Set((await rows<{ p: string }>(g, 'MATCH (f:File) WHERE f.path IN $files RETURN f.path AS p', { files: change.files })).map((r) => r.p));
   change.unknownFiles = change.files.filter((f) => !known.has(f));
-  const inTime = (d: { date: string | null }) => !asOf || !d.date || d.date.slice(0, 10) <= asOf;
+
+  // The decision log as it stood at the commit, when the repo is at hand.
+  const sources = (await rows<{ f: string }>(g, 'MATCH (d:Decision) RETURN DISTINCT d.sourceFile AS f')).map((r) => r.f).filter(Boolean);
+  const then: Map<string, EntryThen> | null = opts.repo && change.sha ? entriesAt(opts.repo, change.sha, sources) : null;
+  const hashNow = new Map((await rows<{ id: string; h: string | null }>(g, 'MATCH (d:Decision) RETURN d.id AS id, d.contentHash AS h')).map((r) => [r.id, r.h]));
+  const existed = (d: { id: string; date: string | null }) => then ? then.has(d.id) : (!asOf || !d.date || d.date.slice(0, 10) <= asOf);
+  const evidenceOk = (id: string) => !then || then.get(id)?.hash === hashNow.get(id);
+  const withThen = <D extends DecisionRef>(d: D) => then?.has(d.id)
+    ? { ...d, statusThen: then.get(d.id)!.status, evidence: evidenceOk(d.id) ? 'current' as const : 'omitted: entry edited since this commit' as const }
+    : d;
   const recordedHere = new Set(change.sha
     ? (await rows<{ id: string }>(g, 'MATCH (d:Decision)-[:RECORDED_IN]->(:Commit {sha: $sha}) RETURN d.id AS id', { sha: change.sha })).map((r) => r.id)
     : []);
 
   const items: Omit<ReviewItem, 'id'>[] = [];
   const seen = new Set<string>();
-  // What this change itself records — always shown, whatever its date (an entry is often dated the
-  // morning after the commit that wrote it).
+  // What this change itself records — always shown (an entry is often dated the morning after the
+  // commit that wrote it).
   for (const d of await rows<{ d: DecisionRef }>(g,
     "MATCH (d:Decision)-[:RECORDED_IN]->(:Commit {sha: $sha}) RETURN d {.id, .title, .date, .status, .source} AS d ORDER BY d.id",
     { sha: change.sha ?? '' })) {
     seen.add(`records|${d.d.id}`);
-    const own = (await why(g, d.d.id)).decisions[0];
-    items.push({ kind: 'records', decision: d.d, measurements: own?.measurements ?? [], experiments: own?.experiments ?? [] });
+    const own = evidenceOk(d.d.id) ? (await why(g, d.d.id)).decisions[0] : undefined;
+    items.push({ kind: 'records', decision: withThen(d.d), measurements: own?.measurements ?? [], experiments: own?.experiments ?? [] });
   }
-  // Status as of the change: a decision was superseded at review time only if what superseded it is
-  // dated on or before the change. With no known superseder there is no date to check — keep it.
+  // Settled as of the change: with the log at the commit, by the entry's own status then, or by a
+  // superseder that existed then; by date otherwise.
   const replacedBy = async (id: string) => (await rows<{ id: string; title: string; date: string | null }>(g,
     'MATCH (n:Decision)-[:SUPERSEDES|REVISES|DISPROVES]->(:Decision {id: $id}) RETURN n.id AS id, n.title AS title, n.date AS date ORDER BY n.id', { id }));
+  const SETTLED = ['superseded', 'failed'];
 
   for (const file of change.files.filter((f) => known.has(f))) {
     const b = await whatBreaks(g, file);
-    const standing = [...b.recheck];
-    const settled: Array<{ d: (typeof b.history)[number]; by: Array<{ id: string; title: string }> }> = [];
-    for (const d of b.history) {
-      const all = await replacedBy(d.id);
-      const by = all.filter(inTime);
-      if (all.length && !by.length && d.status === 'superseded') standing.push(d);   // replaced only later
-      else settled.push({ d, by: by.map(({ id, title }) => ({ id, title })) });
+    const all = [...b.recheck, ...b.history].filter(existed);
+    const standing: typeof all = [];
+    const settled: Array<{ d: (typeof all)[number]; by: Array<{ id: string; title: string }> }> = [];
+    for (const d of all) {
+      const by = (await replacedBy(d.id)).filter(existed).map(({ id, title }) => ({ id, title }));
+      const statusThen = then?.get(d.id)?.status ?? d.status;
+      const settledThen = then ? (SETTLED.includes(statusThen) || by.length > 0) : (SETTLED.includes(d.status) && (by.length > 0 || d.status !== 'superseded' || (await replacedBy(d.id)).length === 0));
+      if (settledThen) settled.push({ d, by }); else standing.push(d);
     }
-    for (const d of standing.filter(inTime)) {
+    for (const d of standing) {
       if (recordedHere.has(d.id) || seen.has(`recheck|${d.id}`)) continue;   // one item per decision, under the first file that reached it
       seen.add(`recheck|${d.id}`);
       const { measurements, experiments: _e, ...decision } = d;
-      items.push({ kind: 'recheck', file, decision, measurements });
+      items.push({ kind: 'recheck', file, decision: withThen(decision), measurements: evidenceOk(d.id) ? measurements : [] });
     }
     const dis = await disproven(g, file);
-    for (const e of dis.experiments.filter((x) => inTime(x.decision) && !recordedHere.has(x.decision.id))) {
+    for (const e of dis.experiments.filter((x) => existed(x.decision) && evidenceOk(x.decision.id) && !recordedHere.has(x.decision.id))) {
       if (seen.has(`disproven|${e.id}`)) continue;
       seen.add(`disproven|${e.id}`);
       const { decision, ...experiment } = e;
-      items.push({ kind: 'disproven', file, decision, experiment });
+      items.push({ kind: 'disproven', file, decision: withThen(decision), experiment });
     }
-    for (const { d, by } of settled.filter((x) => inTime(x.d) && !recordedHere.has(x.d.id))) {
+    for (const { d, by } of settled.filter((x) => !recordedHere.has(x.d.id))) {
       if (seen.has(`superseded|${d.id}`)) continue;
       seen.add(`superseded|${d.id}`);
       const { measurements: _m, experiments: _x, ...decision } = d;
-      items.push({ kind: 'superseded', file, decision, supersededBy: by });
+      items.push({ kind: 'superseded', file, decision: withThen(decision), supersededBy: by });
     }
   }
 
-  // Reviewers: humans with the most commits on the changed files, as of the change, excluding its authors.
+  // Reviewers: humans with the most commits on the changed files before the change, excluding its authors.
   const people = await rows<{ name: string; commits: number; files: string[] }>(g,
     `MATCH (p:Person {kind: 'human'})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)
-     WHERE f.path IN $files AND NOT p.name IN $authors AND ($asOf IS NULL OR substring(c.date, 0, 10) <= $asOf)
+     WHERE f.path IN $files AND NOT p.name IN $authors AND ($at IS NULL OR c.date <= $at)
      WITH p, count(DISTINCT c) AS commits, collect(DISTINCT f.path) AS files
      RETURN p.name AS name, commits, files ORDER BY commits DESC, name LIMIT $n`,
-    { files: change.files, authors: change.authors, asOf, n: opts.reviewers ?? 3 });
+    { files: change.files, authors: change.authors, at: change.date, n: opts.reviewers ?? 3 });
   for (const p of people) items.push({ kind: 'reviewer', reviewer: { ...p, files: p.files.sort() } });
 
-  // Fixed order, then ids: the same change always yields the same ids.
+  // Fixed order, then ids: the same change on the same graph always yields the same ids.
   const order = ['records', 'recheck', 'disproven', 'superseded', 'reviewer'];
   const prefix: Record<string, string> = { records: 'C', recheck: 'R', disproven: 'D', superseded: 'S', reviewer: 'P' };
   const counters: Record<string, number> = {};
   const sorted = items.map((it, i) => ({ it, i })).sort((a, b) =>
     order.indexOf(a.it.kind) - order.indexOf(b.it.kind) || a.i - b.i).map(({ it }) => it);
+  const editedSince = then ? [...then.keys()].filter((id) => hashNow.has(id) && then.get(id)!.hash !== hashNow.get(id)).length : null;
   return {
     change, asOf,
+    basis: { method: then ? 'log-at-commit' : 'by-date', entriesThen: then?.size ?? null, editedSince, fingerprint: await fingerprint(g) },
     items: sorted.map((it) => ({ id: `${prefix[it.kind]}${(counters[it.kind] = (counters[it.kind] ?? 0) + 1)}`, ...it })),
   };
 }
@@ -135,9 +172,14 @@ export function renderPacket(p: ReviewPacket, perDecision = 3): string {
   const c = p.change;
   const out = [`# Review packet — ${c.sha ? c.sha.slice(0, 7) : c.ref}`,
     c.message ? `> ${c.message.slice(0, 200)}` : '',
-    `${c.files.length} files changed${c.authors.length ? ` · by ${c.authors.join(', ')}` : ''}${p.asOf ? ` · decisions as of ${p.asOf}` : ''}` +
-      (c.unknownFiles.length ? ` · ${c.unknownFiles.length} not in the graph yet` : ''), ''];
-  const dec = (d: DecisionRef) => `**${d.title}** (${d.date ?? 'undated'}, ${d.status}) — \`${d.source}\``;
+    `${c.files.length} files changed${c.authors.length ? ` · by ${c.authors.join(', ')}` : ''}${p.asOf ? ` · as of ${p.asOf}` : ''}` +
+      (c.unknownFiles.length ? ` · ${c.unknownFiles.length} not in the graph yet` : ''),
+    p.basis.method === 'log-at-commit'
+      ? `_Decision log rebuilt as it stood at this commit (${p.basis.entriesThen} entries${p.basis.editedSince ? `; ${p.basis.editedSince} edited since — their extracted evidence omitted` : ''}) · graph ${p.basis.fingerprint}_`
+      : `_Approximate: decisions filtered by date, not rebuilt from the log at this commit (pass --repo to rebuild) · graph ${p.basis.fingerprint}_`, ''];
+  const dec = (d: DecisionRef & { statusThen?: string; evidence?: string }) =>
+    `**${d.title}** (${d.date ?? 'undated'}, ${d.statusThen && d.statusThen !== d.status ? `${d.statusThen} then, ${d.status} now` : d.status}) — \`${d.source}\`` +
+    (d.evidence && d.evidence !== 'current' ? ` — _${d.evidence}_` : '');
   const section = (kind: ReviewItem['kind'], title: string, line: (i: ReviewItem) => string) => {
     const list = p.items.filter((i) => i.kind === kind);
     if (list.length) out.push(`## ${title}`, ...list.map((i) => `- **${i.id}** ${line(i)}`), '');
