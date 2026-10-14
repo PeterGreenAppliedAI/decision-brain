@@ -4,6 +4,44 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## An Outside Review, and What It Was Right About (October 14 2026, night)
+
+Peter brought an outside review. Its verdict on the idea — "before changing this, here's why it
+exists and what already failed" — was positive; its three criticisms were all correct, checked
+against the code before acting on any of them.
+
+**1. "Grounded" promised more than the checker established.** It checked that cited ids appeared in
+tool results, not that the results supported the answer: "every request succeeded [id]" against
+evidence saying 0/20 passed, and so did an answer containing "I don't know" that went on to claim
+figures. The single label is now three, each claiming only what code checks — **citations** (each
+names something a tool returned), **figures** (every number appears in the evidence its citation
+brought, scoped to its paragraph or list block), **abstention** (opens by declining, claims nothing)
+— and the prose is labelled model-written. 13 adversarial tests, mutation-checked (disable the
+figure check → 4 fail). On the demo questions the stricter check found real problems: the agent
+citing tool calls ("[who_knows: app/x.rb]") instead of ids, and "ADR 13" read as a figure. The
+extraction verifier was relabelled the same way: a quote match proves provenance, not that a verdict
+of "disproven" means what the quote means. A "What code checks — and what it doesn't" table is in the
+README.
+
+**2. Evidence was not invalidated when an entry changed.** Editing an entry without retitling it
+left its old findings attached to new text. Now: a content hash on every decision; every finding
+stamped with the hash of the text it was read from (same query as the text); every confirmed
+relation stamped with the hash of the other side; the integrator promotes only evidence matching
+current text and reports what it dropped; seeding resets changed entries, marks their findings
+stale, reopens relations that quote them, and removes entries that no longer exist — but never on
+a limited seed, where absent does not mean deleted (that bug was in the first draft). The existing
+1,931 findings were backfilled by a script that refuses unless the decision log's last change is
+older than the first finding (Invarail: Oct 5 < Oct 14; content-publisher: 2020); integration
+afterwards gave identical counts and 0 stale.
+
+**3. Historical review is approximate** — the README's "same commit, same packet, every time" was
+false and is corrected: deterministic for a given graph, filtered by date, not yet rebuilt from the
+decision log as it stood at that commit. Next after the evaluation set.
+
+**Its strongest suggestion is the next step:** a small human-labelled evaluation set — relevant
+decisions found, unsupported claims, stale evidence, correct abstentions — compared with simply
+searching the decision log. Every claim so far is anecdotal; that set makes it measured.
+
 ## Code Knowledge and AI Provenance (October 14 2026, evening)
 
 Three of Peter's ideas, built the same evening.

@@ -32,8 +32,9 @@ export interface WorkerOptions {
 export interface WorkerStats { sections: number; handoffs: number; lost: number; errors: number }
 
 async function readDecision(brain: Graph, id: string) {
-  const res = await brain.roQuery<{ id: string; title: string; body: string }>(
-    'MATCH (d:Decision {id: $id}) RETURN d.id AS id, d.title AS title, d.body AS body', { params: { id } });
+  // The hash comes from the same read as the text, so a finding is stamped with exactly what it was extracted from.
+  const res = await brain.roQuery<{ id: string; title: string; body: string; hash: string | null }>(
+    'MATCH (d:Decision {id: $id}) RETURN d.id AS id, d.title AS title, d.body AS body, d.contentHash AS hash', { params: { id } });
   return res.data?.[0] ?? null;
 }
 
@@ -70,7 +71,7 @@ export async function runWorker(o: WorkerOptions): Promise<WorkerStats> {
           user: handoffUser({ relation: h.relation, quote: h.quote, raiser: { id: h.source, title: titles.get(h.source) ?? h.source }, other: target }),
         }));
         const verdict = verifyHandoff(res.value, target.body);
-        if (await resolveHandoff(o.board, o.name, h.key, verdict)) stats.handoffs++; else stats.lost++;
+        if (await resolveHandoff(o.board, o.name, h.key, verdict, Date.now(), target.hash)) stats.handoffs++; else stats.lost++;
         log(`${o.name}: handoff ${h.key} → ${verdict.confirmed ? 'confirmed' : 'rejected'} (${res.ms} ms)`);
       } catch (err) {
         stats.errors++;
@@ -92,7 +93,7 @@ export async function runWorker(o: WorkerOptions): Promise<WorkerStats> {
         }));
         const findings = verifyExtraction(res.value, section, o.index);
         const note = `${res.ms} ms, ${res.completionTokens} tokens`;
-        if (await completeSection(o.board, o.name, claim.id, findings, note)) stats.sections++; else stats.lost++;
+        if (await completeSection(o.board, o.name, claim.id, findings, note, Date.now(), section.hash)) stats.sections++; else stats.lost++;
         log(`${o.name}: ${claim.id} → ${findings.filter((f) => f.verified).length}/${findings.length} verified (${res.ms} ms)`);
       } catch (err) {
         stats.errors++;

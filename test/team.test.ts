@@ -7,6 +7,7 @@ import { claimHandoff, claimSection, completeSection, registerAgent, resolveHand
 import { integrate } from '../src/board/integrate.js';
 import { connect, type Graph } from '../src/graph/db.js';
 import type { JsonClient } from '../src/llm/openai.js';
+import { contentHash } from '../src/ingest/decisions.js';
 import { handoffUser, verifyExtraction, verifyHandoff, type Extraction } from '../src/team/extract.js';
 import { runWorker } from '../src/team/worker.js';
 
@@ -96,6 +97,13 @@ describe.skipIf(!reachable)('the team on a real board', () => {
   let board: Graph;
   const tag = `${process.pid}-${Date.now()}`;
   let n = 0;
+  /** Stamp hand-made decisions with their content hash, as ingest does. */
+  const stamp = async () => {
+    const ds = (await brain.roQuery<{ id: string; title: string; body: string }>('MATCH (d:Decision) RETURN d.id AS id, d.title AS title, d.body AS body')).data!;
+    await brain.query('UNWIND $rows AS r MATCH (d:Decision {id: r.id}) SET d.contentHash = r.h',
+      { params: { rows: ds.map((d) => ({ id: d.id, h: contentHash(d.title, d.body) })) as never } });
+  };
+  const hashOf = async (id: string) => (await brain.roQuery<{ h: string }>('MATCH (d:Decision {id: $id}) RETURN d.contentHash AS h', { params: { id } })).data![0].h;
 
   beforeEach(async () => {
     db ??= await connect();
@@ -107,6 +115,7 @@ describe.skipIf(!reachable)('the team on a real board', () => {
       { params: { rows: [
         { ...index[0], body: NEW_BODY }, { ...index[1], body: OLD_BODY }, { ...index[2], body: OTHER_BODY },
       ] as never } });
+    await stamp();
     await seedBoard(board, brain);
   });
   afterEach(async () => {
@@ -153,7 +162,7 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     expect(h[0].resolvedBy).not.toBe(h[0].raisedBy);                     // two agents agreed
 
     const report = await integrate(board, brain);
-    expect(report).toEqual({ measurements: 1, experiments: 0, concepts: 2, models: 1, edges: 1, generic: [] });  // 3 entries: below the minimum count
+    expect(report).toEqual({ measurements: 1, experiments: 0, concepts: 2, models: 1, edges: 1, generic: [], stale: { findings: 0, handoffs: 0 } });  // 3 entries: below the minimum count
     const edge = (await brain.roQuery<{ s: string; t: string; by: string; ok: string }>(
       'MATCH (s:Decision)-[e:SUPERSEDES]->(t:Decision) RETURN s.id AS s, t.id AS t, e.raisedBy AS by, e.confirmedBy AS ok')).data!;
     expect(edge).toEqual([{ s: 'd-new', t: 'd-old', by: h[0].raisedBy, ok: h[0].resolvedBy }]);
@@ -179,13 +188,14 @@ describe.skipIf(!reachable)('the team on a real board', () => {
   it("links a concept nearly every entry contains only broadly — kept for topics, never a path", async () => {
     await brain.query(`UNWIND range(1, 6) AS i CREATE (:Decision {id: 'x' + toString(i), title: 't', body: 'LocalClaw did thing ' + toString(i)})`);
     await brain.query("MATCH (d:Decision) WHERE d.id STARTS WITH 'd-' SET d.body = d.body + ' LocalClaw.'");
+    await stamp();
     await seedBoard(board, brain);
     await registerAgent(board, 'w', 'm');
     const c = await claimSection(board, 'w', 5000, 3);
     await completeSection(board, 'w', c!.id, [
       { kind: 'concept', data: { name: 'LocalClaw' }, quote: null, verified: true, reason: null },
       { kind: 'concept', data: { name: 'thing 3' }, quote: null, verified: true, reason: null },
-    ], 'test');
+    ], 'test', Date.now(), await hashOf(c!.id));
     const report = await integrate(board, brain);
     expect(report.generic).toEqual([{ name: 'localclaw', share: 1 }]);
     expect((await brain.roQuery<{ c: string; r: string }>('MATCH (:Decision)-[r]->(c:Concept) RETURN c.name AS c, type(r) AS r ORDER BY c')).data)
@@ -198,14 +208,53 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     let c = await claimSection(board, 'reader', 5000, 3);
     while (c && c.id !== 'd-old') { await completeSection(board, 'reader', c.id, [], 'skip'); c = await claimSection(board, 'reader', 5000, 3); }
     await completeSection(board, 'reader', 'd-old', [{ kind: 'cross_ref', data: { target: 'd-new', relation: 'superseded_by' },
-      quote: 'The router prompt rule was corrected', verified: true, reason: null, target: 'd-new', relation: 'superseded_by' }], 'test');
+      quote: 'The router prompt rule was corrected', verified: true, reason: null, target: 'd-new', relation: 'superseded_by' }], 'test', Date.now(), await hashOf('d-old'));
     const h = await claimHandoff(board, 'checker', 5000, 3);
     expect(h).toMatchObject({ relation: 'superseded_by', source: 'd-old', target: 'd-new', raisedBy: 'reader' });
-    await resolveHandoff(board, 'checker', h!.key, { confirmed: true, quote: 'We reverted the corrected rule', reason: 'r' });
+    await resolveHandoff(board, 'checker', h!.key, { confirmed: true, quote: 'We reverted the corrected rule', reason: 'r' }, Date.now(), await hashOf('d-new'));
     await integrate(board, brain);
     const edges = (await brain.roQuery<{ s: string; t: string; q: string; tq: string }>(
       'MATCH (s:Decision)-[e:SUPERSEDES]->(t:Decision) RETURN s.id AS s, t.id AS t, e.quote AS q, e.targetQuote AS tq')).data!;
     expect(edges).toEqual([{ s: 'd-new', t: 'd-old', q: 'We reverted the corrected rule', tq: 'The router prompt rule was corrected' }]);
+  });
+
+  it('editing an entry (same title) invalidates what was extracted from its old text, until the team re-extracts it', async () => {
+    const llm = scriptedLlm();
+    await Promise.all(['w1', 'w2'].map((w) => worker(w, llm)));
+    const before = await integrate(board, brain);
+    expect([before.measurements, before.edges]).toEqual([1, 1]);
+
+    // Re-ingest after someone edits the OLD entry's text: its title, and so its id, is unchanged.
+    await brain.query("MATCH (d:Decision {id: 'd-old'}) SET d.body = 'The router prompt rule was corrected after review. Nothing measured.'");
+    await stamp();
+    const stale = await integrate(board, brain);
+    expect(stale.edges).toBe(0);                                   // the confirmation quoted text that no longer exists
+    expect(stale.stale.handoffs).toBe(1);
+    expect(stale.measurements).toBe(1);                            // d-new's own evidence is untouched
+    expect((await brain.roQuery<{ n: number }>('MATCH ()-[r:SUPERSEDES]->() RETURN count(r) AS n')).data![0].n).toBe(0);
+
+    // Seeding notices, and queues exactly that entry for re-extraction.
+    const seed = await seedBoard(board, brain);
+    expect(seed.changed).toEqual(['d-old']);
+    const status = (await board.roQuery<{ s: string; h: string }>(
+      "MATCH (s:Section {id: 'd-old'}) MATCH (h:Handoff)-[:FOR]->(s) RETURN s.status AS s, h.status AS h")).data![0];
+    expect(status).toEqual({ s: 'pending', h: 'open' });
+    expect((await board.roQuery<{ n: number }>("MATCH (f:Finding {stale: true})-[:ABOUT]->(:Section {id: 'd-old'}) RETURN count(f) AS n")).data![0].n).toBeGreaterThan(0);
+
+    // The team runs again: only the changed entry and the reopened handoff are worked; evidence is current again.
+    const calls = llm.calls.length;
+    await Promise.all(['w1', 'w2'].map((w) => worker(w, llm)));
+    expect(llm.calls.slice(calls).sort()).toEqual(['extraction:d-old', 'handoff_verdict:handoff']);
+    const after = await integrate(board, brain);
+    expect(after.stale).toEqual({ findings: 0, handoffs: 0 });
+  });
+
+  it('a full seed removes entries that no longer exist; a limited seed never does', async () => {
+    await brain.query("MATCH (d:Decision {id: 'd-other'}) DETACH DELETE d");
+    expect((await seedBoard(board, brain, 1)).removed).toBe(0);
+    expect((await board.roQuery<{ n: number }>("MATCH (s:Section {id: 'd-other'}) RETURN count(s) AS n")).data![0].n).toBe(1);
+    expect((await seedBoard(board, brain)).removed).toBeGreaterThan(0);
+    expect((await board.roQuery<{ n: number }>("MATCH (s:Section {id: 'd-other'}) RETURN count(s) AS n")).data![0].n).toBe(0);
   });
 
   it('a lone worker never confirms its own cross-ref, and stops instead of waiting forever', async () => {

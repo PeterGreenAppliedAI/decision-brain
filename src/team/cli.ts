@@ -38,7 +38,10 @@ try {
 
   const index = (await brain.roQuery<IndexEntry>('MATCH (d:Decision) RETURN d.id AS id, d.date AS date, d.title AS title ORDER BY CASE WHEN d.date IS NULL THEN 1 ELSE 0 END, d.date DESC')).data ?? [];
   if (!index.length) throw new Error(`no decisions in graph "${values.graph}" — run npm run ingest first`);
-  const seeded = await seedBoard(board, brain, values.limit ? Number(values.limit) : undefined);
+  const seed = await seedBoard(board, brain, values.limit ? Number(values.limit) : undefined);
+  const seeded = seed.sections;
+  if (seed.changed.length) console.log(`[team] ${seed.changed.length} entr${seed.changed.length === 1 ? 'y' : 'ies'} changed since extraction — re-extracting: ${seed.changed.join(', ')}`);
+  if (seed.removed) console.log(`[team] removed ${seed.removed} board node(s) for entries that no longer exist`);
 
   const llm = createJsonClient();
   const names = Array.from({ length: Number(values.workers) }, (_, i) => `glm-${i + 1}`);

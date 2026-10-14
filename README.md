@@ -68,11 +68,19 @@ ADRs ─────┘ └─────────────────�
 | A summary's function / export / import names exist in the file | **yes** |
 | A summary's description of what the code does | no — model-written, labelled as description, never as intent |
 
+## Evidence follows the text
+
+Every decision carries a content hash of its title and text. Every finding records the hash of the
+text it was extracted from (read in the same query as the text), and every confirmed relation the
+hash of the other entry its confirmer read. The integrator promotes only evidence whose hash matches
+the entry's current text, and reports what it left out. Re-running the team after an entry is edited
+re-extracts exactly the changed entries and re-checks the relations that touch them.
+
 ## Limitations (known, not yet fixed)
 
-- **Evidence is not yet invalidated when an entry is edited.** Re-ingest updates a decision's text,
-  but findings extracted from its old wording stay attached until the team re-runs. (Being fixed:
-  content hashes on entries, findings and board sections.)
+- **File summaries are flagged stale, not yet re-made automatically.** `what_is` reports when a file
+  changed since its summary; re-running `summarize` re-does every file, not only the changed ones.
+  (Decision evidence *is* invalidated precisely: see "Evidence follows the text" above.)
 - **Historical review is approximate.** `review` filters the current graph by date; it does not yet
   rebuild the decision log as it stood at the reviewed commit. Dates are UTC, and decision-log dates
   are the author's calendar dates, so "as of" can shift by a day around midnight.

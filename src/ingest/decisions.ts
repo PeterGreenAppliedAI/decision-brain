@@ -8,6 +8,7 @@
  *  - undated category sections ("## Failed Approaches") whose dated `###` children are the entries.
  * Entries are NOT in date order in the file — the date always comes from the heading.
  */
+import { createHash } from 'node:crypto';
 import { writeRows, type Graph } from '../graph/db.js';
 
 export interface DecisionEntry {
@@ -45,6 +46,11 @@ const CATEGORY_STATUS: Record<string, string> = {
 };
 
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** What an entry says, as a hash: evidence extracted from one text is never applied to another. */
+export function contentHash(title: string, body: string): string {
+  return createHash('sha1').update(`${title}\n${body}`.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+}
 
 export function parseDate(heading: string): { date: string; precision: 'day' | 'month' } | null {
   const m = DATE_RE.exec(heading);
@@ -232,11 +238,11 @@ export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], re
      MERGE (d:Decision {id: r.id})
      SET d.title = r.title, d.heading = r.heading, d.date = r.date, d.datePrecision = r.datePrecision,
          d.category = r.category, d.status = r.status, d.statusText = r.statusText,
-         d.source = r.source, d.sourceFile = r.sourceFile, d.body = r.body`,
+         d.source = r.source, d.sourceFile = r.sourceFile, d.body = r.body, d.contentHash = r.contentHash`,
     entries.map((e) => ({
       id: e.id, title: e.title, heading: e.heading, date: e.date, datePrecision: e.datePrecision,
       category: e.category, status: e.status, statusText: e.statusText, body: e.body,
-      source: `${e.file ?? sourceFile}:${e.lineStart}-${e.lineEnd}`, sourceFile,
+      source: `${e.file ?? sourceFile}:${e.lineStart}-${e.lineEnd}`, sourceFile, contentHash: contentHash(e.title, e.body),
     })));
 
   await writeRows(graph,

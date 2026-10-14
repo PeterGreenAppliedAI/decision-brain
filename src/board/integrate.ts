@@ -20,21 +20,32 @@ import { normalize } from '../team/extract.js';
 
 export interface IntegrationReport {
   measurements: number; experiments: number; concepts: number; models: number; edges: number;
+  /** Findings and confirmed handoffs left out because the text they came from has changed since. */
+  stale: { findings: number; handoffs: number };
   /** Concepts too common to link entries by (ABOUT_BROADLY), with the share of entries containing them. */
   generic: Array<{ name: string; share: number }>;
 }
 
-interface FindingRow { section: string; kind: string; data: string; quote: string | null; agent: string }
+interface FindingRow { section: string; kind: string; data: string; quote: string | null; agent: string; hash: string | null; stale: boolean | null }
 
 export async function integrate(board: Graph, brain: Graph): Promise<IntegrationReport> {
-  const findings = (await board.roQuery<FindingRow>(
+  // Evidence counts only against the text it was extracted from: a finding whose hash differs from
+  // the decision's current content hash — or that seeding marked stale — is left out.
+  const current = new Map(((await brain.roQuery<{ id: string; hash: string | null }>('MATCH (d:Decision) RETURN d.id AS id, d.contentHash AS hash')).data ?? [])
+    .map((r) => [r.id, r.hash]));
+  const fresh = (section: string, hash: string | null, stale?: boolean | null) =>
+    !stale && hash !== null && current.has(section) && current.get(section) === hash;
+  const allFindings = (await board.roQuery<FindingRow>(
     `MATCH (f:Finding {verified: true})-[:ABOUT]->(s:Section), (f)-[:FROM]->(a:Agent)
      WHERE f.kind <> 'cross_ref'
-     RETURN s.id AS section, f.kind AS kind, f.data AS data, f.quote AS quote, a.name AS agent`)).data ?? [];
-  const handoffs = (await board.roQuery<{ source: string; target: string; relation: string; quote: string; targetQuote: string; raisedBy: string; confirmedBy: string }>(
+     RETURN s.id AS section, f.kind AS kind, f.data AS data, f.quote AS quote, a.name AS agent, f.hash AS hash, f.stale AS stale`)).data ?? [];
+  const findings = allFindings.filter((f) => fresh(f.section, f.hash, f.stale));
+  const allHandoffs = (await board.roQuery<{ source: string; target: string; relation: string; quote: string; targetQuote: string; raisedBy: string; confirmedBy: string; sourceHash: string | null; targetHash: string | null; stale: boolean | null }>(
     `MATCH (h:Handoff {status: 'confirmed'})-[:FOR]->(t:Section), (f:Finding)-[:RAISED]->(h), (f)-[:ABOUT]->(s:Section), (f)-[:FROM]->(a:Agent)
      RETURN s.id AS source, t.id AS target, h.relation AS relation, f.quote AS quote, h.quote AS targetQuote,
-            a.name AS raisedBy, h.resolvedBy AS confirmedBy`)).data ?? [];
+            a.name AS raisedBy, h.resolvedBy AS confirmedBy, f.hash AS sourceHash, h.targetHash AS targetHash, f.stale AS stale`)).data ?? [];
+  // A relation stands only if both sides still say what they said when the two agents agreed.
+  const handoffs = allHandoffs.filter((h) => fresh(h.source, h.sourceHash, h.stale) && fresh(h.target, h.targetHash));
 
   // Collapse repeats: one item per section + content, remembering every agent that found it.
   const items = new Map<string, { kind: string; section: string; data: Record<string, string>; quote: string | null; agents: Set<string> }>();
@@ -132,6 +143,7 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
     measurements: measurements.length, experiments: experiments.length,
     concepts: new Set(concepts.map((c) => c.name)).size, models: new Set(models.map((m) => m.name)).size,
     edges: handoffs.length,
+    stale: { findings: allFindings.length - findings.length, handoffs: allHandoffs.length - handoffs.length },
     generic: [...generic].map(([name, share]) => ({ name, share: Math.round(share * 100) / 100 })).sort((a, b) => b.share - a.share),
   };
 }

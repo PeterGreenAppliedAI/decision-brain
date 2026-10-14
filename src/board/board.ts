@@ -5,7 +5,8 @@
  *   (:Section {id, title, date, order, status: pending|claimed|done|failed, attempts, claimedBy, expiresAt})
  *   (:Agent {name, model, lastSeen})
  *   (:Agent)-[:CLAIMED {at}]->(:Section|:Handoff)        // the live claim; it expires
- *   (:Finding {id, kind, data, quote, verified, reason, at})-[:FROM]->(:Agent), -[:ABOUT]->(:Section)
+ *   (:Finding {id, kind, data, quote, verified, reason, at, hash, stale})-[:FROM]->(:Agent), -[:ABOUT]->(:Section)
+ *                                                       // hash: of the text it was extracted from
  *   (:Handoff {key, relation, status: open|claimed|confirmed|rejected, attempts, claimedBy, expiresAt,
  *              quote, reason})-[:FOR]->(:Section)        // the target, read by another agent
  *   (:Finding {kind: 'cross_ref'})-[:RAISED]->(:Handoff)
@@ -49,21 +50,53 @@ export async function event(board: Graph, kind: string, agent: string | null, se
     { params: { now, kind, agent, section, text } });
 }
 
-/** One Section per decision in the brain graph. Existing sections keep their state. */
-export async function seedBoard(board: Graph, brain: Graph, limit?: number): Promise<number> {
+/**
+ * One Section per decision in the brain graph. Existing sections keep their state — unless the
+ * decision's text changed since it was extracted (content hash): then the section goes back to
+ * pending, its findings are marked stale, and handoffs touching it are reopened or retired.
+ * Sections for decisions that no longer exist are removed.
+ */
+export async function seedBoard(board: Graph, brain: Graph, limit?: number): Promise<{ sections: number; changed: string[]; removed: number }> {
   await ensureBoardSchema(board);
-  const res = await brain.roQuery<{ id: string; title: string; date: string | null }>(
-    `MATCH (d:Decision) RETURN d.id AS id, d.title AS title, d.date AS date ORDER BY CASE WHEN d.date IS NULL THEN 1 ELSE 0 END, d.date DESC, d.id${limit ? ' LIMIT $limit' : ''}`,
+  const res = await brain.roQuery<{ id: string; title: string; date: string | null; hash: string | null }>(
+    `MATCH (d:Decision) RETURN d.id AS id, d.title AS title, d.date AS date, d.contentHash AS hash
+     ORDER BY CASE WHEN d.date IS NULL THEN 1 ELSE 0 END, d.date DESC, d.id${limit ? ' LIMIT $limit' : ''}`,
     { params: { limit: limit ?? 0 } });
   const rows = (res.data ?? []).map((r, order) => ({ ...r, order }));
+
+  const changed = ((await board.query<{ id: string }>(
+    `UNWIND $rows AS r MATCH (s:Section {id: r.id}) WHERE s.hash IS NOT NULL AND s.hash <> r.hash RETURN s.id AS id`,
+    { params: { rows: rows as never } })).data ?? []).map((r) => r.id);
+  if (changed.length) {
+    await board.query(
+      `MATCH (s:Section) WHERE s.id IN $ids
+       SET s.status = 'pending', s.attempts = 0, s.claimedBy = null, s.expiresAt = null
+       WITH s OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(s) DELETE c`, { params: { ids: changed } });
+    await board.query(`MATCH (f:Finding)-[:ABOUT]->(s:Section) WHERE s.id IN $ids SET f.stale = true`, { params: { ids: changed } });
+    // Raised from a changed entry: its evidence is gone until re-extraction raises it again.
+    await board.query(
+      `MATCH (f:Finding)-[:RAISED]->(h:Handoff), (f)-[:ABOUT]->(s:Section) WHERE s.id IN $ids SET h.status = 'stale'`, { params: { ids: changed } });
+    // About a changed entry: the confirmation quoted old text — check it again.
+    await board.query(
+      `MATCH (h:Handoff)-[:FOR]->(t:Section) WHERE t.id IN $ids AND h.status <> 'stale'
+       SET h.status = 'open', h.attempts = 0, h.claimedBy = null, h.resolvedBy = null, h.quote = null, h.targetHash = null`, { params: { ids: changed } });
+    for (const id of changed) await event(board, 'invalidated', null, id, 'entry text changed — evidence stale, queued for re-extraction');
+  }
+  // Only a full seed knows which entries are gone: with a limit, absent ≠ deleted.
+  const gone = limit ? { data: [{ n: 0 }] } : await board.query<{ n: number }>(
+    `MATCH (s:Section) WHERE s.kind IS NULL AND NOT s.id IN $ids
+     OPTIONAL MATCH (f:Finding)-[:ABOUT]->(s) OPTIONAL MATCH (h:Handoff)-[:FOR]->(s)
+     WITH collect(DISTINCT s) + collect(DISTINCT f) + collect(DISTINCT h) AS doomed
+     UNWIND doomed AS x DETACH DELETE x RETURN count(x) AS n`, { params: { ids: rows.map((r) => r.id) } });
+
   await board.query(
     `UNWIND $rows AS r
      MERGE (s:Section {id: r.id})
      ON CREATE SET s.status = 'pending', s.attempts = 0
-     SET s.title = r.title, s.date = r.date, s.order = r.order`,
+     SET s.title = r.title, s.date = r.date, s.order = r.order, s.hash = r.hash`,
     { params: { rows: rows as never } });
-  await event(board, 'seed', null, null, `${rows.length} sections`);
-  return rows.length;
+  await event(board, 'seed', null, null, `${rows.length} sections${changed.length ? `, ${changed.length} changed since extraction` : ''}`);
+  return { sections: rows.length, changed, removed: gone.data?.[0]?.n ?? 0 };
 }
 
 export async function registerAgent(board: Graph, name: string, model: string): Promise<void> {
@@ -144,7 +177,8 @@ export async function heartbeat(board: Graph, agent: string, label: 'Section' | 
  * that stalled past its expiry and was taken over gets `false`, and its late work is dropped.
  * Verified cross-refs open a Handoff on their target (one per source/relation/target).
  */
-export async function completeSection(board: Graph, agent: string, sectionId: string, findings: FindingRow[], note: string, now = Date.now()): Promise<boolean> {
+export async function completeSection(board: Graph, agent: string, sectionId: string, findings: FindingRow[], note: string,
+  now = Date.now(), hash: string | null = null): Promise<boolean> {
   const owned = await board.query<{ ok: boolean }>(
     `MATCH (s:Section {id: $id}) WHERE s.status = 'claimed' AND s.claimedBy = $agent
      SET s.status = 'done', s.doneAt = $now, s.note = $note
@@ -155,6 +189,8 @@ export async function completeSection(board: Graph, agent: string, sectionId: st
     await event(board, 'lost', agent, sectionId, 'claim lost before finishing — work dropped');
     return false;
   }
+  // A re-extraction replaces what the old text yielded (the event log keeps that it happened).
+  await board.query('MATCH (f:Finding {stale: true})-[:ABOUT]->(:Section {id: $id}) DETACH DELETE f', { params: { id: sectionId } });
   // Count the parent down: its last part finishing makes it claimable.
   await board.query('MATCH (:Section {id: $id})-[:PART_OF]->(p:Section) SET p.waiting = p.waiting - 1', { params: { id: sectionId } });
   const rows = findings.map((f, i) => ({
@@ -165,9 +201,9 @@ export async function completeSection(board: Graph, agent: string, sectionId: st
   await board.query(
     `UNWIND $rows AS r
      MATCH (s:Section {id: $section}), (a:Agent {name: $agent})
-     CREATE (f:Finding {id: r.id, kind: r.kind, data: r.data, quote: r.quote, verified: r.verified, reason: r.reason, at: $now})
+     CREATE (f:Finding {id: r.id, kind: r.kind, data: r.data, quote: r.quote, verified: r.verified, reason: r.reason, at: $now, hash: $hash, stale: false})
      CREATE (f)-[:FROM]->(a), (f)-[:ABOUT]->(s)`,
-    { params: { rows: rows as never, section: sectionId, agent, now } });
+    { params: { rows: rows as never, section: sectionId, agent, now, hash } });
   const handoffs = rows.filter((r) => r.kind === 'cross_ref' && r.verified && r.key);
   if (handoffs.length) {
     await board.query(
@@ -175,6 +211,8 @@ export async function completeSection(board: Graph, agent: string, sectionId: st
        MATCH (f:Finding {id: r.id}), (t:Section {id: r.target})
        MERGE (h:Handoff {key: r.key})
        ON CREATE SET h.relation = r.relation, h.status = 'open', h.attempts = 0, h.createdAt = $now
+       ON MATCH SET h.status = CASE WHEN h.status = 'stale' THEN 'open' ELSE h.status END,
+                    h.attempts = CASE WHEN h.status = 'stale' THEN 0 ELSE h.attempts END
        MERGE (h)-[:FOR]->(t)
        MERGE (f)-[:RAISED]->(h)`,
       { params: { rows: handoffs as never, now } });
@@ -187,13 +225,13 @@ export async function completeSection(board: Graph, agent: string, sectionId: st
 
 /** Record the second agent's verdict on a handoff — only if it still holds the claim. */
 export async function resolveHandoff(board: Graph, agent: string, key: string,
-  verdict: { confirmed: boolean; quote: string | null; reason: string }, now = Date.now()): Promise<boolean> {
+  verdict: { confirmed: boolean; quote: string | null; reason: string }, now = Date.now(), targetHash: string | null = null): Promise<boolean> {
   const res = await board.query<{ target: string }>(
     `MATCH (h:Handoff {key: $key})-[:FOR]->(t:Section) WHERE h.status = 'claimed' AND h.claimedBy = $agent
-     SET h.status = $status, h.resolvedBy = $agent, h.resolvedAt = $now, h.quote = $quote, h.reason = $reason
+     SET h.status = $status, h.resolvedBy = $agent, h.resolvedAt = $now, h.quote = $quote, h.reason = $reason, h.targetHash = $targetHash
      WITH h, t OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(h) DELETE c
      RETURN t.id AS target`,
-    { params: { key, agent, now, status: verdict.confirmed ? 'confirmed' : 'rejected', quote: verdict.quote, reason: verdict.reason } });
+    { params: { key, agent, now, status: verdict.confirmed ? 'confirmed' : 'rejected', quote: verdict.quote, reason: verdict.reason, targetHash } });
   const target = res.data?.[0]?.target;
   if (!target) return false;
   await event(board, verdict.confirmed ? 'handoff_confirmed' : 'handoff_rejected', agent, target, `${key.replace(/\|/g, ' ')} — ${verdict.reason}`);

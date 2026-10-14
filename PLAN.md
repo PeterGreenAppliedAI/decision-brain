@@ -17,7 +17,11 @@ and **shows the path** behind every answer.
 | Ask + Path views | done — answer streamed with tool calls, citations clickable, cited subgraph drawn |
 | File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — Invarail trial 20 files/12 dirs in 140 s; full run (318 files, 63 dirs) in progress |
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…): every version as section spans; `told(commit)` | done — Invarail CLAUDE.md, 71 versions, 216 spans |
-| Question memory | next |
+| Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
+| Labelled evaluation set vs plain-search baseline | next — Claude drafts, Peter labels |
+| Review rebuilt from the decision log as it stood at the commit | after the evaluation set |
+| Question memory | after that |
+| "Judge path": fresh clone, README only, third repo, Ollama | before submission |
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
 | Deployment, demo video, blog post | Day 4 |
