@@ -7,10 +7,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { connect } from '../graph/db.js';
 import { search } from '../tools/graph-tools.js';
 import { baselineSearch } from './baseline.js';
-import { loadQuestions, parseLabels } from './labels.js';
+import { labelSource, loadQuestions, parseLabels } from './labels.js';
 
 const OUT = 'eval/LABELS.md';
-const previous = existsSync(OUT) ? parseLabels(readFileSync(OUT, 'utf8')) : new Map();
+const previousMd = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
+const previous = previousMd ? parseLabels(previousMd) : new Map();
 const db = await connect();
 const lines = [
   '# Evaluation labels',
@@ -22,6 +23,8 @@ const lines = [
   'should review on a `reviewers:` line. Mark each question `labelled: yes` when done.',
   '',
   'These labels are the ground truth — the system never grades itself.',
+  '',
+  `Label source: ${previousMd ? labelSource(previousMd) : 'not yet labelled — say who labelled them, and how, before scoring'}`,
   '',
 ];
 for (const q of loadQuestions()) {

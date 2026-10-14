@@ -33,6 +33,22 @@ describe('planTasks', () => {
   });
 });
 
+describe('readAt', () => {
+  it('cuts long files for the model but keeps the full text for checking', async () => {
+    const repo = mkdtempSync(join(tmpdir(), 'db-cut-'));
+    const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
+    git('init', '-q'); git('config', 'user.name', 'A'); git('config', 'user.email', 'a@x');
+    writeFileSync(join(repo, 'big.ts'), `export function head() {}\n${'// filler\n'.repeat(2000)}export function middleOnly() {}\n${'// filler\n'.repeat(2000)}export function tail() {}\n`);
+    git('add', '.'); git('commit', '-q', '-m', 'big');
+    const { readAt } = await import('../src/files/scan.js');
+    const r = readAt(repo, 'HEAD', 'big.ts', 1000);
+    expect(r.cut).toBe(true);
+    expect(r.text).not.toContain('middleOnly');
+    expect(checkFile({ purpose: 'p', responsibilities: [{ text: 't', symbols: ['middleOnly', 'head'] }], exports: [], depends_on: [] }, r.full).dropped).toEqual([]);
+    rmSync(repo, { recursive: true, force: true });
+  });
+});
+
 describe('summary checks', () => {
   const text = 'import { z } from "zod";\nexport function claimSection() {}\nconst $helper = 1;\nexport class Board {}';
   it('keeps only names that exist in the file, whole-word', () => {

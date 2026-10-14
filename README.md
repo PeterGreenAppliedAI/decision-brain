@@ -80,12 +80,33 @@ re-extracts exactly the changed entries and re-checks the relations that touch t
 
 ## Evaluation
 
-`eval/questions.json` holds 25 questions over both repos — questions with answers in specific
-decisions, questions with a false premise, questions the graph cannot answer, and an ownership
-question. `npm run eval:candidates` writes `eval/LABELS.md`, where a person ticks the decisions a
-good answer must rest on; `npm run eval:run` scores the agent against those labels **and against a
-baseline that simply keyword-searches the decision log**. Results land in `eval/RESULTS.md`. The
-system never grades itself.
+`eval/questions.json`: 25 questions over both repos — 16 with answers in specific decisions, 3 with a
+false premise, 5 the graph cannot answer, 1 ownership question. The agent is scored against labels in
+`eval/LABELS.md` **and against a baseline that simply keyword-searches the decision log**.
+Latest result ([eval/RESULTS.md](eval/RESULTS.md)):
+
+| | Decision Brain (agent) | Keyword search (top 5) |
+|---|---|---|
+| Recall of the decisions a good answer rests on | 52% (23/44) | 52% (23/44) |
+| Precision of what it cites / returns | 79% | 24% (fixed top 5) |
+| Correct abstentions ("I don't know" when nothing answers it) | 5/5 | 0/5 — it cannot abstain |
+| False premises corrected | 2/3 (read by Claude; owner to confirm) | — |
+| Right reviewers named | 3/3 | — |
+| Unsupported figures / invalid citations | 0 / 1 of 25 answers | — |
+
+**What it says:** the agent finds no more of the right decisions than keyword search does. Its gains
+are precision, abstention, never stating a figure the evidence doesn't hold, and ownership. Its tools
+*returned* 29/44 of the right decisions — the agent cited 23 — so it under-cites what it has, and its
+retrieval stops early (usually one search, one trace). Those are the next things to improve, measured
+on fresh questions, not these.
+
+**How the labels were made — not by a human:** drafted by the local model (each relevance judgement
+quoting the entry; code checked the quotes), then reviewed and corrected question by question by
+Claude against the entries before reading any results (the model was wrong on all three false-premise
+questions and missed the right entries for two others). Claude had seen the agent's answers to five
+questions in earlier demos. Owner spot-check pending. The code checks were also refined after the
+first scoring — three parsing bugs (abbreviations, lead-ins, "neither") — with the outside review's
+adversarial probes kept as tests so the refinement could not loosen them.
 
 ## Limitations (known, not yet fixed)
 

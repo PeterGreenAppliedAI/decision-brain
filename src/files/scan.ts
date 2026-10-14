@@ -42,10 +42,10 @@ export function planTasks(files: string[]): FileTask[] {
   return tasks;
 }
 
-/** The file as the model sees it: whole, or head and tail with the cut marked. */
-export function readAt(repo: string, sha: string, path: string, max = config.fileMaxChars): { text: string; cut: boolean } {
-  const text = git(repo, ['show', `${sha}:${path}`]);
-  if (text.length <= max) return { text, cut: false };
+/** The file as the model sees it (whole, or head and tail with the cut marked) — and the full text, which is what claims are checked against. */
+export function readAt(repo: string, sha: string, path: string, max = config.fileMaxChars): { text: string; full: string; cut: boolean } {
+  const full = git(repo, ['show', `${sha}:${path}`]);
+  if (full.length <= max) return { text: full, full, cut: false };
   const head = Math.floor(max * 0.6);
-  return { text: `${text.slice(0, head)}\n\n/* … ${text.length - max} characters omitted … */\n\n${text.slice(-(max - head))}`, cut: true };
+  return { text: `${full.slice(0, head)}\n\n/* … ${full.length - max} characters omitted … */\n\n${full.slice(-(max - head))}`, full, cut: true };
 }

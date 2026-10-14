@@ -4,6 +4,36 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Second Review, and the First Honest Numbers (October 14 2026, late)
+
+**A second outside review** (at `4cb0b2a`) confirmed the first round's fixes and found what was left.
+All three points were right:
+1. **Four reproducible holes in the figure checker** — 20ms evidence "supporting" 20s; a figure in
+   backticks never checked; a citation of decision A borrowing a figure from decision B in the same
+   search response; and "I don't know why, but the prompt routed every request successfully" counted
+   as an abstention. That last one my own previous change had made *worse* (abstention by opening
+   phrase alone). Fixed: units must match; code spans are checked; a citation's evidence is the item
+   its id identifies in a response, not the whole response; after declining, every clause must carry a
+   citation or state an absence. Each probe is a test; two of the fixes mutation-checked.
+2. **A stale window between ingest and integration** — ingest updated an entry's text while its old
+   measurements stayed published until integration. Now ingest removes an edited entry's evidence,
+   concept links and board relations in the same pass. Tested, including that an unchanged neighbour
+   keeps its evidence.
+3. **The evaluation was infrastructure, not evidence.** Now it is evidence.
+
+**The first evaluation run crashed at question 7**: with three jobs on the GPU a request idled out, and
+the abort escaped as an uncaught exception from inside the idle timer — outside the promise the
+retry logic awaited. Both model clients now guard the abort; the runner records a failed question and
+saves after every one; it also saves the tool steps, so the checker can be re-applied without re-asking.
+
+**The numbers, plainly:** recall of the decisions a good answer rests on — agent 52%, keyword search
+52%. A tie. The agent is better on precision (79% vs 24%, partly structural), abstention (5/5 vs 0/5),
+figures (none unsupported) and ownership (3/3); premises corrected 2/3. Its tools returned 29/44 of the
+right decisions and it cited 23 — it under-cites, and it stops after one search and one trace. The
+labels are model-drafted and Claude-reviewed, and say so; the checker was refined after first scoring
+(three parsing bugs that made it over-strict) with the reviewer's probes as the guard. The next agent
+changes get measured on new questions — tuning on these 25 would make the number meaningless.
+
 ## Review As It Stood: the Log Rebuilt at the Commit (October 14 2026, night)
 
 The review's third point. `review` with the repo at hand now rebuilds the decision log as it stood at

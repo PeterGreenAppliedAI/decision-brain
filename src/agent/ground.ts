@@ -7,7 +7,7 @@
  *  - numbers: every figure ("0/20", "92%", "33.9s") appears in a tool result that contained a citation
  *    from the same block (paragraph, or list with its sub-items); a figure in a block with no citation
  *    is unsupported. This catches invented or altered measurements — the most damaging wrong answer.
- *  - abstention: the answer opens by declining and makes no cited or numeric claim.
+ *  - abstention: the answer opens by declining; anything it then cites or states is still checked.
  *
  * Everything else an answer says is model-written prose that code has not verified, and the result
  * says so (`prose: 'model-written'`). A model-based entailment check, if added, is a separate label.
@@ -29,24 +29,44 @@ export interface Grounding {
   prose: 'model-written';
 }
 
-const KEYS = new Set(['id', 'sha', 'short', 'path', 'key', 'name', 'file']);
 const isSha = (s: string) => /^[0-9a-f]{7,40}$/.test(s);
 
-/** Every id, sha, path and name in one tool result. */
+/** Every short string one tool result returned — ids, shas, paths, names, suggestions, contents of lists. */
 function idsIn(result: string): Set<string> {
   const seen = new Set<string>();
   const walk = (v: unknown): void => {
-    if (Array.isArray(v)) v.forEach(walk);
-    else if (v && typeof v === 'object') {
-      for (const [k, x] of Object.entries(v)) {
-        if (KEYS.has(k) && typeof x === 'string') seen.add(x);
-        if (k === 'files' && Array.isArray(x)) x.forEach((f) => typeof f === 'string' && seen.add(f));
-        walk(x);
-      }
-    }
+    if (typeof v === 'string') { if (v.length <= 300) seen.add(v); }
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) walk(x);
   };
   try { walk(JSON.parse(result)); } catch { /* not JSON: an error message */ }
   return seen;
+}
+
+/**
+ * The part of a tool response a citation actually brought: the item its id identifies — the array
+ * element containing it (a search hit, a why() decision with its measurements, an experiment), or the
+ * whole response when the id is not inside a list (trace, who_knows' target). Never the neighbours.
+ */
+export function evidenceFor(result: string, id: string): string {
+  let parsed: unknown;
+  try { parsed = JSON.parse(result); } catch { return ''; }
+  const items: unknown[] = [];
+  const holds = (v: unknown): boolean => typeof v === 'string' ? v === id || (/^[0-9a-f]{7,40}$/.test(id) && v.startsWith(id))
+    : Array.isArray(v) ? v.some(holds) : v && typeof v === 'object' ? Object.values(v).some(holds) : false;
+  const walk = (v: unknown, inArray: boolean): boolean => {
+    if (Array.isArray(v)) { let any = false; for (const x of v) if (walk(x, true)) any = true; return any; }
+    if (v && typeof v === 'object') {
+      const deeper = Object.values(v).some((x) => walk(x, false));
+      if (inArray && (deeper || holds(v))) { if (!deeper || !items.length) items.push(v); return true; }
+      return deeper || holds(v);
+    }
+    if (inArray && holds(v)) { items.push(v); return true; }
+    return holds(v);
+  };
+  const found = walk(parsed, false);
+  if (!found) return '';
+  return items.length ? JSON.stringify(items) : result;
 }
 
 export function seenInSteps(steps: Step[]): Set<string> {
@@ -62,41 +82,87 @@ export function seenInSteps(steps: Step[]): Set<string> {
  */
 export function citationsOf(text: string, toolNames: string[] = []): string[] {
   const tools = new Set(toolNames);
-  return [...new Set([...text.matchAll(/\[([^\]\s][^\]]{1,200})\]/g)].map((m) => {
+  const out: string[] = [];
+  for (const m of text.matchAll(/\[([^\]\s][^\]]{1,200})\]/g)) {
     const c = m[1].trim();
     const call = /^([a-z_]+)\s*[:(]\s*(.+?)\)?$/.exec(c);
-    return call && tools.has(call[1]) ? call[2].trim() : c;
-  }))];
+    if (call) out.push(tools.has(call[1]) ? call[2].trim() : c);   // a tool-call form is always judged as a citation
+    else if (idLike(c)) out.push(c);
+  }
+  return [...new Set(out)];
+}
+
+/** Only id-shaped brackets are citations — "[observed, unconfirmed]" quoted from an entry is not. */
+function idLike(c: string): boolean {
+  if (/\s/.test(c)) return false;
+  return /^[0-9a-f]{7,40}$/.test(c) || /[-/.:_]/.test(c) && /[a-z0-9]/i.test(c);
 }
 
 /** Figures worth checking: ratios, percentages, decimals, numbers with units, and multi-digit numbers. */
 export function numbersIn(sentence: string): string[] {
   const text = sentence
     .replace(/\[[^\]]*\]/g, ' ')                       // ids in citations carry dates and hashes
-    .replace(/`[^`]*`/g, ' ')                          // code spans: file names, model names (qwen3.5:9b)
+    .replace(/`/g, ' ')                                 // code spans are checked too — only the backticks go
     .replace(/^\s*(\d+[.)]|[-*])\s+/gm, ' ')           // list markers
     .replace(/\b[\w.-]*:\d+[\w.]*\b/g, ' ')            // model tags like gemma4:12b
     .replace(/\b\d{4}-\d{2}(-\d{2})?\b/g, ' ')        // dates
+    .replace(/\b\d+(\.\d+)?\s?[BbMm]\b(?!\s?(tokens|params))/g, ' ')   // model sizes: 7B, 12B, 421M
     .replace(/(\b(ADR|PR|RFC|issue|ticket|version|v)\s?[-#]?|#|\b[A-Z]{1,3}-?)\d+\b/gi, ' ');   // references: ADR 13, PR #42, F18, v2
-  const found = text.match(/(?<![\w.])\d+(?:[.,]\d+)?(?:\s?\/\s?\d+(?:[.,]\d+)?)?\s?(?:%|×|x\b|ms\b|s\b|min\b|GB\b|MB\b|KB\b|K\b|B\b)?(?![\w.]*\w)/g) ?? [];
-  return [...new Set(found.map((n) => n.replace(/\s+/g, '')).filter((n) => /[/%.×]|\d{2,}|ms|s$|min|GB|MB|KB|K$|B$/.test(n)))];
+  const found = text.match(/(?<![\w.])\d+(?:[.,]\d+)?(?:\s?\/\s?\d+(?:[.,]\d+)?)?\s?(?:%|×|x\b|ms\b|s\b|min\b|GB\b|MB\b|KB\b)?(?![\w.]*\w)/g) ?? [];
+  return [...new Set(found.map((n) => n.replace(/\s+/g, '')).filter((n) => /[/%.×]|\d{2,}|ms|s$|min|GB|MB|KB/.test(n)))];
 }
 
-/** A figure is in the evidence if its digits appear there in the same form ("16/20" or "16 / 20"). */
+/**
+ * A figure is in the evidence if the same number appears there — with the same unit when the answer
+ * gives one ("20s" is not supported by "20ms"; "16/20" matches "16 / 20").
+ */
 function figureIn(n: string, evidence: string): boolean {
-  const core = n.replace(/(%|×|x|ms|s|min|GB|MB|KB|K|B)$/, '');
-  const re = new RegExp(`(?<![\\d.])${core.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('/', '\\s?/\\s?')}(?![\\d])`);
-  return re.test(evidence);
+  const unit = /(%|×|x|ms|s|min|GB|MB|KB)$/.exec(n)?.[1] ?? '';
+  const core = unit ? n.slice(0, -unit.length) : n;
+  const num = core.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('/', '\\s?/\\s?');
+  const unitRe = !unit ? '' : unit === 'x' || unit === '×' ? '\\s?[x×]' : `\\s?${unit}(?![a-z])`;
+  return new RegExp(`(?<![\\d.])${num}(?![\\d.]*\\d)${unitRe}`).test(evidence);
 }
 
 const DECLINE_OPENING = /^\s*(i don'?t know|i do not know|the graph (has|holds|contains) no)\b/i;
+/** A clause saying something is absent ("no decision records…", "never recorded") claims nothing. */
+const ABSENCE = /\b(no|not|never|none|nothing|neither|nor|without|isn'?t|aren'?t|wasn'?t|doesn'?t|don'?t|didn'?t|cannot|can'?t)\b/i;
+
+/**
+ * Clauses of a declining answer that assert something without a citation: every sentence, split at
+ * "but"/"however", must carry an id-shaped citation or say that something is absent.
+ */
+export function uncitedClaims(answer: string, toolNames: string[] = []): string[] {
+  const out: string[] = [];
+  for (const block of blocks(answer)) {
+    const blockCited = citationsOf(block, toolNames).length > 0;
+    // Sentence ends — but not after abbreviations like "e.g." / "i.e." / "etc.", which do not end one.
+    for (const sentence of block.split(/(?<!\b(?:e\.g|i\.e|etc|vs|cf)\.)(?<=[.!?])\s+|\n+/)) {
+      for (const clause of sentence.split(/,?\s+(?:but|however|yet|although)\s+|;\s*/i)) {
+        const c = clause.trim();
+        if (!c || c.length < 12) continue;
+        if (/:\s*$/.test(c)) continue;                  // a lead-in ("Here is what it does record:") asserts nothing itself
+        if (DECLINE_OPENING.test(c) && !/\b(but|however)\b/i.test(c)) continue;
+        if (citationsOf(c, toolNames).length || (blockCited && /^\s*[-*\d]/.test(c))) continue;
+        if (ABSENCE.test(c)) continue;
+        out.push(c.slice(0, 160));
+      }
+    }
+  }
+  return out;
+}
 
 /** Blocks: paragraphs, or a list with its sub-items — the scope a citation covers. */
 function blocks(answer: string): string[] {
   return answer.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
 }
 
-export function ground(answer: string, steps: Step[]): Grounding {
+/**
+ * `question`: figures the question itself states are the asker's, not claims of the answer — an
+ * answer correcting "improved to 20/20" has to repeat 20/20 to say it never happened.
+ */
+export function ground(answer: string, steps: Step[], question = ''): Grounding {
+  const asked = new Set(numbersIn(question));
   const toolNames = [...new Set(steps.map((s) => s.tool))];
   const results = steps.map((s) => ({ text: s.result, ids: idsIn(s.result) }));
   const seen = new Set(results.flatMap((r) => [...r.ids]));
@@ -111,20 +177,25 @@ export function ground(answer: string, steps: Step[]): Grounding {
   let numbersChecked = 0;
   for (const block of blocks(answer)) {
     const cited = citationsOf(block, toolNames).map(resolve).filter((x): x is string => Boolean(x));
-    // The block's evidence: every tool result that returned one of its citations.
-    const evidence = results.filter((r) => cited.some((c) => r.ids.has(c))).map((r) => r.text).join('\n');
+    // The block's evidence: for each citation, the item it identifies in each response that returned it.
+    const evidence = cited.flatMap((c) => results.filter((r) => r.ids.has(c)).map((r) => evidenceFor(r.text, c))).join('\n');
     for (const line of block.split('\n')) {
-      for (const n of numbersIn(line)) {
+      for (const n of numbersIn(line).filter((x) => !asked.has(x))) {
         numbersChecked++;
         if (!cited.length || !figureIn(n, evidence)) unsupportedNumbers.push({ number: n, sentence: line.trim().slice(0, 160) });
       }
     }
   }
 
-  const declined = DECLINE_OPENING.test(answer) && valid.length === 0 && numbersChecked === 0;
+  // Declining is how the answer opens; and an abstention makes no uncited claim after that — "I don't
+  // know why, but the prompt routed every request successfully" asserts something, so it is not one.
+  const declinedOpening = DECLINE_OPENING.test(answer);
+  const claimsAfter = declinedOpening ? uncitedClaims(answer, toolNames) : [];
+  const declined = declinedOpening && claimsAfter.length === 0;
   const status: GroundingStatus = invalid.length ? 'invalid-citation'
     : unsupportedNumbers.length ? 'unsupported-number'
     : declined ? 'abstained'
+    : declinedOpening ? 'uncited'                      // declined, then asserted something without a citation
     : valid.length ? 'supported' : 'uncited';
   return { status, grounded: status === 'supported' || status === 'abstained', valid, invalid, unsupportedNumbers, numbersChecked, declined, prose: 'model-written' };
 }

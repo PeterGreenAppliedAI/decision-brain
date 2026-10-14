@@ -26,8 +26,31 @@ describe('ground', () => {
 
   it('does not count "I don\'t know" as an abstention when the answer goes on to claim figures (case 2)', () => {
     const g = ground("I don't know exactly, but it scored 100/100.", steps);
-    expect(g.declined).toBe(false);
-    expect(g.status).toBe('unsupported-number');
+    expect(g.status).toBe('unsupported-number');      // it declined, then claimed a figure nothing supports
+    expect(g.grounded).toBe(false);
+  });
+
+  it('an abstention may point to related decisions — as long as what it cites checks out', () => {
+    const g = ground(`I don't know — the graph has no path for this. The closest related decision is [${ID}].`, steps);
+    expect(g.status).toBe('abstained');
+    expect(ground("I don't know — closest is [made-up-id].", steps).status).toBe('invalid-citation');
+  });
+
+  it("does not hold the answer to figures the question itself states", () => {
+    const q = 'The corrected rule improved routing to 20/20 — when was that shipped?';
+    const a = `It never was: there is no record of 20/20. The corrected text scored 0/20 vs 16/20 [${ID}].`;
+    expect(ground(a, steps, q).status).toBe('supported');
+    expect(ground(a, steps).status).toBe('unsupported-number');   // without the question, 20/20 is a claim
+  });
+
+  it('treats model sizes as names, and only id-shaped brackets as citations', () => {
+    expect(numbersIn('the 7B and the 27B, a 421M encoder; 16/20')).toEqual(['16/20']);
+    expect(ground(`Injection marks [observed, unconfirmed] and [inferred] facts [${ID}].`, steps).status).toBe('supported');
+  });
+
+  it('any string a tool returned can be cited — not only fields named id or path', () => {
+    const s = [{ tool: 'why', args: { target: 'x' }, result: JSON.stringify({ target: { kind: 'none', suggestions: ['lib/tasks/report.rake'] } }) }];
+    expect(ground('See [lib/tasks/report.rake].', s).status).toBe('supported');
   });
 
   it('counts a clean refusal as an abstention', () => {
@@ -79,5 +102,51 @@ describe('numbersIn', () => {
   it('finds ratios, percentages, decimals and units — not ids, dates, model tags, list markers or code', () => {
     expect(numbersIn('1. It went 0/20 vs 16 / 20, 92%, 33.9s, 3.4× on qwen3.5:9b in `fib_v2.ts` on 2026-09-30 [2026-09-30-x] with 12 files and 2 tools'))
       .toEqual(['0/20', '16/20', '92%', '33.9s', '3.4×', '12']);
+  });
+});
+
+describe('uncited claims after a decline — parsing', () => {
+  const ID3 = '2026-01-01-some-decision';
+  const st = [{ tool: 'trace', args: {}, result: JSON.stringify({ decision: { id: ID3 }, text: 'x' }) }];
+  it('does not split a sentence at "e.g." and lose the citations that follow', () => {
+    expect(ground(`I don't know. The repo is clearly Ruby (e.g. [${ID3}]).`, st).status).toBe('abstained');
+  });
+  it('a lead-in ending in a colon asserts nothing; "neither … mentions" states an absence', () => {
+    expect(ground(`I don't know. What the log does record:\n- the closest item [${ID3}]`, st).status).toBe('abstained');
+    expect(ground(`I don't know — the closest are [${ID3}], and neither mentions it.`, st).status).toBe('abstained');
+  });
+});
+
+describe('outside review, second round — the four probes', () => {
+  const ID2 = '2026-08-22-the-harness-duel';
+  const timing = [{ tool: 'trace', args: {}, result: JSON.stringify({ decision: { id: ID2 }, text: 'Median latency 20ms; boot 52s→13s.' }) }];
+
+  it('20ms in the evidence does not support 20s in the answer', () => {
+    expect(ground(`Latency was 20s [${ID2}].`, timing).status).toBe('unsupported-number');
+    expect(ground(`Latency was 20ms [${ID2}].`, timing).status).toBe('supported');
+  });
+
+  it('a figure inside backticks is checked like any other', () => {
+    const g = ground(`Latency was \`999ms\` [${ID2}].`, timing);
+    expect(g.numbersChecked).toBe(1);
+    expect(g.status).toBe('unsupported-number');
+  });
+
+  it('a citation brings only its own item: decision A cannot borrow a figure from decision B in the same response', () => {
+    const search = [{ tool: 'search', args: {}, result: JSON.stringify([
+      { id: 'decision-a', title: 'A', text: 'scored 3/10' },
+      { id: 'decision-b', title: 'B', text: 'scored 9/10' },
+    ]) }];
+    expect(ground('It scored 9/10 [decision-a].', search).status).toBe('unsupported-number');
+    expect(ground('It scored 3/10 [decision-a].', search).status).toBe('supported');
+  });
+
+  it('"I don\'t know why, but <uncited claim>" is not an abstention', () => {
+    const g = ground("I don't know why, but the corrected prompt routed every request successfully.", timing);
+    expect(g.status).toBe('uncited');
+    expect(g.grounded).toBe(false);
+    // while a decline that only says what is absent, or points to cited items, still is
+    expect(ground("I don't know — the graph has no path for this. No decision records a Kubernetes choice.", timing).status).toBe('abstained');
+    expect(ground(`I don't know — nothing records it. The closest related decision is [${ID2}].`, timing).status).toBe('abstained');
   });
 });

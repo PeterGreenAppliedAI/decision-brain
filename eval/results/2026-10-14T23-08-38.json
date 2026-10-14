@@ -1,0 +1,872 @@
+[
+  {
+    "id": "inv-01",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why does the router prompt keep a rule that's factually wrong about memory?",
+    "agent": {
+      "answer": "Because the \"wrong\" rule is load-bearing for the smallest model. The router prompt contains a factually false rule (\"personal, memory, and web_search can only READ\"), and when it was corrected, qwen2.5:7b stopped routing \"remember this\" requests to memory entirely: **new text 0/20 to memory vs old text 16/20** [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].\n\nKey points from that decision:\n- The hypothesis that the false rule *caused* misrouting was tested and **disproven** — the corrected text made things worse, not better [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].\n- Larger models don't need it: qwen3.5:9b and gemma4:12b route memory 10/10 each, and qwen2.5:7b still gets `cron` 10/10 [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].\n- The 7B's other drift (release-notes requests going straight to `multi`, 2/5 success) was measured and is **not** the prompt's doing — it happens under either text [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].\n\nSo the rule stays: it's factually wrong, but removing it breaks memory routing on the 7B, and the evidence shows no better fix.",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing"
+      ],
+      "citedDecisions": [
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [
+        "7B"
+      ],
+      "tools": [
+        "why"
+      ],
+      "ms": 19646
+    },
+    "baseline": {
+      "top": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing",
+        "2026-09-20-memory-gets-its-intake-fixed-and-a-synthesis-pass-is-measure"
+      ]
+    }
+  },
+  {
+    "id": "inv-02",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why was the handoff tool removed the same night it was built?",
+    "agent": {
+      "answer": "The handoff tool was one of three levers built on 2026-09-29 to fix misrouted specialists improvising half-jobs [2026-09-29-misroutes-make-a-mess-three-levers-one-removed-the-same-nigh]. It was measured and found harmful: with the handoff tool available, qwen3.5 produced malformed tool calls in only 2/5 reps vs 5/5 without it, so it was removed the same night [b23e312]. The other two levers — category descriptions stating what each specialist cannot do, and a one-shot specialist reroute — survived, lifting two-specialist requests from 18/30 to 30/30 [b23e312].",
+      "status": "supported",
+      "cited": [
+        "2026-09-29-misroutes-make-a-mess-three-levers-one-removed-the-same-nigh",
+        "b23e312"
+      ],
+      "citedDecisions": [
+        "2026-09-29-misroutes-make-a-mess-three-levers-one-removed-the-same-nigh"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 21546
+    },
+    "baseline": {
+      "top": [
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-09-29-misroutes-make-a-mess-three-levers-one-removed-the-same-nigh",
+        "2026-07-20-mcp-client-bridge-the-ecosystem-for-the-price-of-one-protoco",
+        "2026-09-27-two-outside-reviews-land-the-walls-have-seams"
+      ]
+    }
+  },
+  {
+    "id": "inv-03",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "If I change src/memory/fact-store.ts, what decisions should I re-check?",
+    "agent": {
+      "answer": "Changing `src/memory/fact-store.ts` should prompt a re-check of two standing decisions:\n\n1. **[2026-10-05-memory-polluted-itself-and-forgetting-didn-t-stick]** — Memory pollution and forgetting. Key evidence: flat store had 445 facts with 151 near-duplicate pairs vs the graph store's clean 32 facts / 0 duplicates; the capped 92-fact view spent 20% on restatements. Disproven approaches to avoid repeating: substring dedup against the capped view, LLM MERGE consolidation, prompt-line forgetting, and chaining-based clustering (clusters must match the seed directly). Dedup threshold: ≥55% word overlap and ≥5 shared content words.\n\n2. **[2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo]** — Memory tiers and the open knowledge format. Notably, the earlier claim that the flat store loaded the whole fact file into the prompt was disproven — it's capped at five identity facts. Also relevant: FTS5-only retrieval works without an embedder, and 20 new tests were added for the starter preset (`flat`, `none`).",
+      "status": "supported",
+      "cited": [
+        "2026-10-05-memory-polluted-itself-and-forgetting-didn-t-stick",
+        "2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo"
+      ],
+      "citedDecisions": [
+        "2026-10-05-memory-polluted-itself-and-forgetting-didn-t-stick",
+        "2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "what_breaks"
+      ],
+      "ms": 15919
+    },
+    "baseline": {
+      "top": [
+        "2026-07-29-lessons-the-agent-gets-its-own-decisions-md",
+        "2026-09-27-two-outside-reviews-land-the-walls-have-seams",
+        "2026-04-memory-facts-surfacing-irrelevant-context",
+        "2026-05-opencode-pipeline-evolution",
+        "2026-07-20-mcp-client-bridge-the-ecosystem-for-the-price-of-one-protoco"
+      ]
+    }
+  },
+  {
+    "id": "inv-04",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "What has been tried and disproven about memory?",
+    "agent": {
+      "answer": "What was tried and disproven around memory:\n\n**Memory/lessons design**\n- **Injecting lessons immediately is safe** — disproven: one hallucinated boundary silently steers every matching dispatch [2026-07-29-lessons-the-agent-gets-its-own-decisions-md].\n- **Propose-confirm-everything works for lessons** — disproven: review fatigue caused the July-10 firehose / reflex-confirm problem [2026-07-29-lessons-the-agent-gets-its-own-decisions-md].\n- **The model can self-assess failures in the hot path** — disproven: it never self-assesses there; a 9B-honest limitation was accepted [2026-07-29-lessons-the-agent-gets-its-own-decisions-md].\n- **Skills system self-reinforcement** — disproven: three hijacked runs in one week; self-reinforcement made wrong matches stronger [2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive].\n- **Forced-reasoning pass placement** — disproven: the forced pass fired after artifacts were already written [2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive].\n- **Memory facts surfacing irrelevant context** — a failed decision [2026-04-memory-facts-surfacing-irrelevant-context].\n\n**Related model/config assumptions**\n- **embeddingModel/embeddingDims config fields were functional** — disproven: they were decorative, never passed to `embed()` [2026-09-19-the-a5000-settles-the-fleet-qwen3-8-27b-foreground].\n- **Q2 quality is acceptable for agentic work** and **routing all conversational traffic through Qwen3.8-27B at Q2 on the Mac Mini** — disproven: 2-bit is past the quality cliff even when it fits [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas].\n- **gemma-4-12B degeneracy was a model-file problem** — disproven: the model files were innocent [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas].",
+      "status": "supported",
+      "cited": [
+        "2026-07-29-lessons-the-agent-gets-its-own-decisions-md",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-04-memory-facts-surfacing-irrelevant-context",
+        "2026-09-19-the-a5000-settles-the-fleet-qwen3-8-27b-foreground",
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas"
+      ],
+      "citedDecisions": [
+        "2026-07-29-lessons-the-agent-gets-its-own-decisions-md",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-04-memory-facts-surfacing-irrelevant-context",
+        "2026-09-19-the-a5000-settles-the-fleet-qwen3-8-27b-foreground",
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "disproven"
+      ],
+      "ms": 19879
+    },
+    "baseline": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-20-memory-gets-its-intake-fixed-and-a-synthesis-pass-is-measure",
+        "2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo",
+        "2026-07-07-the-morning-after-migration-starved-the-briefing-s-memory"
+      ]
+    }
+  },
+  {
+    "id": "inv-05",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why did Invarail stop using OpenCode for coding tasks?",
+    "agent": {
+      "answer": "Invarail swapped OpenCode for the Pi coding agent (\"picoder\") on 2026-06-26 because OpenCode had operational pain that conflicted with their local-first/model-agnostic thesis [2026-06-26-coding-agent-swap-opencode-pi-picoder]:\n\n- OpenCode required a **manually-started server** (`opencode serve`)\n- It kept a **global session DB** that carried stale context across restarts\n- It used a **snapshot/move hack** where old project dirs got swallowed\n\nPi, by contrast, runs **cwd-scoped** (all writes land in `builds/<slug>/`, which structurally prevents the package.json-overwrite bug class) and is invoked headless per-build — no daemon, no global state [2026-06-26-coding-agent-swap-opencode-pi-picoder]. The swap was recorded in commit [3f035b6] (\"Replace OpenCode with the Pi (picoder) coding agent for code_gen\"), which removed `opencode-build.ts`, the `@opencode-ai/sdk`, and the `openCode` config block.",
+      "status": "supported",
+      "cited": [
+        "2026-06-26-coding-agent-swap-opencode-pi-picoder",
+        "3f035b6"
+      ],
+      "citedDecisions": [
+        "2026-06-26-coding-agent-swap-opencode-pi-picoder"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 18301
+    },
+    "baseline": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-06-26-coding-agent-swap-opencode-pi-picoder",
+        "2026-08-20-completion-contracts-the-harness-fix-built-and-re-measured",
+        "2026-08-22-the-harness-duel-dsh-vs-our-arena-measured",
+        "2026-05-opencode-integration-workspace-isolation"
+      ]
+    }
+  },
+  {
+    "id": "inv-06",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Which small model is recommended as the starter, and on what evidence?",
+    "agent": {
+      "answer": "The recommended starter is **qwen3.5:9b with `think: false`** (gemma4:12b named as the alternate; qwen2.5:7b on machines with under 12GB) [2026-09-27-where-tool-use-begins-the-small-tier-eval].\n\nEvidence, from the September small-tier eval (same harness, 14 tasks × 3 reps, ~50 min, published in `evals/2026-09-small-tier/`) [2026-09-27-where-tool-use-begins-the-small-tier-eval]:\n- qwen3.5:9b@off scored **92%** — tool 100, extract 100, chat 100, code 67, zero flipped checks, 2.1 min at 6.6GB; @on 89% at 3.3× the time.\n- gemma4:12b@off also 92% (tool 100, extract 100, chat 89, code 78, 3.9 min) — hence kept as the alternate for better code.\n- The floor pair was chosen because qwen3.5:9b is smaller, faster, more stable, with perfect chat, while gemma4:12b codes better.\n- deepseek-r1:1.5b scored 57–59% (extraction 81–83%), confirming it's below the floor.\n\nOne caveat: the recording commit's message says \"starter is gemma4:12b think:false\" [f93b608], while the decision text says the shipped starter preset and wizard recommendation are qwen3.5:9b — the decision text is the fuller record.",
+      "status": "supported",
+      "cited": [
+        "2026-09-27-where-tool-use-begins-the-small-tier-eval",
+        "f93b608"
+      ],
+      "citedDecisions": [
+        "2026-09-27-where-tool-use-begins-the-small-tier-eval"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 23294
+    },
+    "baseline": {
+      "top": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead"
+      ]
+    }
+  },
+  {
+    "id": "inv-07",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why were completion contracts killed?",
+    "agent": {
+      "answer": "Completion contracts were killed the same day they were built (2026-08-20) because **extraction recall proved a lottery**: the model failed to attach contracts on blatantly checkable asks — 0-for-3 \"not checkable\" in the clean think=low run, including \"write the number to revenue.txt\" [2026-08-20-completion-contracts-built-measured-killed-same-day].\n\nThe reasoning, per Peter's call:\n- **A gate that attaches probabilistically is not a gate** — it slides down the tier map toward the prose judge while carrying real machinery.\n- The rescue option (code-detected condition seeding via filename regexes/task verbs) was rejected on sight: \"we'd have to create arbitrary rules just to keep up with the exhaustive list of potential tasks\" — the rule-mill/taxonomy-sprawl disease.\n- Disproven theory recorded: model-extracted completion contracts cannot reliably attach on arbitrary asks; deterministic seeding is an unbounded rulebook.\n- Core lesson: the concept only works where tasks carry their own oracles (code + tests, research claims + sources) — you can't bolt an oracle onto an oracle-less ask.\n\nWhat survived: the `onFinalAnswer` turn-stopping seam, the contract module as an eval-side library, and the incident's real fixes (exec code-param bug, NO-SHELL-OPERATORS, Discord notification, hitMax flagging) [2026-08-20-completion-contracts-built-measured-killed-same-day]. A follow-up harness-fix decision re-measured and confirmed a prior failure was sampling variance, though it also found one under-extraction case needing few-shot sharpening [2026-08-20-completion-contracts-the-harness-fix-built-and-re-measured].",
+      "status": "supported",
+      "cited": [
+        "2026-08-20-completion-contracts-built-measured-killed-same-day",
+        "2026-08-20-completion-contracts-the-harness-fix-built-and-re-measured"
+      ],
+      "citedDecisions": [
+        "2026-08-20-completion-contracts-built-measured-killed-same-day",
+        "2026-08-20-completion-contracts-the-harness-fix-built-and-re-measured"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "disproven",
+        "search",
+        "trace"
+      ],
+      "ms": 24325
+    },
+    "baseline": {
+      "top": [
+        "2026-08-20-completion-contracts-built-measured-killed-same-day",
+        "2026-08-20-completion-contracts-the-harness-fix-built-and-re-measured",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-06-browser-control-via-chrome-extension-evolution",
+        "2026-06-foreground-model-swap-minimax-m2-7-deepseek-v4-flash"
+      ]
+    }
+  },
+  {
+    "id": "inv-08",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "What went wrong with the cross-check that verifies report claims?",
+    "agent": {
+      "answer": "The cross-check was correcting claims on evidence about something else. In the 2026-09-28 weekly AI-news report, the Tier-1 cross-check \"corrected\" three of four escalated claims using evidence that wasn't even about the claim: the LFM2.5-VL-3B WebGPU claim was \"contradicted\" by a page about the 230M text-only model; the TÜV SÜD certification claim by a page about the Halos lab; the September Gemini hooks claim by the May launch of managed agents. Only the GPT-6 date fix (21st → 22nd) was real [2026-09-28-the-cross-check-that-corrected-the-wrong-thing].\n\nRoot causes:\n- The judge prompt said \"be conservative\" but the 27B ignored it, and nothing in code checked whether the evidence was about the claim's subject [2026-09-28-the-cross-check-that-corrected-the-wrong-thing].\n- A false correction is silent — it reads as confidence, and the ratio was worse than the Groq-date error class the cross-check exists to catch [2026-09-28-the-cross-check-that-corrected-the-wrong-thing].\n\nThe fix (commit [018e019]): an evidence gate in `tier1EvidenceGate` requiring a contradiction to restate the claim with one detail changed — quoted evidence must name the claim's subject and share ≥50% token overlap (existence claims exempt); set-aside verdicts stay in verification.json with their reason and never touch prose [2026-09-28-the-cross-check-that-corrected-the-wrong-thing].",
+      "status": "supported",
+      "cited": [
+        "2026-09-28-the-cross-check-that-corrected-the-wrong-thing",
+        "018e019"
+      ],
+      "citedDecisions": [
+        "2026-09-28-the-cross-check-that-corrected-the-wrong-thing"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 21420
+    },
+    "baseline": {
+      "top": [
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-09-28-the-cross-check-that-corrected-the-wrong-thing",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-29-misroutes-make-a-mess-three-levers-one-removed-the-same-nigh",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment"
+      ]
+    }
+  },
+  {
+    "id": "inv-09",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "How is the foreground model chosen, and why that hardware?",
+    "agent": {
+      "answer": "The foreground model is treated as a swappable *slot*, and the hardware was settled by a head-to-head benchmark:\n\n**Model choice — a slot, not a dependency.** The foreground reasoning tier has been swapped twice purely through the `MultiBackendClient` (qwen → MiniMax-M2.7 → DeepSeek-V4-Flash), with pipelines, memory graph and channels untouched [2026-06-foreground-model-swap-minimax-m2-7-deepseek-v4-flash]. Each model's per-call job stays small enough that a bigger model raises the ceiling without becoming the floor [2026-06-foreground-model-swap-minimax-m2-7-deepseek-v4-flash]. An earlier split (foreground on Spark, utility on A5000) was superseded [2026-06-model-split-foreground-on-spark-utility-on-a5000].\n\n**Hardware — the 3060 won on prefill.** A controlled duel (same model gemma4:12b, same 9K-token cold prompt, unique prefix) showed the 3060 (CUDA, 12GB) at **1,220 tok/s prefill / ~3.3s** for a 4,000-token chat prompt vs the M4 Mac Mini's **123 tok/s / ~33s** — 10x from a card costing half the Mini [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060]. Since prefill is compute-bound and a context-heavy resident agent spends nearly all its time there, the 3060 became the foreground box (chat, arena, cron, memory, research, briefing, heartbeat, vision), the Sparks/GLM-5.3 handle coding only, the Mini is kept for short-prompt subagent work, and the A5000 stays the utility tier (router, NER, embeddings, whisper) [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060]. Context size was cut 96000 → 32768 because the 3060's 12GB can't fit a huge KV allocation alongside the weights [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n\n**Ruled out:** clustering Minis over Thunderbolt — pipeline parallelism adds capacity, not per-request FLOPS, and tensor parallelism needs ~900GB/s interconnect vs Thunderbolt's ~10GB/s, so a clustered 27B would prefill slower than the single-box 12B [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].",
+      "status": "supported",
+      "cited": [
+        "2026-06-foreground-model-swap-minimax-m2-7-deepseek-v4-flash",
+        "2026-06-model-split-foreground-on-spark-utility-on-a5000",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060"
+      ],
+      "citedDecisions": [
+        "2026-06-foreground-model-swap-minimax-m2-7-deepseek-v4-flash",
+        "2026-06-model-split-foreground-on-spark-utility-on-a5000",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace",
+        "trace"
+      ],
+      "ms": 28631
+    },
+    "baseline": {
+      "top": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ]
+    }
+  },
+  {
+    "id": "inv-10",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why do facts carry how we know them?",
+    "agent": {
+      "answer": "Because a free-text `source` field couldn't distinguish *how* something was learned — a heartbeat's autonomous guess and a sentence Peter actually typed arrived in the prompt in the same voice, and the model asserted both back with equal confidence [2026-09-20-facts-carry-how-we-know-them-epistemic-provenance].\n\nSo facts got a `FactProvenance` of `stated | observed | inferred`:\n- **`stated`** — only the `!save` path where a human confirms the extracted list.\n- **`inferred`** — consolidation merges; merging must never launder provenance upward.\n- **`observed`** — everything else, by default.\n\nInjection marks the weak classes (`[observed, unconfirmed]`, `[inferred]`) so the model asks about them rather than asserting them; legacy nodes coalesce **down** to `observed`, since coalescing up would retroactively present autonomous extractions as confirmed [2026-09-20-facts-carry-how-we-know-them-epistemic-provenance].",
+      "status": "invalid-citation",
+      "cited": [
+        "2026-09-20-facts-carry-how-we-know-them-epistemic-provenance"
+      ],
+      "citedDecisions": [
+        "2026-09-20-facts-carry-how-we-know-them-epistemic-provenance"
+      ],
+      "invalid": [
+        "observed, unconfirmed",
+        "inferred"
+      ],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 18701
+    },
+    "baseline": {
+      "top": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-20-facts-carry-how-we-know-them-epistemic-provenance",
+        "2026-06-factstore-importance-aware-char-bound",
+        "2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ]
+    }
+  },
+  {
+    "id": "inv-11",
+    "graph": "invarail",
+    "kind": "trap",
+    "question": "The corrected router rule improved memory routing to 20/20 — when was that shipped?",
+    "agent": {
+      "answer": "I don't know — the graph has no record of a corrected router rule being shipped with a 20/20 memory score. In fact, the opposite happened: the corrected memory rule (\"memory and web_search cannot create files… 'remember that…' is memory\") was measured in a same-day alternating A/B and **reverted** — the new text routed qwen2.5:7b's \"Remember this…\" to `cron` 0/20 vs 16/20 for the old text, while phi4 stayed 54/54 either way [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing]. That was recorded in commit [54359df] on 2026-09-30, which kept the known-good text and marked the rules block \"a measured artifact, change it only with an A/B\" [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].\n\nThe closest 20/20-style figures in that decision are the per-model checks (memory 10/10 each on qwen3.5:9b and gemma4:12b, `cron` 10/10 on qwen2.5:7b) — but no 20/20, and no shipped corrected rule.",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing",
+        "54359df"
+      ],
+      "citedDecisions": [
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [
+        "20/20",
+        "20/20",
+        "10/10"
+      ],
+      "tools": [
+        "search",
+        "trace",
+        "search"
+      ],
+      "ms": 32761
+    },
+    "baseline": {
+      "top": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-09-20-memory-gets-its-intake-fixed-and-a-synthesis-pass-is-measure",
+        "2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing",
+        "2026-06-parallel-memory-router"
+      ]
+    }
+  },
+  {
+    "id": "inv-12",
+    "graph": "invarail",
+    "kind": "trap",
+    "question": "Why did thinking mode improve the 12B models' scores?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. The searches turned up related material — the gemma4:12b eval showing 7/7 pass with thinking on at 25.6 tok/s [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches], and a separate finding that thinking mode consumed the entire `num_predict` budget until it was raised from 1024 to 8192 [2026-05-qwen3-6-35b-for-briefing] [2026-05-low-num-predict-starving-thinking-models] — but no decision records *why* thinking mode improved the 12B models' scores.",
+      "status": "supported",
+      "cited": [
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches",
+        "2026-05-qwen3-6-35b-for-briefing",
+        "2026-05-low-num-predict-starving-thinking-models"
+      ],
+      "citedDecisions": [
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches",
+        "2026-05-qwen3-6-35b-for-briefing",
+        "2026-05-low-num-predict-starving-thinking-models"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace",
+        "search",
+        "why",
+        "why",
+        "search"
+      ],
+      "ms": 49319
+    },
+    "baseline": {
+      "top": [
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-05-low-num-predict-starving-thinking-models"
+      ]
+    }
+  },
+  {
+    "id": "inv-13",
+    "graph": "invarail",
+    "kind": "abstain",
+    "question": "Why did we choose Kubernetes for deployment?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. There's no decision in the log about choosing Kubernetes (or any deployment-platform choice); searches for \"Kubernetes,\" \"deployment,\" and container/infrastructure decisions return nothing relevant. The closest deployment-related decisions concern model-serving shape, not orchestration — e.g. the SGLang cutover to \"one model, one box, real concurrency\" [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency] and the disproven confidence-gated hybrid deployment shape [2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment]. If Kubernetes was chosen, that rationale was never recorded.",
+      "status": "supported",
+      "cited": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment"
+      ],
+      "citedDecisions": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "why",
+        "search",
+        "search",
+        "disproven"
+      ],
+      "ms": 32682
+    },
+    "baseline": {
+      "top": [
+        "2026-09-27-two-outside-reviews-land-the-walls-have-seams",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-06-calendar-prep-proposals-first-proactive-autonomy-rung",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-09-19-prefill-is-the-hidden-axis-and-our-prompt-order-was-throwing"
+      ]
+    }
+  },
+  {
+    "id": "inv-14",
+    "graph": "invarail",
+    "kind": "abstain",
+    "question": "Why was Postgres chosen as the primary database?",
+    "agent": {
+      "answer": "I don't know — the graph has no record of Postgres being chosen as the primary database. In fact, the database decisions in the graph point elsewhere: the memory store was moved from a flat JSONL FactStore to **FalkorDB** (a Redis-compatible graph database), chosen over Neo4j (memory footprint ~85MB vs 2.6GB, free, native vector search), SQLite (no graph traversal or relationship modeling), and Memgraph (lacked native vector search at evaluation time) [2026-05-memory-system-overhaul-flat-store-to-graph-database].\n\nIf Postgres is used somewhere in this repo, the decision log doesn't capture why — there's no decision, commit, or rationale mentioning it.",
+      "status": "supported",
+      "cited": [
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database"
+      ],
+      "citedDecisions": [
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "why",
+        "search",
+        "search",
+        "trace"
+      ],
+      "ms": 27827
+    },
+    "baseline": {
+      "top": [
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-09-27-four-ways-to-remember-memory-tiers-and-the-open-knowledge-fo",
+        "2026-06-graph-memory-maintenance-entity-quality-gate-orphan-cleanup",
+        "2026-07-25-the-skill-system-was-dead-for-three-months-resurrection-by-a"
+      ]
+    }
+  },
+  {
+    "id": "inv-15",
+    "graph": "invarail",
+    "kind": "abstain",
+    "question": "Who approved the cloud budget for the GPU cluster?",
+    "agent": {
+      "answer": "I don't know — the graph has no record of a cloud budget approval for a GPU cluster. The closest matches are technical decisions like the SGLang cutover [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency] and token economics monitoring [2026-06-token-economics-monitoring], but none record who approved spending or budgets. That kind of organizational/financial decision isn't captured in this decision log.",
+      "status": "supported",
+      "cited": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-06-token-economics-monitoring"
+      ],
+      "citedDecisions": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-06-token-economics-monitoring"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search"
+      ],
+      "ms": 11585
+    },
+    "baseline": {
+      "top": [
+        "2026-09-20-memory-gets-its-intake-fixed-and-a-synthesis-pass-is-measure",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database",
+        "2026-09-28-the-synthesis-gate-re-run-and-a-harness-mistake-that-looked",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead"
+      ]
+    }
+  },
+  {
+    "id": "cp-01",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "Why can content now be deleted when the database used to restrict deletion?",
+    "agent": {
+      "answer": "Content deletion became possible because of the access limit feature. Originally, ADR 8 set a rule that all foreign keys use `restrict` on delete, since there were no real-world deletion use cases [adr-0008].\n\nThen the access limit feature created a problem: production data is synced to an integration environment with weaker access controls, potentially exposing sensitive content. To fix this, data must be removed during the sync. ADR 13 chose removal over redaction (simpler, less format-specific), so `restrict` constraints on the editions and revisions tables were replaced with `cascade` behaviour, letting access-limited editions and their associated data be deleted automatically [adr-0013], via commits [126a40b5] (\"Allow removing of access limited editions\") and [5fdc3355] (\"Allow revision deletion for access limiting\").\n\nThe consequence: there's no longer a hard-and-fast rule that foreign keys must restrict deletion — developers must now consider whether schema changes affect data that can be access limited [adr-0013].",
+      "status": "supported",
+      "cited": [
+        "adr-0008",
+        "adr-0013",
+        "126a40b5",
+        "5fdc3355"
+      ],
+      "citedDecisions": [
+        "adr-0008",
+        "adr-0013"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace",
+        "trace"
+      ],
+      "ms": 21319
+    },
+    "baseline": {
+      "top": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0013",
+        "adr-0014",
+        "adr-0012"
+      ]
+    }
+  },
+  {
+    "id": "cp-02",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How is political and government tagging decided, and what changed?",
+    "agent": {
+      "answer": "Political/government tagging went through two ADRs:\n\n**Original decision (2018) — defer it** [adr-0006]: Content Publisher chose not to implement political/government tagging at all, because Whitehall's approach had drawbacks — the attributes were redundant data inside the content, all documents would need republishing when the government changed, and the effect of marking content political was unclear.\n\n**What changed (Dec 2019)** [adr-0014]: The political climate made it necessary — content had to be able to enter history mode, which requires association with a non-current government plus a political flag. So ADR 14 superseded ADR 6 and implemented it:\n\n- A service runs on each edit to determine whether content is political; if published or backdated, it also determines the government (based on first publication/backdated time), stored in the editions table. Only the current value is stored since it's not part of publication history.\n- A publisher can override the political value via `editor_political` (part of a revision, stored permanently), which supersedes the computed `system_political`.\n- Sent to the Publishing API as a boolean `political` attribute plus a government edition link. Since governments were added to the Publishing API, content no longer needs republishing when the government changes — resolving ADR 6's main objection.\n\nRecorded in commit [bc023143] (\"Add ADR to record government and political tagging decision\", Kevin Dew), superseding the original ADR recorded in [9dd75ca2] (Ben Thorner).",
+      "status": "supported",
+      "cited": [
+        "adr-0006",
+        "adr-0014",
+        "bc023143",
+        "9dd75ca2"
+      ],
+      "citedDecisions": [
+        "adr-0006",
+        "adr-0014"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace",
+        "trace"
+      ],
+      "ms": 25306
+    },
+    "baseline": {
+      "top": [
+        "adr-0006",
+        "adr-0014",
+        "adr-0003",
+        "adr-0012",
+        "adr-0015"
+      ]
+    }
+  },
+  {
+    "id": "cp-03",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "Why does Content Publisher store its own data instead of relying only on the Publishing API?",
+    "agent": {
+      "answer": "Content Publisher uses a local datastore per [adr-0002] (\"Use local datastore for publisher workflow\", 2018-07-20). The original platform goal was for publishing apps to be stateless Publishing API clients, but building Specialist Publisher that way proved difficult, so the team reconsidered [adr-0002].\n\nKey reasons for the local datastore:\n- It's standard Rails — quick to build, easy to understand, and easy to test (no heavy API stubbing) [adr-0002]\n- Easier to iterate on the workflow; changing an API workflow is much harder [adr-0002]\n- Interim data: only final content state belongs in the Publishing API; some formats need pre-draft storage and publisher metadata (notes, etc.) that the API doesn't need [adr-0002]\n- Avoiding an \"Active Resource\" REST mapper and making performance problems easier to resolve [adr-0002]\n\nTrade-offs accepted: syncing local data with the Publishing API, local data being hard for other apps to query, and possible mismatches between content schemas and Rails validations [adr-0002].",
+      "status": "supported",
+      "cited": [
+        "adr-0002"
+      ],
+      "citedDecisions": [
+        "adr-0002"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 20808
+    },
+    "baseline": {
+      "top": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0002",
+        "adr-0015",
+        "adr-0012"
+      ]
+    }
+  },
+  {
+    "id": "cp-04",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How is the history of a document modelled?",
+    "agent": {
+      "answer": "Document history is modelled via **ADR-0009 \"Modelling history\"** [adr-0009]:\n\n- The domain stores **individual editions of a document, each revision of its content, and each status an edition has held** — replacing the earlier approach where a `documents` table held only the latest content and history lived in Papertrail (not a permanent store) plus a thin `TimelineEntry` model [adr-0009].\n- The key theme is **immutability**: immutable models (especially for revisions and images) act as an implicit means of storing history [adr-0009].\n- It was driven by pain points: users couldn't discard a new draft of a published document (creating a draft overwrote the published edition's data), the live edition's link/status became inaccurate, images couldn't be edited after first publication, and `TimelineEntry` stored document state, forcing queries outside a timeline context [adr-0009].\n- It also unlocks intended features: comparing editions, republishing live content, and showing what a user changed in an edit [adr-0009].\n\nRecorded in commit [d1e3b7c6] (\"ADR on modelling history in Content Publisher\", Kevin Dew, 2018-12-13), amended 2019-01-29 [adr-0009].",
+      "status": "supported",
+      "cited": [
+        "adr-0009",
+        "d1e3b7c6"
+      ],
+      "citedDecisions": [
+        "adr-0009"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 21228
+    },
+    "baseline": {
+      "top": [
+        "adr-0009",
+        "adr-0016",
+        "adr-0003",
+        "adr-0007",
+        "adr-0008"
+      ]
+    }
+  },
+  {
+    "id": "cp-05",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "Why was business logic moved out of controllers?",
+    "agent": {
+      "answer": "Business logic was moved out of controllers per [adr-0011] because:\n\n- Controller classes had become increasingly complex as the app grew, producing long, hard-to-understand, expensive-to-test action methods — with more functionality (access limiting, concurrent editing protection, invalid state handling) expected, controllers were anticipated to become an increasing pain point.\n- The customary fix was to separate business logic (the state-changing action) from rendering logic and move the former into another class.\n- Alternatives were evaluated and rejected: service objects (already used, but the services directory had become a mess with little consistency), dry-transaction (strict DSL, unlike plain Ruby), Interactor (unclear input/output), Trailblazer (best only with the full Trailblazer suite), and the Publishing API command pattern (convoluted and inflexible due to domain logic coupling).\n\nThe decision was recorded in commit [082d2400] (\"ADR for interactors\", Kevin Dew, 2019-05-24).",
+      "status": "supported",
+      "cited": [
+        "adr-0011",
+        "082d2400"
+      ],
+      "citedDecisions": [
+        "adr-0011"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace"
+      ],
+      "ms": 18623
+    },
+    "baseline": {
+      "top": [
+        "adr-0011",
+        "adr-0012",
+        "adr-0010",
+        "adr-0009",
+        "adr-0003"
+      ]
+    }
+  },
+  {
+    "id": "cp-06",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How are file attachments rendered?",
+    "agent": {
+      "answer": "File attachments are rendered on GOV.UK pages through **Govspeak**, the GOV.UK markdown dialect, which converts markdown syntax into the HTML needed to display an attachment [adr-0012].\n\nFor attachments shown **outside** the context of a document (e.g. previews), ADR 0012 considered three approaches [adr-0012]:\n1. Rendering Govspeak blocks outside a document — rejected as hard to customise and convoluted.\n2. Re-creating the rendering logic/markup as Content Publisher components — easy to customise, but duplicates logic across two repos.\n3. Having both Govspeak and Content Publisher call **GOV.UK Publishing Components** as the single place that renders file attachments.\n\nThe ADR text returned is truncated before the final decision statement, so I can't confirm from the graph which option was formally chosen — though the framing points to option 3 (a single shared renderer). The decision was recorded by Kevin Dew in commit [916fa4ea] (\"ADR for rendering file attachments\") and the file was later renamed/numbered in [e7fba7eb].",
+      "status": "supported",
+      "cited": [
+        "adr-0012",
+        "916fa4ea",
+        "e7fba7eb"
+      ],
+      "citedDecisions": [
+        "adr-0012"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "trace",
+        "why",
+        "origin"
+      ],
+      "ms": 38912
+    },
+    "baseline": {
+      "top": [
+        "adr-0012",
+        "adr-0009",
+        "adr-0004",
+        "adr-0007",
+        "adr-0010"
+      ]
+    }
+  },
+  {
+    "id": "cp-07",
+    "graph": "content-publisher",
+    "kind": "people",
+    "question": "Who should review a change to app/models/edition.rb?",
+    "agent": {
+      "answer": "**Kevin Dew** is the top candidate — 37 commits touching app/models/edition.rb, most recently on 2022-10-10 [who_knows: app/models/edition.rb]. Ben Thorner (18 commits) is the next most familiar, followed by Emma Beynon (8), Graham Lewis (3), and Jon Hallam (3).",
+      "status": "supported",
+      "cited": [
+        "app/models/edition.rb"
+      ],
+      "citedDecisions": [],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "who_knows"
+      ],
+      "ms": 8777
+    },
+    "baseline": {
+      "top": [
+        "adr-0004",
+        "adr-0002",
+        "adr-0009",
+        "adr-0012",
+        "adr-0014"
+      ]
+    }
+  },
+  {
+    "id": "cp-08",
+    "graph": "content-publisher",
+    "kind": "abstain",
+    "question": "Why did the team switch from Rails to Django?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. Nothing in the decision log records a switch from Rails to Django. In fact, the evidence points the other way: the repository is a Rails codebase (e.g. [lib/tasks/csv_report.rake], [spec/lib/tasks/csv_report_spec.rb], and Rails-style migrations like [db/migrate/20191114123329_repopulate_document_id_in_metadata_revisions.rb]), and the recorded decisions (adr-0002 through adr-0016) cover things like local datastores, modelling history, and bulk data loading — none mention Django or a framework migration.",
+      "status": "invalid-citation",
+      "cited": [],
+      "citedDecisions": [],
+      "invalid": [
+        "lib/tasks/csv_report.rake",
+        "spec/lib/tasks/csv_report_spec.rb",
+        "db/migrate/20191114123329_repopulate_document_id_in_metadata_revisions.rb"
+      ],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "search",
+        "search",
+        "disproven",
+        "what_is",
+        "search"
+      ],
+      "ms": 30304
+    },
+    "baseline": {
+      "top": [
+        "adr-0009",
+        "adr-0010",
+        "adr-0004",
+        "adr-0011",
+        "adr-0015"
+      ]
+    }
+  },
+  {
+    "id": "cp-09",
+    "graph": "content-publisher",
+    "kind": "abstain",
+    "question": "Why was GraphQL adopted for the publishing API?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. There's no decision, file, or topic mentioning GraphQL anywhere in the decision log; the closest related records are about the publishing workflow's local datastore [adr-0002] and publishing times/change history [adr-0016], neither of which mentions GraphQL.",
+      "status": "supported",
+      "cited": [
+        "adr-0002",
+        "adr-0016"
+      ],
+      "citedDecisions": [
+        "adr-0002",
+        "adr-0016"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "search",
+        "search",
+        "search",
+        "why"
+      ],
+      "ms": 20034
+    },
+    "baseline": {
+      "top": [
+        "adr-0016",
+        "adr-0002",
+        "adr-0012",
+        "adr-0003",
+        "adr-0009"
+      ]
+    }
+  },
+  {
+    "id": "cp-10",
+    "graph": "content-publisher",
+    "kind": "trap",
+    "question": "Why does ADR 6 still govern government tagging today?",
+    "agent": {
+      "answer": "The premise doesn't hold: ADR 6 (\"Tagging Content to Governments\", 2018-12-12) is marked **superseded** in the graph, not governing [adr-0006]. Government tagging today is governed by ADR 14 (\"Political and Government Tagging\", 2019-12-19), which is active [adr-0014]. I don't know — the graph has no path showing ADR 6 as still in force; if you meant ADR 14, I can trace why it governs tagging.",
+      "status": "supported",
+      "cited": [
+        "adr-0006",
+        "adr-0014"
+      ],
+      "citedDecisions": [
+        "adr-0006",
+        "adr-0014"
+      ],
+      "invalid": [],
+      "unsupportedNumbers": [],
+      "tools": [
+        "why",
+        "search"
+      ],
+      "ms": 14462
+    },
+    "baseline": {
+      "top": [
+        "adr-0014",
+        "adr-0006",
+        "adr-0015",
+        "adr-0009",
+        "adr-0016"
+      ]
+    }
+  }
+]

@@ -31,10 +31,11 @@ export interface SummaryWorkerOptions {
 async function partsOf(board: Graph, id: string) {
   const res = await board.roQuery<{ path: string; kind: string; data: string | null }>(
     `MATCH (c:Section)-[:PART_OF]->(:Section {id: $id})
-     OPTIONAL MATCH (f:Finding {kind: 'summary'})-[:ABOUT]->(c)
+     OPTIONAL MATCH (f:Finding {kind: 'summary', verified: true})-[:ABOUT]->(c)
      RETURN c.path AS path, c.kind AS kind, f.data AS data ORDER BY c.kind DESC, c.path`, { params: { id } });
+  // A directory summary rests only on parts whose own summaries passed the check.
   return (res.data ?? []).map((r) => ({ name: r.path.split('/').pop() || r.path, kind: r.kind,
-    purpose: r.data ? (JSON.parse(r.data) as { purpose?: string }).purpose ?? '' : '(not summarized)' }));
+    purpose: r.data ? (JSON.parse(r.data) as { purpose?: string }).purpose ?? '' : '(no verified summary)' }));
 }
 
 export async function runSummaryWorker(o: SummaryWorkerOptions): Promise<{ done: number; errors: number; lost: number }> {
@@ -61,9 +62,9 @@ export async function runSummaryWorker(o: SummaryWorkerOptions): Promise<{ done:
     try {
       let finding;
       if (kind === 'file') {
-        const { text, cut } = readAt(o.repo, o.sha, path);
+        const { text, full, cut } = readAt(o.repo, o.sha, path);
         const r = await o.llm.json<FileSummary>({ system: FILE_SYSTEM, user: `File: ${path}${cut ? ' (long — middle omitted)' : ''}\n\n${text}`, schema: FILE_SCHEMA, schemaName: 'file_summary', maxTokens: 2048 });
-        const c = checkFile(r.value, text);
+        const c = checkFile(r.value, full);   // checked against the whole file, not the cut view the model saw
         const ok = c.value.purpose.length > 0 && (c.checked === 0 || c.verified / c.checked >= 0.5);
         finding = { kind: 'summary' as const, data: { ...c.value, sha: o.sha, cut, verified: c.verified, checked: c.checked, dropped: c.dropped }, quote: null, verified: ok,
           reason: ok ? null : `only ${c.verified}/${c.checked} names found in the file` };

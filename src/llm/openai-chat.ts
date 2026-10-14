@@ -41,8 +41,11 @@ export function createOpenAiChat(opts: OpenAiChatOptions = {}) {
 
   async function once(req: ChatRequest): Promise<ChatResult> {
     const ctrl = new AbortController();
-    let idle = setTimeout(() => ctrl.abort(), idleMs);
-    const touch = () => { clearTimeout(idle); idle = setTimeout(() => ctrl.abort(), idleMs); };
+    // abort() can throw synchronously from a stream listener inside the timer — outside any promise the
+    // retry logic awaits — and crash the process. Guard it: the stream's own rejection is what we handle.
+    const abort = () => { try { ctrl.abort(); } catch { /* surfaces as the stream's rejection */ } };
+    let idle = setTimeout(abort, idleMs);
+    const touch = () => { clearTimeout(idle); idle = setTimeout(abort, idleMs); };
     try {
       const res = await doFetch(`${baseUrl}/chat/completions`, {
         method: 'POST', signal: ctrl.signal, headers: { 'content-type': 'application/json' },

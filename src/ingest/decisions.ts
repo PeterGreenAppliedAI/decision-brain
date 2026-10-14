@@ -233,6 +233,18 @@ export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], re
   await graph.query("MATCH (d:Decision {sourceFile: $file})-[r:SUPERSEDES {via: 'status'}]-() DELETE r",
     { params: { file: sourceFile } });
 
+  // An entry whose text changed loses its published evidence in this same pass — measurements,
+  // experiments, concept links and relations the board confirmed — so no reader ever sees new text
+  // beside evidence extracted from the old. Re-extraction and integration bring it back.
+  const changed = (await graph.query<{ id: string }>(
+    `UNWIND $rows AS r MATCH (d:Decision {id: r.id}) WHERE d.contentHash IS NOT NULL AND d.contentHash <> r.h RETURN d.id AS id`,
+    { params: { rows: entries.map((e) => ({ id: e.id, h: contentHash(e.title, e.body) })) as never } })).data?.map((r) => r.id) ?? [];
+  if (changed.length) {
+    await graph.query('MATCH (d:Decision)-[:BECAUSE|TESTED]->(x) WHERE d.id IN $ids DETACH DELETE x', { params: { ids: changed } });
+    await graph.query('MATCH (d:Decision)-[r:ABOUT|ABOUT_BROADLY|INVOLVES]->() WHERE d.id IN $ids DELETE r', { params: { ids: changed } });
+    await graph.query("MATCH (d:Decision)-[r:SUPERSEDES|REVISES|DISPROVES {via: 'board'}]-() WHERE d.id IN $ids DELETE r", { params: { ids: changed } });
+  }
+
   await writeRows(graph,
     `UNWIND $rows AS r
      MERGE (d:Decision {id: r.id})

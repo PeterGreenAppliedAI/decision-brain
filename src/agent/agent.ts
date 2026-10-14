@@ -58,7 +58,7 @@ export async function ask(question: string, opts: { graph: string; maxSteps?: nu
       onStep: opts.onStep,
       finalAnswer: 'Step budget reached. Answer now, only from the tool results above, citing ids in brackets — or say "I don\'t know — the graph has no path for this."',
     });
-    return { question, answer: r.answer.trim(), steps: r.steps, grounding: ground(r.answer, r.steps), exhausted: r.exhausted, ms: Date.now() - started };
+    return { question, answer: r.answer.trim(), steps: r.steps, grounding: ground(r.answer, r.steps, question), exhausted: r.exhausted, ms: Date.now() - started };
   } finally {
     await close();
   }

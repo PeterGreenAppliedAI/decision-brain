@@ -8,6 +8,11 @@ import { readFileSync } from 'node:fs';
 export interface Question { id: string; graph: string; kind: 'find' | 'trap' | 'abstain' | 'people'; question: string }
 export interface Label { id: string; relevant: string[]; abstain: boolean; correctPremise: boolean; reviewers: string[]; labelled: boolean; note: string }
 
+/** The "Label source:" line at the top of LABELS.md — reported verbatim, so a report never says "human" when they were not. */
+export function labelSource(md: string): string {
+  return /^Label source:\s*(.+)$/m.exec(md)?.[1].trim() ?? 'unstated';
+}
+
 export function loadQuestions(path = 'eval/questions.json'): Question[] {
   return JSON.parse(readFileSync(path, 'utf8'));
 }

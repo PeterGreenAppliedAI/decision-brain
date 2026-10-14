@@ -53,8 +53,11 @@ export function createJsonClient(opts: OpenAiOptions = {}) {
   async function once<T>(req: JsonRequest): Promise<JsonResult<T>> {
     const started = Date.now();
     const ctrl = new AbortController();
-    let idle = setTimeout(() => ctrl.abort(), idleTimeoutMs);
-    const touch = () => { clearTimeout(idle); idle = setTimeout(() => ctrl.abort(), idleTimeoutMs); };
+    // abort() can throw synchronously from a stream listener inside the timer — outside any promise the
+    // retry logic awaits — and crash the process. Guard it: the stream's own rejection is what we handle.
+    const abort = () => { try { ctrl.abort(); } catch { /* surfaces as the stream's rejection */ } };
+    let idle = setTimeout(abort, idleTimeoutMs);
+    const touch = () => { clearTimeout(idle); idle = setTimeout(abort, idleTimeoutMs); };
 
     let res: Response;
     try {

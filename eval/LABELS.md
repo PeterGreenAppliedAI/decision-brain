@@ -8,6 +8,8 @@ should review on a `reviewers:` line. Mark each question `labelled: yes` when do
 
 These labels are the ground truth — the system never grades itself.
 
+Label source: model-drafted (glm-5.3-flash, each relevance judgement with a verbatim quote checked by code), then reviewed and corrected question by question by Claude (Opus 5.5) against the entries before any results were read — except inv-01..04 and cp-01, whose answers Claude had seen in earlier demo runs. Owner spot-check: pending.
+
 ## inv-01 · find · invarail
 
 > Why does the router prompt keep a rule that's factually wrong about memory?

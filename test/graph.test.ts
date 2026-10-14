@@ -139,3 +139,32 @@ describe.skipIf(!reachable)('re-ingest converges on the repo as it is now', () =
     rmSync(empty, { recursive: true, force: true });
   });
 });
+
+describe.skipIf(!reachable)('no stale window: editing an entry removes its published evidence at ingest', () => {
+  let db: Awaited<ReturnType<typeof connect>>, g: Graph, repo: string;
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
+  const count = async (q: string) => (await g.roQuery<{ n: number }>(q)).data![0].n;
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-window-'));
+    git('init', '-q'); git('config', 'user.name', 'A'); git('config', 'user.email', 'a@x');
+    writeFileSync(join(repo, 'DECISIONS.md'), '# D\n\n## Cache Size (May 1 2026)\n\nWe keep 50 entries; hit rate 9/10.\n\n## Other (May 2 2026)\n\nUnrelated.\n');
+    git('add', '.'); git('commit', '-q', '-m', 'one');
+    db = await connect(); g = db.selectGraph(`test-window-${process.pid}-${Date.now()}`);
+    await ingestRepo(g, repo);
+    // what integration would have published, for both entries
+    await g.query(`MATCH (a:Decision {id: '2026-05-01-cache-size'}), (b:Decision {id: '2026-05-02-other'})
+      CREATE (a)-[:BECAUSE]->(:Measurement {id: 'm1', value: '9/10'}), (b)-[:BECAUSE]->(:Measurement {id: 'm2', value: '1/1'}),
+             (a)-[:ABOUT]->(:Concept {name: 'cache'}), (a)-[:REVISES {via: 'board'}]->(b), (b)-[:SUPERSEDES {via: 'status'}]->(a)`);
+  });
+  afterAll(async () => { await g?.delete().catch(() => {}); await db?.close(); rmSync(repo, { recursive: true, force: true }); });
+
+  it('removes the edited entry\'s evidence and board relations — and nothing of the unchanged entry', async () => {
+    writeFileSync(join(repo, 'DECISIONS.md'), '# D\n\n## Cache Size (May 1 2026)\n\nWe keep 80 entries now; hit rate 7/10.\n\n## Other (May 2 2026)\n\nUnrelated.\n');
+    git('commit', '-q', '-am', 'edit');
+    await ingestRepo(g, repo);
+    expect(await count("MATCH (:Decision {id: '2026-05-01-cache-size'})-[:BECAUSE]->(m) RETURN count(m) AS n")).toBe(0);
+    expect(await count("MATCH (:Decision {id: '2026-05-01-cache-size'})-[:ABOUT]->(c) RETURN count(c) AS n")).toBe(0);
+    expect(await count("MATCH ()-[r:REVISES {via: 'board'}]->() RETURN count(r) AS n")).toBe(0);
+    expect(await count("MATCH (:Decision {id: '2026-05-02-other'})-[:BECAUSE]->(m) RETURN count(m) AS n")).toBe(1);
+  });
+});
