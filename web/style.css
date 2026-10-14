@@ -46,7 +46,7 @@ h2:not(:first-child) { margin-top: 22px; }
 .canvas { position: relative; }
 #cy { position: absolute; inset: 0; }
 .legend { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 12px; color: var(--dim); background: #0b0e14cc; padding: 4px 8px; border-radius: 4px; flex-wrap: wrap; }
-.legend span { white-space: nowrap; }
+.legend span { white-space: nowrap; display: inline-flex; align-items: center; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .sw.pending { background: var(--pending); } .sw.claimed { background: var(--claimed); }
 .sw.done { background: var(--done); } .sw.failed { background: var(--failed); }

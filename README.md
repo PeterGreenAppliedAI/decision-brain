@@ -62,6 +62,10 @@ extraction team.
 | `Experiment` | `id, hypothesis, verdict: confirmed\|disproven\|inconclusive, quote, extractedBy, pos` | the team, verified |
 | `Concept` | `name, generic, share` | the team, verified |
 | `Model` | `name` | the team, verified |
+| `Module` | `path, purpose, parts, summarySha, summarizedBy` — a directory; `.` is the repo | summary team, checked |
+
+`File` also carries `purpose, summary, summarySha, summarizedBy` once summarized: what the file does
+at that commit — every symbol the summary names is checked against the file.
 
 | Relationship | Meaning |
 |---|---|
@@ -76,8 +80,11 @@ extraction team.
 | `(Decision)-[:INVOLVES]->(Model)` | models the entry is about |
 | `(Decision)-[:SUPERSEDES\|REVISES\|DISPROVES {via, quote, targetQuote, raisedBy, confirmedBy}]->(Decision)` | newer → older; `via: 'status'` when an ADR's status line states it, `via: 'board'` when two agents agreed |
 | `(Decision)-[:RATIONALE {via}]->(File\|Decision)` | derived by code: "this decision's reasoning rests on that" — what PageRank and paths run over |
+| `(Module)-[:CONTAINS]->(File\|Module)` | the directory tree, for summaries |
 
-**Board graph (`<repo>__board`)** — `Section {id, status, attempts, claimedBy, expiresAt}`,
+**Board graphs (`<repo>__board` for decisions, `<repo>__files` for summaries)** — sections may depend
+on others: `(Section)-[:PART_OF]->(Section)` with a `waiting` count, so a directory is claimable only
+once every part of it is done. — `Section {id, status, attempts, claimedBy, expiresAt}`,
 `Agent {name, model, lastSeen, leftAt}`, `Finding {kind, data, quote, verified, reason}`,
 `Handoff {relation, status, quote, reason, resolvedBy}`, `Event {at, kind, agent, section, text}`;
 `(Agent)-[:CLAIMED]->(Section|Handoff)`, `(Finding)-[:FROM]->(Agent)`, `(Finding)-[:ABOUT]->(Section)`,
@@ -100,6 +107,8 @@ tools in `src/tools/graph-tools.ts`, `trace.ts` and `review.ts`.
 | `connect(a, b)` | How are these two things related? | `algo.SPpaths`, undirected, never through a person or hub |
 | `load_bearing()` | Which files carry the most reasoning? | `algo.pageRank` over the rationale graph |
 | `review(commit)` | What does this change touch, as of when it was made? | the deterministic review packet |
+| `what_is(target)` | What does this file or directory do now? | its summary — describes code at a commit, never intent; flags staleness |
+| `origin(file)` | What was it meant to do, and how did that change? | birth commit + decision recorded there, then every later decision on it |
 
 ## Run it
 
@@ -120,6 +129,7 @@ npm run review -- --graph <name> <commit>                 # the review packet fo
 npm run trace -- --graph <name> --find "router"           # find a decision; then trace <decision-id>
 npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
+npm run summarize -- --graph <name> --repo <path>         # file → directory → repo summaries (board <name>__files)
 ```
 
 Corpora used: [Invarail](https://github.com/PeterGreenAppliedAI/Invarail) (151 decision-log entries,

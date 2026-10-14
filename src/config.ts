@@ -37,6 +37,13 @@ export const config = {
   /** A directory segment on fewer than this share of paths is distinctive enough to count as an entry
    *  naming the files under it ("chrome-extension", never "src"). */
   distinctiveSegmentShare: Number(process.env.DISTINCTIVE_SEGMENT_SHARE ?? 0.1),
+  /** File summaries: which files count as source, and what is left out (tests, builds, vendored). */
+  fileExtensions: (process.env.FILE_EXTENSIONS ?? 'ts,tsx,js,mjs,cjs,py,rb,go,rs,java,kt,cs,php,swift,c,h,cpp,sh,sql,erb,vue,svelte')
+    .split(',').map((e) => e.trim()).filter(Boolean),
+  fileExclude: (process.env.FILE_EXCLUDE ?? '**/node_modules/**,**/dist/**,**/build/**,**/vendor/**,**/coverage/**,**/*.min.*,**/*.d.ts,**/test/**,**/tests/**,**/spec/**,**/__tests__/**,**/*.test.*,**/*.spec.*')
+    .split(',').map((g) => g.trim()).filter(Boolean),
+  /** Larger files are shown to the model as head + tail, marked as cut. */
+  fileMaxChars: Number(process.env.FILE_MAX_CHARS ?? 40_000),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };

@@ -15,7 +15,7 @@ and **shows the path** behind every answer.
 | `review <commit>` (Track 01 action) | done — deterministic, as-of-change |
 | Board view (live) | done |
 | Ask + Path views | done — answer streamed with tool calls, citations clickable, cited subgraph drawn |
-| File and module summaries (map-reduce on the board, dependency-ordered) + `origin(file)` | next (Day 2) |
+| File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — Invarail trial 20 files/12 dirs in 140 s; full run (318 files, 63 dirs) in progress |
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…) as intent sources; "what was the agent told when it wrote this?" | next (Day 2) |
 | Question memory | next |
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |

@@ -13,13 +13,17 @@
  *
  * FalkorDB serializes writes to one graph, so every claim is a single query and therefore atomic:
  * concurrent claimers always get different work, with no locks in code.
+ *
+ * Dependencies: (:Section)-[:PART_OF]->(:Section) with `waiting` = how many parts are not done yet.
+ * A section is claimable only at waiting = 0, and finishing a part counts its parent down — so a
+ * directory summary is written only after every file in it, and the repo summary last.
  */
 import type { Graph } from '../graph/db.js';
 
 export const boardName = (repoGraph: string) => `${repoGraph}__board`;
 
 export interface FindingRow {
-  kind: 'measurement' | 'experiment' | 'concept' | 'model' | 'cross_ref';
+  kind: 'measurement' | 'experiment' | 'concept' | 'model' | 'cross_ref' | 'summary';
   data: Record<string, unknown>;
   quote: string | null;
   verified: boolean;
@@ -40,7 +44,7 @@ export async function ensureBoardSchema(board: Graph): Promise<void> {
   }
 }
 
-async function event(board: Graph, kind: string, agent: string | null, section: string | null, text: string, now = Date.now()) {
+export async function event(board: Graph, kind: string, agent: string | null, section: string | null, text: string, now = Date.now()) {
   await board.query('CREATE (:Event {at: $now, kind: $kind, agent: $agent, section: $section, text: $text})',
     { params: { now, kind, agent, section, text } });
 }
@@ -76,6 +80,7 @@ export async function claimSection(board: Graph, agent: string, ttlMs: number, m
   const res = await board.query<Claim>(`
     MATCH (s:Section)
     WHERE (s.status = 'pending' OR (s.status = 'claimed' AND s.expiresAt < $now)) AND s.attempts < $max
+      AND coalesce(s.waiting, 0) = 0
     WITH s ORDER BY s.order LIMIT 1
     OPTIONAL MATCH (prev:Agent)-[old:CLAIMED]->(s)
     WITH s, prev, old, s.status = 'claimed' AS takeover
@@ -150,6 +155,8 @@ export async function completeSection(board: Graph, agent: string, sectionId: st
     await event(board, 'lost', agent, sectionId, 'claim lost before finishing — work dropped');
     return false;
   }
+  // Count the parent down: its last part finishing makes it claimable.
+  await board.query('MATCH (:Section {id: $id})-[:PART_OF]->(p:Section) SET p.waiting = p.waiting - 1', { params: { id: sectionId } });
   const rows = findings.map((f, i) => ({
     id: `${sectionId}#${agent}#${now}#${i}`, kind: f.kind, data: JSON.stringify(f.data), quote: f.quote,
     verified: f.verified, reason: f.reason, target: f.target ?? null, relation: f.relation ?? null,
@@ -198,21 +205,30 @@ export async function release(board: Graph, agent: string, label: 'Section' | 'H
   maxAttempts: number): Promise<void> {
   const keyProp = label === 'Section' ? 'id' : 'key';
   const back = label === 'Section' ? 'pending' : 'open';
-  await board.query(
+  const res = await board.query<{ status: string }>(
     `MATCH (n:${label} {${keyProp}: $key}) WHERE n.claimedBy = $agent AND n.status = 'claimed'
      SET n.status = CASE WHEN n.attempts >= $max THEN 'failed' ELSE $back END, n.lastError = $why
-     WITH n OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(n) DELETE c`,
+     WITH n OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(n) DELETE c
+     RETURN n.status AS status`,
     { params: { key, agent, back, why, max: maxAttempts } });
+  if (label === 'Section' && res.data?.[0]?.status === 'failed') await releaseParents(board, [key]);
   await event(board, 'release', agent, label === 'Section' ? key : null, why.slice(0, 200));
+}
+
+/** A part that failed for good still counts its parent down — the parent is written without it. */
+async function releaseParents(board: Graph, ids: string[]): Promise<void> {
+  if (ids.length) await board.query('MATCH (s:Section)-[:PART_OF]->(p:Section) WHERE s.id IN $ids SET p.waiting = p.waiting - 1', { params: { ids } });
 }
 
 /** Expired claims whose sections have no attempts left are failed, so the team can finish. */
 export async function sweepExhausted(board: Graph, maxAttempts: number, now = Date.now()): Promise<void> {
-  await board.query(
+  const res = await board.query<{ id: string | null }>(
     `MATCH (n) WHERE (n:Section OR n:Handoff) AND n.status = 'claimed' AND n.expiresAt < $now AND n.attempts >= $max
      SET n.status = 'failed'
-     WITH n OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(n) DELETE c`,
+     WITH n OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(n) DELETE c
+     RETURN CASE WHEN n:Section THEN n.id ELSE null END AS id`,
     { params: { now, max: maxAttempts } });
+  await releaseParents(board, (res.data ?? []).map((r) => r.id).filter((x): x is string => Boolean(x)));
 }
 
 export interface BoardCounts { pending: number; claimed: number; done: number; failed: number; handoffsOpen: number; handoffsClaimed: number }

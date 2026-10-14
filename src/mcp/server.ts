@@ -12,7 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { connect, type Graph } from '../graph/db.js';
-import { connect as connectPath, disproven, loadBearing, search, trace, whatBreaks, whoKnows, why } from '../tools/graph-tools.js';
+import { connect as connectPath, disproven, loadBearing, origin, search, trace, whatBreaks, whatIs, whoKnows, why } from '../tools/graph-tools.js';
 import { review } from '../tools/review.js';
 
 const { values } = parseArgs({ options: { graph: { type: 'string' } } });
@@ -78,6 +78,16 @@ server.registerTool('load_bearing', {
   description: 'PageRank over the rationale graph: the files the most reasoning rests on.',
   inputSchema: { limit: z.number().int().min(1).max(30).optional(), ...graphArg },
 }, run((g, a: { limit?: number }) => loadBearing(g, a.limit)));
+
+server.registerTool('what_is', {
+  description: 'What a file or directory does now, from its summary (which describes code at a commit — not intent). "." or "repo" for the whole repository. Says when the file changed since it was summarized.',
+  inputSchema: { target: z.string().describe('A file path, a directory path, or "repo"'), ...graphArg },
+}, run((g, a: { target: string }) => whatIs(g, a.target)));
+
+server.registerTool('origin', {
+  description: 'Original intent of a file and how it evolved: the commit that created it (its message — the closest thing to stated intent) and any decision it recorded, every later decision resting on it in date order, and what it does now. recordedIntent is null when nothing was written down.',
+  inputSchema: { file: z.string(), ...graphArg },
+}, run((g, a: { file: string }) => origin(g, a.file)));
 
 server.registerTool('review', {
   description: 'The deterministic review packet for a commit: the decision it records, standing decisions on its files to re-check (with measurements), disproven experiments, superseded reasoning, and reviewers — all as of the commit. Items have stable ids (C1, R1, D1, S1, P1).',

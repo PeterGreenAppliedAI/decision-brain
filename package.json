@@ -20,7 +20,8 @@
     "review": "tsx --env-file-if-exists=.env src/tools/review-cli.ts",
     "integrate": "tsx --env-file-if-exists=.env src/board/integrate-cli.ts",
     "mcp": "tsx --env-file-if-exists=.env src/mcp/server.ts",
-    "ask": "tsx --env-file-if-exists=.env src/agent/cli.ts"
+    "ask": "tsx --env-file-if-exists=.env src/agent/cli.ts",
+    "summarize": "tsx --env-file-if-exists=.env src/files/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

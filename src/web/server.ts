@@ -63,17 +63,19 @@ const server = createServer(async (req, res) => {
     if (parts[0] === 'api') {
       if (parts[1] === 'graphs') {
         const all = await db.list();
-        return send(res, 200, all.filter((g) => !g.endsWith('__board') && !g.startsWith('test-'))
-          .map((g) => ({ name: g, board: all.includes(boardName(g)) })));
+        return send(res, 200, all.filter((g) => !/__(board|files)$/.test(g) && !g.startsWith('test-'))
+          .map((g) => ({ name: g, board: all.includes(boardName(g)), files: all.includes(`${g}__files`) })));
       }
       const name = safeName(parts[2] ?? '');
       if (!name) return send(res, 400, { error: 'bad graph name' });
 
+      // ?job=files shows the file-summary board instead of the decision-extraction board.
+      const boardOf = (n: string) => url.searchParams.get('job') === 'files' ? `${n}__files` : boardName(n);
       if (parts[1] === 'board' && parts[3] === 'stream') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
         let last = '';
         const tick = async () => {
-          const snap = await boardSnapshot(graph(boardName(name)));
+          const snap = await boardSnapshot(graph(boardOf(name)));
           const { now: _now, ...rest } = snap;
           const hash = createHash('sha1').update(JSON.stringify(rest)).digest('hex');
           if (hash !== last) { last = hash; res.write(`data: ${JSON.stringify(snap)}\n\n`); }
@@ -84,7 +86,7 @@ const server = createServer(async (req, res) => {
         req.on('close', () => clearInterval(timer));
         return;
       }
-      if (parts[1] === 'board') return send(res, 200, await boardSnapshot(graph(boardName(name))));
+      if (parts[1] === 'board') return send(res, 200, await boardSnapshot(graph(boardOf(name))));
 
       // The agent, streamed: each tool call as it completes, then the answer, its grounding and its path.
       if (parts[1] === 'ask' && parts[3] === 'stream') {

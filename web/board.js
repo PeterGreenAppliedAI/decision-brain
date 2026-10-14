@@ -33,6 +33,8 @@ const cy = cytoscape({
 });
 
 let graphName = new URLSearchParams(location.search).get('graph');
+let job = new URLSearchParams(location.search).get('job') === 'files' ? 'files' : 'board';
+const jobQs = () => (job === 'files' ? '?job=files' : '');
 let source = null;
 let seenEvents = new Set();
 let laidOut = '';
@@ -53,7 +55,8 @@ function render(snap) {
   const key = snap.sections.map((s) => s.id).join() + '|' + snap.agents.map((a) => a.name).join();
   const want = new Map();
   for (const s of snap.sections) {
-    want.set(s.id, { group: 'nodes', data: { id: s.id, short: (s.date ?? '').slice(5) || '—', title: s.title }, classes: `section ${s.status}`, position: pos[s.id] });
+    const label = job === 'files' ? (s.id.startsWith('dir:') ? s.id.slice(4).split('/').pop() + '/' : s.id.split('/').pop()) : (s.date ?? '').slice(5) || '—';
+    want.set(s.id, { group: 'nodes', data: { id: s.id, short: label, title: s.title }, classes: `section ${s.status}`, position: pos[s.id] });
   }
   for (const a of snap.agents) {
     const silent = !a.leftAt && snap.now - a.lastSeen > SILENT_MS;
@@ -125,28 +128,33 @@ async function showDetail(id) {
     ${t.supersededBy.length ? `<div>superseded by ${t.supersededBy.map((x) => esc(x.title)).join(', ')}</div>` : ''}`;
   $('detail').hidden = false;
 }
-cy.on('tap', 'node.section', (e) => showDetail(e.target.id()));
+cy.on('tap', 'node.section', (e) => { if (job !== 'files') showDetail(e.target.id()); });
 
 const STATIC = new URLSearchParams(location.search).has('static');   // one snapshot, no stream (screenshots)
 
 function connectStream() {
   if (STATIC) {
-    fetch(`/api/board/${encodeURIComponent(graphName)}`).then((r) => r.json()).then((snap) => { $('live').textContent = 'snapshot'; render(snap); });
+    fetch(`/api/board/${encodeURIComponent(graphName)}${jobQs()}`).then((r) => r.json()).then((snap) => { $('live').textContent = 'snapshot'; render(snap); });
     return;
   }
   source?.close();
   seenEvents = new Set(); laidOut = '';
-  source = new EventSource(`/api/board/${encodeURIComponent(graphName)}/stream`);
+  source = new EventSource(`/api/board/${encodeURIComponent(graphName)}/stream${jobQs()}`);
   source.onmessage = (m) => { $('live').className = 'live on'; $('live').textContent = 'live'; render(JSON.parse(m.data)); };
   source.onerror = () => { $('live').className = 'live'; $('live').textContent = 'reconnecting…'; };
 }
 
 (async () => {
   const graphs = await fetch('/api/graphs').then((r) => r.json());
-  $('graph').innerHTML = graphs.map((g) => `<option ${g.board ? '' : 'disabled'}>${esc(g.name)}</option>`).join('');
-  graphName ??= (graphs.find((g) => g.board) ?? graphs[0])?.name;
-  if (!graphName) { $('live').textContent = 'no graphs — run npm run ingest'; return; }
-  $('graph').value = graphName;
-  $('graph').onchange = () => { graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`); connectStream(); };
+  // One entry per board: the decision-extraction board and the file-summary board of each graph.
+  const opts = graphs.flatMap((g) => [
+    ...(g.board ? [{ v: `${g.name}|board`, label: `${g.name} · decisions` }] : []),
+    ...(g.files ? [{ v: `${g.name}|files`, label: `${g.name} · file summaries` }] : []),
+  ]);
+  $('graph').innerHTML = opts.map((o) => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join('');
+  if (!graphName) [graphName, job] = (opts[0]?.v ?? '|board').split('|');
+  if (!graphName) { $('live').textContent = 'no boards yet — run npm run team or npm run summarize'; return; }
+  $('graph').value = `${graphName}|${job}`;
+  $('graph').onchange = () => { [graphName, job] = $('graph').value.split('|'); history.replaceState(null, '', `?graph=${graphName}${job === 'files' ? '&job=files' : ''}`); connectStream(); };
   connectStream();
 })();

@@ -195,4 +195,55 @@ export async function loadBearing(g: Graph, limit = 10) {
   return ranked.map((r) => ({ ...r, score: Math.round(r.score * 10000) / 10000 }));
 }
 
+/**
+ * What a file or directory does now — from its summary, which describes code at a commit and is
+ * never intent. `stale` when the file has changed since the commit the summary describes.
+ */
+export async function whatIs(g: Graph, text: string) {
+  const dir = text.replace(/\/$/, '') || '.';
+  const mod = await rows<{ path: string; purpose: string; parts: string; sha: string; contains: string[] }>(g,
+    `MATCH (m:Module {path: $p}) OPTIONAL MATCH (m)-[:CONTAINS]->(x)
+     RETURN m.path AS path, m.purpose AS purpose, m.parts AS parts, m.summarySha AS sha, collect(x.path) AS contains`,
+    { p: ['repo', 'root', '/'].includes(dir) ? '.' : dir });
+  if (mod.length) return { kind: 'directory' as const, path: mod[0].path, purpose: mod[0].purpose, parts: JSON.parse(mod[0].parts ?? '[]'), contains: mod[0].contains.sort(), describesCommit: mod[0].sha, note: 'describes code, not intent' };
+  const target = await resolveTarget(g, text);
+  if (target.kind !== 'file') return { kind: 'none' as const, target };
+  const f = (await rows<{ purpose: string | null; summary: string | null; sha: string | null; summaryDate: string | null; changedSince: number }>(g,
+    `MATCH (f:File {path: $p})
+     OPTIONAL MATCH (s:Commit {sha: f.summarySha})
+     OPTIONAL MATCH (c:Commit)-[:TOUCHED]->(f) WHERE s IS NOT NULL AND c.date > s.date
+     RETURN f.purpose AS purpose, f.summary AS summary, f.summarySha AS sha, s.date AS summaryDate, count(c) AS changedSince`, { p: target.path }))[0];
+  if (!f?.purpose) return { kind: 'file' as const, path: target.path, purpose: null, note: 'not summarized yet' };
+  return { kind: 'file' as const, path: target.path, purpose: f.purpose, ...JSON.parse(f.summary ?? '{}'), describesCommit: f.sha,
+    stale: f.changedSince > 0, changedSince: f.changedSince, note: 'describes code, not intent' };
+}
+
+/**
+ * Intent at birth, then how it changed: the commit that first touched the file (its message is the
+ * closest thing to a statement of original intent), any decision that commit recorded, every later
+ * decision that rests on the file in date order, and what the file does now. Where nothing was
+ * written down, recordedIntent is null — never inferred.
+ */
+export async function origin(g: Graph, text: string) {
+  const target = await resolveTarget(g, text);
+  if (target.kind !== 'file') return { target, birth: null, recordedIntent: null, history: [], now: null };
+  const birth = (await rows<{ sha: string; short: string; date: string; message: string; authors: string[] }>(g,
+    `MATCH (c:Commit)-[:TOUCHED]->(:File {path: $p}) WITH c ORDER BY c.date, c.sha LIMIT 1
+     OPTIONAL MATCH (a:Person)-[:AUTHORED]->(c)
+     RETURN c.sha AS sha, c.short AS short, c.date AS date, c.message AS message, collect(a.name) AS authors`, { p: target.path }))[0] ?? null;
+  const bornWith = birth ? await rows<{ d: DecisionRef }>(g,
+    `MATCH (d:Decision)-[:RECORDED_IN]->(:Commit {sha: $sha}) RETURN ${DECISION} AS d ORDER BY d.id`, { sha: birth.sha }) : [];
+  const history = await rows<{ d: DecisionRef; via: string[] }>(g,
+    `MATCH (d:Decision)-[r:RATIONALE]->(:File {path: $p}) WITH d, collect(DISTINCT r.via) AS via
+     RETURN ${DECISION} AS d, via ORDER BY CASE WHEN d.date IS NULL THEN 1 ELSE 0 END, d.date, d.id`, { p: target.path });
+  const now = await whatIs(g, target.path);
+  return {
+    target,
+    birth: birth ? { ...birth, authors: birth.authors.sort() } : null,
+    recordedIntent: birth ? { commitMessage: birth.message, decisions: bornWith.map((r) => r.d) } : null,
+    history: history.map((h) => ({ ...h.d, via: h.via.sort() })),
+    now: 'purpose' in now ? { purpose: now.purpose, describesCommit: (now as { describesCommit?: string }).describesCommit ?? null } : null,
+  };
+}
+
 export { trace };
