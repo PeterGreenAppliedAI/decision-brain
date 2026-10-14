@@ -51,6 +51,12 @@ export function blameLines(repo: string, file: string): string[] {
   return out;
 }
 
+/** The commit that added a file (following renames), or null. */
+export function firstCommitOf(repo: string, path: string): string | null {
+  const shas = git(repo, ['log', '--follow', '--diff-filter=A', '--format=%H', '--', path]).trim().split('\n').filter(Boolean);
+  return shas.at(-1) ?? null;
+}
+
 export function parseGitLog(raw: string): GitCommit[] {
   return raw.split(RS).filter((r) => r.trim()).map((record) => {
     const [header, ...rest] = record.split('\n');

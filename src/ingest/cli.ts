@@ -34,9 +34,12 @@ try {
       `${r.refs.commits.length} cited commits (${r.refs.unresolvedCommits.length} unresolved), ` +
       `${r.refs.files.length} file links (${r.refs.unresolvedFiles.length} backticked paths not in git)`);
     if (r.refs.unresolvedCommits.length) console.log(`  unresolved commits: ${r.refs.unresolvedCommits.join(' ')}`);
-  } else {
-    console.log(`[${graphName}] no ${values.decisions} — git history only`);
   }
+  if (r.adrs) {
+    console.log(`[${graphName}] ADRs (${r.adrs.dir}): ${r.adrs.count} records, ${r.adrs.links} stated supersessions, ` +
+      `${r.adrs.refs.recordedIn.length} recorded-in, ${r.adrs.refs.commits.length} cited commits, ${r.adrs.refs.files.length} file links`);
+  }
+  if (!r.refs && !r.adrs) console.log(`[${graphName}] no ${values.decisions} and no ADR directory — git history only`);
 } catch (err) {
   if (!(err instanceof GitError)) throw err;
   console.error(err.message);

@@ -24,6 +24,11 @@ export interface DecisionEntry {
   body: string;
   commitRefs: string[];
   fileRefs: string[];
+  /** The file this entry lives in, when it is not the log's own file (one ADR per file). */
+  file?: string;
+  /** Relations the entry states in structured form (an ADR's "Superseded by [ADR 14](…)") — code
+   *  reads these, so they become edges directly, without the board. */
+  links?: Array<{ target: string; relation: 'supersedes' | 'superseded_by' }>;
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
@@ -179,7 +184,8 @@ export interface RefResolution {
  * A partial path ("definitions/cron.ts") links when exactly one known file ends with it.
  */
 export function resolveRefs(entries: DecisionEntry[], shas: string[], files: Set<string>,
-  blame: string[] = []): RefResolution {
+  writerOf: string[] | ((e: DecisionEntry) => string | undefined) = []): RefResolution {
+  const writer = Array.isArray(writerOf) ? (e: DecisionEntry) => writerOf[e.lineStart - 1] : writerOf;
   const out: RefResolution = { recordedIn: [], commits: [], files: [], unresolvedCommits: [], unresolvedFiles: [] };
   const filePaths = [...files];
   const resolvePath = (ref: string): string | null => {
@@ -189,8 +195,8 @@ export function resolveRefs(entries: DecisionEntry[], shas: string[], files: Set
   };
   const known = new Set(shas);
   for (const e of entries) {
-    const writer = blame[e.lineStart - 1];
-    if (writer && known.has(writer)) out.recordedIn.push({ id: e.id, sha: writer });
+    const sha = writer(e);
+    if (sha && known.has(sha)) out.recordedIn.push({ id: e.id, sha });
     for (const ref of e.commitRefs) {
       const hits = shas.filter((s) => s.startsWith(ref));
       if (hits.length === 1) out.commits.push({ id: e.id, sha: hits[0] });
@@ -205,6 +211,10 @@ export function resolveRefs(entries: DecisionEntry[], shas: string[], files: Set
   return out;
 }
 
+/**
+ * `sourceFile` names the log as a whole (DECISIONS.md, or an ADR directory): re-ingest converges per
+ * log, and an entry's own `source` points at its file and lines.
+ */
 export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], refs: RefResolution,
   sourceFile = 'DECISIONS.md'): Promise<void> {
   // Converge on the file as it is now: entries that no longer exist (removed, or retitled — the id
@@ -213,6 +223,8 @@ export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], re
   await graph.query('MATCH (d:Decision {sourceFile: $file}) WHERE NOT d.id IN $ids DETACH DELETE d',
     { params: { file: sourceFile, ids: entries.map((e) => e.id) } });
   await graph.query('MATCH (d:Decision {sourceFile: $file})-[r:RECORDED_IN|CITES|MENTIONS]->() DELETE r',
+    { params: { file: sourceFile } });
+  await graph.query("MATCH (d:Decision {sourceFile: $file})-[r:SUPERSEDES {via: 'status'}]-() DELETE r",
     { params: { file: sourceFile } });
 
   await writeRows(graph,
@@ -224,7 +236,7 @@ export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], re
     entries.map((e) => ({
       id: e.id, title: e.title, heading: e.heading, date: e.date, datePrecision: e.datePrecision,
       category: e.category, status: e.status, statusText: e.statusText, body: e.body,
-      source: `${sourceFile}:${e.lineStart}-${e.lineEnd}`, sourceFile,
+      source: `${e.file ?? sourceFile}:${e.lineStart}-${e.lineEnd}`, sourceFile,
     })));
 
   await writeRows(graph,
@@ -244,4 +256,14 @@ export async function ingestDecisions(graph: Graph, entries: DecisionEntry[], re
      MATCH (d:Decision {id: r.id}), (f:File {path: r.path})
      MERGE (d)-[:MENTIONS]->(f)`,
     refs.files);
+
+  // Stated relations, newer → older: the entry's own words, read by code.
+  const ids = new Set(entries.map((e) => e.id));
+  const links = entries.flatMap((e) => (e.links ?? []).filter((l) => ids.has(l.target) && l.target !== e.id).map((l) =>
+    l.relation === 'supersedes' ? { newer: e.id, older: l.target } : { newer: l.target, older: e.id }));
+  await writeRows(graph,
+    `UNWIND $rows AS r
+     MATCH (n:Decision {id: r.newer}), (o:Decision {id: r.older})
+     MERGE (n)-[e:SUPERSEDES {via: 'status'}]->(o)`,
+    links);
 }

@@ -5,7 +5,7 @@
  *   (:Decision)-[:TESTED]->(:Experiment {id, hypothesis, verdict, quote, extractedBy})
  *   (:Decision)-[:ABOUT]->(:Concept {name})
  *   (:Decision)-[:INVOLVES]->(:Model {name})
- *   (:Decision)-[:SUPERSEDES|REVISES|DISPROVES {quote, targetQuote, raisedBy, confirmedBy}]->(:Decision)
+ *   (:Decision)-[:SUPERSEDES|REVISES|DISPROVES {via: 'board', quote, targetQuote, raisedBy, confirmedBy}]->(:Decision)
  *
  * Unverified findings and unconfirmed handoffs are never promoted. Each run rebuilds everything the
  * integrator owns from the board as it stands, so re-running converges instead of piling up.
@@ -57,7 +57,9 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
 
   // Rebuild what the integrator owns.
   await brain.query('MATCH (n) WHERE n:Measurement OR n:Experiment DETACH DELETE n');
-  await brain.query('MATCH (:Decision)-[r:ABOUT|INVOLVES|SUPERSEDES|REVISES|DISPROVES]->() DELETE r');
+  await brain.query('MATCH (:Decision)-[r:ABOUT|INVOLVES]->() DELETE r');
+  // Relation edges the board made; ones ingest read from an entry's own status line stay.
+  await brain.query("MATCH (:Decision)-[r:SUPERSEDES|REVISES|DISPROVES {via: 'board'}]->() DELETE r");
 
   const measurements = of('measurement');
   await writeRows(brain,
@@ -93,7 +95,7 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
   for (const rel of ['supersedes', 'revises', 'disproves']) {
     await writeRows(brain,
       `UNWIND $rows AS r MATCH (s:Decision {id: r.source}), (t:Decision {id: r.target})
-       MERGE (s)-[e:${rel.toUpperCase()}]->(t)
+       MERGE (s)-[e:${rel.toUpperCase()} {via: 'board'}]->(t)
        SET e.quote = r.quote, e.targetQuote = r.targetQuote, e.raisedBy = r.raisedBy, e.confirmedBy = r.confirmedBy`,
       edges.filter((h) => h.relation === rel));
   }

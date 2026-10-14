@@ -27,6 +27,9 @@ export const config = {
    *  is too generic to link entries by — usually the project's own name. */
   conceptMaxShare: Number(process.env.CONCEPT_MAX_SHARE ?? 0.2),
   conceptMinCount: Number(process.env.CONCEPT_MIN_COUNT ?? 5),
+  /** Where repos keep architecture decision records; the first that exists is ingested. */
+  adrDirs: (process.env.ADR_DIRS ?? 'docs/adr,docs/adrs,doc/adr,docs/architecture/decisions,docs/decisions,docs/architecture/adr,adr')
+    .split(',').map((d) => d.trim()).filter(Boolean),
   /** Rows per UNWIND write. */
   writeBatch: Number(process.env.WRITE_BATCH ?? 500),
 };
