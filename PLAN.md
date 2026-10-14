@@ -19,6 +19,17 @@ and **shows the path** behind every answer.
 **No FalkorDB client code, no Cypher, no ingestion before the event opens.** Git history timestamps
 the line; say so in the submission.
 
+The official rules page (wemakedevs.org/hackathons/falkordb/rules) adds: "The main coding and design
+work must begin after the hackathon starts. You may discuss ideas, create notes, sketch the graph
+model, or prepare diagrams beforehand." Also: **AI coding assistants must be disclosed**; data must be
+public, synthetic or owned (Invarail is public and Peter's; the second repo must be public); FalkorDB
+must be central, not decorative. Never copy or adapt Invarail's own FalkorDB code (`src/memory/`,
+orchestrator, dispatch) — ideas only, rewritten.
+
+**Submission checklist (from the rules):** public repo · README with setup instructions **and the graph
+data model** · the Cypher queries · demo video · working deployment or local setup guide · track
+designation (all three) · AI-assistant disclosure.
+
 ## Tracks — one build, all three
 
 The event page: "Build for one, or for all three at once. Each track has its own prize." One project,
@@ -26,15 +37,16 @@ judged on three fronts — each earned by something the build needs anyway:
 
 | Track | What earns it |
 |---|---|
-| **03 Company Brain** (primary) | The decision graph: decisions traced to evidence, commits and files; answers with sources |
-| **02 Memory & Coordination** | The **extraction team** — several local agents ingest the corpus in parallel, coordinating through a shared **board graph** (claims, findings, handoffs) — plus memory across sessions: questions asked, answers the owner confirmed or corrected |
-| **01 Agents on Connected Data** | Graph queries as MCP tools the agent chooses between, multi-hop answers with their path, and one action: the **drift agent** runs `still_true` over the docs and opens a fix list |
+| **03 Company Brain** (primary) | The decision graph: decisions traced to evidence, commits, files and the **people** who authored them ("who owns what, who knows what"); answers with sources; knowledge kept current (incremental ingest + drift) |
+| **02 Memory & Coordination** | The **extraction team** — several local agents ingest the corpus in parallel, coordinating through a shared **board graph** (claims, findings, handoffs) — plus memory across sessions: questions asked, answers the owner confirmed or corrected; **one graph per repo** (tenant isolation via FalkorDB multigraph) |
+| **01 Agents on Connected Data** | Graph queries **and graph algorithms** (shortest path, PageRank) as MCP tools the agent chooses between, multi-hop answers with their path, and one action: the **drift agent** runs `still_true` over the docs and opens a fix list |
 
 The story: *a team of local agents builds a company brain together, then answers from it with receipts.*
 
-**Open question to confirm on the event page:** whether "all three at once" means one submission
-judged in several tracks, or separate submissions. The FAQ "Can I enter more than one track?" answer
-was not captured.
+**Confirmed (event FAQ, 2026-10-14):** one project may enter one, two or all three tracks; each track
+has its own prize. Track 03 focus names people/teams/ownership explicitly; Track 01 names shortest path,
+PageRank and centrality as agent tools; Track 02 names per-tenant memory and high-concurrency writes —
+the plan below covers each.
 
 **Fallback:** if Day 2 slips, the single-agent build is a complete Track 03 entry on its own. The extra
 tracks are upside, never a dependency.
@@ -48,8 +60,15 @@ The Invarail repo (public, github.com/PeterGreenAppliedAI/Invarail):
 - `evals/*/README.md` + `results*.json` — measured outcomes the decisions point to.
 - `docs/*.md`, `CLAUDE.md` — current-state descriptions (what is true now).
 
-A second, smaller public repo should also ingest cleanly (judges may ask "does it work on anything
-else?") — pick one with an ADR folder or a CHANGELOG.
+**Parsing notes:** DECISIONS entries are **not in date order** (the first headings run Sep 27, Sep 28,
+Oct 5, Oct 1, Sep 30) — take the date from the heading, never from file position, and never infer
+"supersedes" from position. 348 `##`/`###` headings; 780 commits. Invarail is mostly one author, so
+"who knows what" is thin on this corpus alone.
+
+**Second repo — no longer optional.** A smaller public repo with **several contributors** and an ADR
+folder or CHANGELOG. It carries three things: "does it work on anything else?", real ownership questions
+(`who_knows`) for Track 03, and visible tenant isolation (its own graph) for Track 02. Pick it before the
+event opens.
 
 ## Graph schema (draft — finalize Day 1)
 
@@ -62,6 +81,9 @@ else?") — pick one with an ADR folder or a CHANGELOG.
 (:Model     {name})                                        // qwen3.5:9b, phi4 — decisions are often model-specific
 (:Doc       {path, section})                               // where the claim is written down now
 (:Concept   {name})                                        // "reroute", "write gate", "prefix cache"
+(:Person    {name, email})                                 // from git authors (deterministic); co-author trailers too
+
+(:Person)-[:AUTHORED]->(:Commit)
 
 (:Decision)-[:BECAUSE]->(:Measurement|:Experiment)
 (:Decision)-[:SUPERSEDES]->(:Decision)
@@ -86,9 +108,12 @@ by data, not by the model.
 | `disproven(concept)` | Theories tried and rejected around a concept — so nobody retries them |
 | `still_true(decision_id)` | Does the current doc still say what the decision says? Flags drift |
 | `search(text)` | Entry point when the question names nothing exact |
+| `who_knows(file_or_concept)` | People ranked by commits touching it and decisions they carried out |
+| `connect(a, b)` | Shortest path between two concepts/files — "how is the router connected to memory?" |
+| `load_bearing()` | PageRank over files and decisions — which files carry the most rationale |
 
-Graph algorithms worth one tool each if time allows: shortest path between two concepts
-("how is the router connected to memory?"), and centrality ("which files carry the most decisions?").
+The two algorithm tools are core, not stretch: FalkorDB has them built in, each is one query, and
+Track 01 names them. Every tool takes the graph (repo) name — one graph per repo.
 
 ## The extraction team (Track 02)
 
@@ -112,6 +137,10 @@ place for parallel agents, and the reason the team exists (not decoration).
   says so); the same-fact check keeps parallel writers from flooding the board with rewordings.
 - **The integrator** (code, not a model) promotes verified findings from the board into the brain graph
   and resolves cross-references into SUPERSEDES / DISPROVED edges.
+- **The demo moment for Track 02 is the handoff, not the claims machinery:** worker A, reading an
+  entry, finds it supersedes another; it posts a `cross_ref`; worker B (holding that other section)
+  picks it up and the integrator draws the edge. Without that the team is just a parallel map — show it
+  in the board view and the video.
 
 ## Memory across sessions (Track 02)
 
@@ -119,7 +148,13 @@ The brain remembers its conversations: `(:Question)-[:ANSWERED_WITH]->(:Path)`, 
 verdict on each answer (confirmed / corrected). A corrected answer becomes evidence the next time the
 same path is walked. Small, and it shows persistence that updates over time.
 
-## The agent Rules: every answer cites node ids; the UI renders the cited subgraph;
+**Keeping knowledge current:** ingest is incremental — new commits since the last ingest are added
+without a rebuild (git history is append-only; DECISIONS entries keyed by heading + date). Together
+with `still_true` this answers Track 03's "keeping knowledge current as things change".
+
+## The agent
+
+Rules: every answer cites node ids; the UI renders the cited subgraph;
 "I don't know" when no path exists. Runs on a local model (the point of the parent project) — qwen3.5:9b
 measured best on this hardware class.
 
@@ -133,24 +168,47 @@ measured best on this hardware class.
 4. "What has been tried and disproven about memory?" → `disproven("memory")`.
 5. "Is CLAUDE.md still right about code_gen?" → `still_true` — it caught exactly this drift by hand.
 
-## Four days
+## Deployment
+
+The FAQ prefers a live deployment; projects that can't deploy need full local setup instructions and a
+working demo video. We do both, split by what can honestly run in public:
+
+- **Live:** FalkorDB on this Mac mini (the compose container, port 6380) holding the prebuilt graphs,
+  the MCP graph tools, and the "show the path" view. The tools are plain Cypher — no model needed — so a
+  judge can run `why`, `trace`, `connect` themselves and check that the graph decides the answer.
+  Exposed through a tunnel to the path view only, never FalkorDB's port or the Browser; read-only.
+- **Also live:** recorded agent sessions (real local-model runs with their step traces) replayable in
+  the path view, labelled as recordings.
+- **Local only:** the live agent and the extraction team (models on the LAN GPU boxes, which stay
+  private). Covered by the demo video and setup instructions.
+- **Config, off by default:** the agent's model endpoint, so a deployed instance could point at a hosted
+  model later without code changes.
+
+Needs: a public repo (Peter's call) and a tunnel choice — decide by Day 3.
+
+## Four days (really three and a half)
 
 | Day | Goal | Done when |
 |---|---|---|
-| 1 (Oct 14–15) | Schema in code; ingest git history + DECISIONS headings/dates/commit refs (deterministic) | `trace` works on 10 hand-picked decisions |
-| 2 | The extraction team: board graph, claims with expiry, 3–4 parallel workers filling the fixed JSON shape, the integrator promoting verified findings into SUPERSEDES/DISPROVED/BECAUSE edges; human spot-check | Demo questions 1–2 answer with paths; board shows who extracted what |
-| 3 | MCP server + agent + "show the path" view; question memory; the drift agent's fix list | All five demo questions on a local model; one drift finding surfaced |
-| 4 | Second repo ingested; README, demo video, blog post (side prize) | Submitted with a day to spare |
+| 1 (Oct 14 2:31 PM → Oct 15) — half day | Schema in code; ingest git history (commits, files, **people**) + DECISIONS headings/dates/commit refs (deterministic) | `trace` works on 10 hand-picked decisions |
+| 2 | The extraction team: board graph, claims with expiry, 3–4 parallel workers filling the fixed JSON shape, the integrator promoting verified findings into SUPERSEDES/DISPROVED/BECAUSE edges; human spot-check | Demo questions 1–2 answer with paths; board shows one real cross_ref handoff |
+| 3 | MCP server (incl. `who_knows`, `connect`, `load_bearing`) + agent + "show the path" view; **second repo ingested into its own graph**; question memory; drift agent's fix list | All five demo questions on a local model; one ownership question on the second repo; one drift finding |
+| 4 | Deployment (path view + tools + recordings); README with setup; demo video; blog post (side prize) | Submitted with a day to spare |
 
 If Day 2's team is not working by the end of Day 2, fall back to a single sequential extractor and keep
-the Track 03 entry whole.
+the Track 03 entry whole. If the GB10 box isn't serving concurrently by mid-Day 2, fall back then — don't
+debug serving.
+
+**Cut order if time runs short:** question memory → drift agent → extraction team (sequential
+fallback). The second repo and the two algorithm tools are not on the cut list — they carry the
+ownership, tenancy and graph-algorithm criteria.
 
 ## Judging angles to make explicit
 
 - The graph **decides** what the agent says (no path → no claim).
 - Traceability is the product, not a feature.
 - Disproven theories as first-class nodes — memory of what *didn't* work.
-- Runs fully local.
+- Runs fully local (the agent and team) — and the graph tools are live for judges to check.
 
 ## Risks
 

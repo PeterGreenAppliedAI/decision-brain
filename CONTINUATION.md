@@ -11,7 +11,7 @@ decisions → evidence → commits → files, and **shows the path** behind ever
 Target: **all three tracks with one build** (2026-10-06 decision) — Track 03 Company Brain primary;
 Track 02 via a parallel extraction team coordinating through a board graph + question memory; Track 01
 via graph queries as MCP tools and a drift agent. The single-agent Track 03 build is the fallback.
-Confirm on the event page whether multiple tracks means one submission or several. Plan, schema draft, MCP tool list, demo
+Confirmed 2026-10-14 (event FAQ): one project can enter all three tracks. Plan, schema draft, MCP tool list, demo
 questions and the four-day schedule: **PLAN.md**.
 
 ## The rule that shapes everything
