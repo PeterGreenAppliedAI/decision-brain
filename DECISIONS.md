@@ -4,6 +4,45 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Day 2: The Team, and the Reasoning Effort Nobody Set (October 14 2026)
+
+**Built:** the board graph (`<repo>__board`), local GLM workers, the code verifier, the integrator,
+and the live board view. Workers share nothing but the board. FalkorDB serializes writes to one
+graph, so each claim is one query and therefore atomic: 10 concurrent claimers got 10 different
+sections, with no locks in code. Claims expire and are taken over; late work from a lost claim is
+dropped; a cross-reference raised by one worker can only be confirmed by a different one, with a
+verbatim quote from its own side. The self-confirm rule was mutation-tested: removing it fails a test.
+
+**A frontier team was considered and dropped.** Claude subagents as extraction workers on public
+repos, local workers on private ones — the sensitivity rule enforced in the claim query — made a
+strong demo. Peter: *"Nah Im not spending any money on API. Keep it local."* The team is GLM only.
+
+**Two wrong conclusions about the GPU box, both mine, both corrected by measuring.**
+(1) Four parallel requests finished at 13, 20, 26 and 38 s; I read that as the server queueing
+them. vLLM's own counters during a rerun: **4 running, 0 waiting** for the whole run. Staggered
+finishes were different thinking lengths sharing throughput (~1.6× over sequential).
+(2) I then set out to A/B "thinking on vs off" with `enable_thinking`. Reading GLM-5.3-Flash's chat
+template (Peter asked whether it was on/off or levels) showed there is no off switch — it always
+opens `<think>` — and the control is `reasoning_effort` in {low, high}; **anything else, including
+nothing, means Max.** Every call so far had run at Max: 1,700–4,000 thinking tokens on five-line
+entries, and on long entries the thinking exhausted the output budget, truncating the JSON
+("response was not valid JSON" on every long section of the first run). The first A/B was invalid —
+both halves would have run at Max — and was stopped.
+
+**Low vs High, same four entries, four concurrent:** Low 36–67 s, 128–1,166 tokens, **63/69
+findings verified**; High 43–160 s, 196–3,798 tokens, 60/70 verified. No invalid JSON either way.
+Both found the same cross-reference (the Sep 30 router-prompt entry revises the Sep 29 misroutes
+entry). Low is the default (`LLM_REASONING_EFFORT`); grammar-constrained output leaves the model
+nowhere to narrate, which was the old reason to keep thinking high.
+
+**`superseded_by`.** Neither effort linked the OpenCode entry to the Pi swap, though its heading says
+"— SUPERSEDED by the Pi swap": the schema only let an entry point backward. An older entry may now
+point forward; the checker reads the newer side, and the integrator draws the same newer → older
+SUPERSEDES edge.
+
+**Concepts too generic to link anything** (the project's own name in nearly every entry) are dropped
+by the integrator, measured as a share of the whole log rather than a stopword list.
+
 ## Day 1 Audit: What the First Pass Got Wrong (October 14 2026)
 
 Peter: *"We are done with day 1 stuff? No way we tested enough to review edge cases."* He was right.

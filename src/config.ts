@@ -14,8 +14,9 @@ export const config = {
   /** OpenAI-compatible endpoint for the extraction workers (vLLM). Host lives in .env, never here. */
   llmUrl: process.env.LLM_URL ?? 'http://127.0.0.1:8000/v1',
   llmModel: process.env.LLM_MODEL ?? 'glm-5.3-flash',
-  /** Let the extraction model think before answering (GLM chat template: enable_thinking). */
-  llmThink: (process.env.LLM_THINK ?? 'true') !== 'false',
+  /** How hard the extraction model reasons before answering. GLM-5.3's chat template always thinks;
+   *  it takes reasoning_effort low | high, and anything else (including nothing) means max. */
+  llmReasoningEffort: process.env.LLM_REASONING_EFFORT ?? 'low',
   /** Abort a request when no token has arrived for this long (thinking counts as tokens). */
   llmIdleTimeoutMs: Number(process.env.LLM_IDLE_TIMEOUT_MS ?? 120_000),
   /** Extraction team: a claim lives this long without a heartbeat (workers beat every third of it). */

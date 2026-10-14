@@ -86,12 +86,16 @@ export async function integrate(board: Graph, brain: Graph): Promise<Integration
   await writeRows(brain,
     `UNWIND $rows AS r MATCH (d:Decision {id: r.section})
      MERGE (m:Model {name: r.name}) MERGE (d)-[:INVOLVES]->(m)`, models);
+  // Every edge points newer → older; a superseded_by claim was raised from the older side.
+  const edges = handoffs.map((h) => h.relation === 'superseded_by'
+    ? { ...h, relation: 'supersedes', source: h.target, target: h.source, quote: h.targetQuote, targetQuote: h.quote }
+    : h);
   for (const rel of ['supersedes', 'revises', 'disproves']) {
     await writeRows(brain,
       `UNWIND $rows AS r MATCH (s:Decision {id: r.source}), (t:Decision {id: r.target})
        MERGE (s)-[e:${rel.toUpperCase()}]->(t)
        SET e.quote = r.quote, e.targetQuote = r.targetQuote, e.raisedBy = r.raisedBy, e.confirmedBy = r.confirmedBy`,
-      handoffs.filter((h) => h.relation === rel));
+      edges.filter((h) => h.relation === rel));
   }
   await brain.query('MATCH (n) WHERE (n:Concept OR n:Model) AND NOT (n)<--() DELETE n');
 

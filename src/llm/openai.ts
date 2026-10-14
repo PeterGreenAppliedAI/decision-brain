@@ -37,7 +37,8 @@ export interface OpenAiOptions {
   apiKey?: string;
   idleTimeoutMs?: number;
   retries?: number;
-  think?: boolean;
+  /** Passed to the chat template as reasoning_effort (GLM-5.3: low | high; unset = max). */
+  reasoningEffort?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -46,7 +47,7 @@ export function createJsonClient(opts: OpenAiOptions = {}) {
   const model = opts.model ?? config.llmModel;
   const idleTimeoutMs = opts.idleTimeoutMs ?? config.llmIdleTimeoutMs;
   const retries = opts.retries ?? 2;
-  const think = opts.think ?? config.llmThink;
+  const reasoningEffort = opts.reasoningEffort ?? config.llmReasoningEffort;
   const doFetch = opts.fetchImpl ?? fetch;
 
   async function once<T>(req: JsonRequest): Promise<JsonResult<T>> {
@@ -69,7 +70,7 @@ export function createJsonClient(opts: OpenAiOptions = {}) {
           temperature: req.temperature ?? 0.2,
           messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.user }],
           response_format: { type: 'json_schema', json_schema: { name: req.schemaName, schema: req.schema, strict: true } },
-          chat_template_kwargs: { enable_thinking: think },
+          chat_template_kwargs: { reasoning_effort: reasoningEffort },
         }),
       });
     } catch (err) {
@@ -118,7 +119,7 @@ export function createJsonClient(opts: OpenAiOptions = {}) {
 
   return {
     model,
-    think,
+    reasoningEffort,
     async json<T>(req: JsonRequest): Promise<JsonResult<T>> {
       for (let attempt = 0; ; attempt++) {
         try {

@@ -5,6 +5,17 @@
  */
 import type { FindingRow } from '../board/board.js';
 
+/**
+ * How an entry relates to another. The first three point from the newer entry to the older one;
+ * superseded_by lets an older entry point forward ("— SUPERSEDED by the Pi swap"), and the
+ * integrator turns it around into the same SUPERSEDES edge.
+ */
+export type Relation = 'supersedes' | 'revises' | 'disproves' | 'superseded_by';
+export const RELATIONS: Relation[] = ['supersedes', 'revises', 'disproves', 'superseded_by'];
+
+/** Which side of the claim is the older entry, given who raised it. */
+export const raiserIsNewer = (relation: string) => relation !== 'superseded_by';
+
 export interface IndexEntry { id: string; date: string | null; title: string }
 
 export interface Extraction {
@@ -12,7 +23,7 @@ export interface Extraction {
   experiments: Array<{ hypothesis: string; verdict: 'confirmed' | 'disproven' | 'inconclusive'; quote: string }>;
   concepts: string[];
   models: string[];
-  references: Array<{ target_id: string; relation: 'supersedes' | 'revises' | 'disproves'; quote: string }>;
+  references: Array<{ target_id: string; relation: Relation; quote: string }>;
 }
 
 export interface HandoffVerdict { confirmed: boolean; quote: string; reason: string }
@@ -26,7 +37,7 @@ export const EXTRACTION_SCHEMA = obj({
   experiments: { type: 'array', items: obj({ hypothesis: str, verdict: { enum: ['confirmed', 'disproven', 'inconclusive'] }, quote: str }) },
   concepts: { type: 'array', items: str },
   models: { type: 'array', items: str },
-  references: { type: 'array', items: obj({ target_id: str, relation: { enum: ['supersedes', 'revises', 'disproves'] }, quote: str }) },
+  references: { type: 'array', items: obj({ target_id: str, relation: { enum: RELATIONS }, quote: str }) },
 });
 
 export const HANDOFF_SCHEMA = obj({ confirmed: { type: 'boolean' }, quote: str, reason: str });
@@ -47,7 +58,7 @@ export function extractionSystem(index: IndexEntry[]): string {
     '- experiments: something that was tried or hypothesized and then judged — confirmed, disproven, or inconclusive.',
     '- concepts: up to 6 short technical topics the entry is about, using words that appear in the entry.',
     '- models: model names mentioned (e.g. qwen3.5:9b), exactly as written.',
-    '- references: ONLY when the entry says it supersedes, revises (changes or reverses), or disproves another entry listed below. Use that entry\'s id as target_id. Do not reference an entry for merely being related.',
+    '- references: ONLY when the entry says it supersedes, revises (changes or reverses), or disproves another entry listed below — or that it was itself superseded by one (relation "superseded_by"). Use that entry\'s id as target_id. Do not reference an entry for merely being related.',
     '- Empty arrays are correct when the entry has nothing of that kind. Do not invent.',
     '',
     'Entries in the log (id — date — title):',
@@ -61,21 +72,24 @@ export function extractionUser(section: { id: string; title: string; body: strin
 
 export function handoffSystem(): string {
   return [
-    'Another reader claims that one entry of an engineering decision log supersedes, revises, or disproves an older entry.',
-    'You are given the claim, with its quote from the newer entry, and the full text of the OLDER entry.',
-    'Decide whether the claim holds: does the older entry contain the decision, belief or result that the newer one replaces, changes or refutes?',
-    'Answer "confirmed": true only if you can quote, verbatim from the OLDER entry, the specific statement being superseded/revised/disproved.',
-    'Otherwise answer false and leave "quote" empty. "reason": one sentence.',
+    'Another reader claims a relation between two entries of an engineering decision log: the newer one supersedes, revises, or disproves the older one.',
+    'You are given the claim, a quote from the entry that reader saw, and the full text of the OTHER entry — the one you must check.',
+    'If the entry you read is the OLDER one: confirm only if it contains the decision, belief or result that the newer one replaces, changes or refutes.',
+    'If the entry you read is the NEWER one: confirm only if it contains the statement that replaces, changes or refutes the older one.',
+    'Answer "confirmed": true only with a verbatim quote of that statement from the entry you read. Otherwise false, with "quote" empty. "reason": one sentence.',
   ].join('\n');
 }
 
-export function handoffUser(h: { relation: string; source: { id: string; title: string }; quote: string; target: { id: string; title: string; body: string } }): string {
+export function handoffUser(h: { relation: string; raiser: { id: string; title: string }; quote: string; other: { id: string; title: string; body: string } }): string {
+  const [newer, older] = raiserIsNewer(h.relation) ? [h.raiser, h.other] : [h.other, h.raiser];
+  const verb = h.relation === 'superseded_by' ? 'supersedes' : h.relation;
+  const role = h.other === older ? 'OLDER' : 'NEWER';
   return [
-    `Claim: "${h.source.title}" (${h.source.id}) ${h.relation} "${h.target.title}" (${h.target.id}).`,
-    `Quote from the newer entry: "${h.quote}"`,
+    `Claim: "${newer.title}" (${newer.id}) ${verb} "${older.title}" (${older.id}).`,
+    `Quote from ${h.raiser.id}, which the other reader saw: "${h.quote}"`,
     '',
-    `OLDER entry (${h.target.id}): ${h.target.title}`,
-    h.target.body,
+    `The entry you read — the ${role} one (${h.other.id}): ${h.other.title}`,
+    h.other.body,
   ].join('\n');
 }
 

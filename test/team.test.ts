@@ -3,11 +3,11 @@
  * expiry and takeover, a cross-reference handed from one agent to another, and the integrator.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { claimSection, completeSection, registerAgent, seedBoard } from '../src/board/board.js';
+import { claimHandoff, claimSection, completeSection, registerAgent, resolveHandoff, seedBoard } from '../src/board/board.js';
 import { integrate } from '../src/board/integrate.js';
 import { connect, type Graph } from '../src/graph/db.js';
 import type { JsonClient } from '../src/llm/openai.js';
-import { verifyExtraction, verifyHandoff, type Extraction } from '../src/team/extract.js';
+import { handoffUser, verifyExtraction, verifyHandoff, type Extraction } from '../src/team/extract.js';
 import { runWorker } from '../src/team/worker.js';
 
 const reachable = await connect().then(async (db) => { await db.close(); return true; }, () => false);
@@ -75,6 +75,18 @@ describe('verifyExtraction (no database)', () => {
     expect(verifyHandoff({ confirmed: true, quote: 'The router prompt rule was corrected', reason: 'r' }, OLD_BODY).confirmed).toBe(true);
     expect(verifyHandoff({ confirmed: true, quote: 'something it never said at all', reason: 'r' }, OLD_BODY))
       .toEqual({ confirmed: false, quote: null, reason: 'claimed confirmed, but quote not found verbatim in the entry' });
+  });
+});
+
+describe('handoffUser (no database)', () => {
+  it('tells the checker which side it is reading, whichever side raised the claim', () => {
+    const newer = { id: 'd-new', title: 'New' }, older = { id: 'd-old', title: 'Old' };
+    const forward = handoffUser({ relation: 'supersedes', raiser: newer, quote: 'q', other: { ...older, body: 'b' } });
+    expect(forward).toContain('"New" (d-new) supersedes "Old" (d-old)');
+    expect(forward).toContain('the OLDER one (d-old)');
+    const back = handoffUser({ relation: 'superseded_by', raiser: older, quote: 'q', other: { ...newer, body: 'b' } });
+    expect(back).toContain('"New" (d-new) supersedes "Old" (d-old)');
+    expect(back).toContain('the NEWER one (d-new)');
   });
 });
 
@@ -177,6 +189,22 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     const report = await integrate(board, brain);
     expect(report.generic).toEqual([{ name: 'localclaw', share: 1 }]);
     expect((await brain.roQuery<{ c: string }>('MATCH (c:Concept) RETURN c.name AS c')).data!.map((r) => r.c)).toEqual(['thing 3']);
+  });
+
+  it('an older entry pointing forward (superseded_by) becomes the same newer → older SUPERSEDES edge', async () => {
+    await registerAgent(board, 'reader', 'm');
+    await registerAgent(board, 'checker', 'm');
+    let c = await claimSection(board, 'reader', 5000, 3);
+    while (c && c.id !== 'd-old') { await completeSection(board, 'reader', c.id, [], 'skip'); c = await claimSection(board, 'reader', 5000, 3); }
+    await completeSection(board, 'reader', 'd-old', [{ kind: 'cross_ref', data: { target: 'd-new', relation: 'superseded_by' },
+      quote: 'The router prompt rule was corrected', verified: true, reason: null, target: 'd-new', relation: 'superseded_by' }], 'test');
+    const h = await claimHandoff(board, 'checker', 5000, 3);
+    expect(h).toMatchObject({ relation: 'superseded_by', source: 'd-old', target: 'd-new', raisedBy: 'reader' });
+    await resolveHandoff(board, 'checker', h!.key, { confirmed: true, quote: 'We reverted the corrected rule', reason: 'r' });
+    await integrate(board, brain);
+    const edges = (await brain.roQuery<{ s: string; t: string; q: string; tq: string }>(
+      'MATCH (s:Decision)-[e:SUPERSEDES]->(t:Decision) RETURN s.id AS s, t.id AS t, e.quote AS q, e.targetQuote AS tq')).data!;
+    expect(edges).toEqual([{ s: 'd-new', t: 'd-old', q: 'We reverted the corrected rule', tq: 'The router prompt rule was corrected' }]);
   });
 
   it('a lone worker never confirms its own cross-ref, and stops instead of waiting forever', async () => {

@@ -67,7 +67,7 @@ export async function runWorker(o: WorkerOptions): Promise<WorkerStats> {
         if (!target) throw new Error(`target ${h.target} not in the brain graph`);
         const res = await withHeartbeat(o, 'Handoff', h.key, () => o.llm.json<HandoffVerdict>({
           system: handoffSystem(), schema: HANDOFF_SCHEMA, schemaName: 'handoff_verdict',
-          user: handoffUser({ relation: h.relation, quote: h.quote, source: { id: h.source, title: titles.get(h.source) ?? h.source }, target }),
+          user: handoffUser({ relation: h.relation, quote: h.quote, raiser: { id: h.source, title: titles.get(h.source) ?? h.source }, other: target }),
         }));
         const verdict = verifyHandoff(res.value, target.body);
         if (await resolveHandoff(o.board, o.name, h.key, verdict)) stats.handoffs++; else stats.lost++;
