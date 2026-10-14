@@ -11,7 +11,11 @@ export class GraphConnectError extends Error {}
 
 export async function connect(url = config.falkordbUrl): Promise<FalkorDB> {
   try {
-    return await FalkorDB.connect({ url });
+    const db = await FalkorDB.connect({ url });
+    // The client re-emits connection errors as 'error' events, and an unheard 'error' event crashes
+    // Node. Log it instead: the underlying client reconnects by itself when FalkorDB comes back.
+    db.on('error', (err: Error) => console.error(`[falkordb] ${err.message} — reconnecting`));
+    return db;
   } catch (err) {
     throw new GraphConnectError(`FalkorDB not reachable at ${url} (${(err as Error).message}) — is it running? npm run graph:up`);
   }

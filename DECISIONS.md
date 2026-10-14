@@ -4,6 +4,40 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Agent: Local GLM, Tools Over MCP, Citations Checked by Code (October 14 2026)
+
+**MCP server** (`npm run mcp -- --graph <g>`, stdio): the nine graph tools — search, why, trace,
+what_breaks, disproven, who_knows, connect, load_bearing, review — read-only, any graph per call,
+board graphs refused. **The agent** is an MCP client of that same server: it sees the graph only
+through the tools any client gets. It runs the generic loop on glm-5.3-flash (vLLM tool calling,
+verified working) through an adapter from the loop's Ollama message shape to OpenAI's. **Grounding is
+code:** every bracketed citation must name an id, sha, path or name a tool returned during the run;
+an answer with an invented citation, or with claims and no valid citation, is NOT GROUNDED. Saying
+"I don't know — the graph has no path for this" is grounded.
+
+**Demo questions, all local, 7–20 s each:** Q1 the load-bearing router rule (cites the decision;
+quotes "New text: 0/20 to memory. Old text: 16/20."); Q2 the handoff tool (2/5 vs 5/5, cites
+`b23e312`); Q3 what to re-check if `fact-store.ts` changes (both standing decisions and the disproven
+approaches not to reintroduce); Q4 what was disproven about memory; who should review `edition.rb`
+(Kevin Dew, 37 commits); "Why did we choose Kubernetes?" → correctly declined.
+
+**The one wrong answer was a silent failure, not the model.** "Why can content now be deleted…?" on
+content-publisher answered "I don't know" — while ADR 13 and ADR 8 are exactly about it. Every search
+returned `[]`: the graph was ingested before the full-text index was added, and **FalkorDB answers a
+full-text query on a missing index with an empty result, not an error.** search() now checks the
+index exists and fails loudly. Then the agent found ADR 13 and 8 but ran out of steps: trace returned
+a decision's metadata, never what it says. trace now carries the entry's text (capped) and its
+relations both ways with their quotes; and when the step budget runs out, the loop makes one last
+tool-free call to answer from what it has. Re-asked: ADR 13 revises ADR 8, the access-limit reason,
+and the two commits that changed the constraints (`126a40b5`, `5fdc3355`) — 4/4 citations valid.
+
+**A fourth FalkorDB quirk:** an unnamed multi-type relationship (`-[:REVISES|SUPERSEDES]->`) yields one
+row per node pair on 6.0.2; a named one (`-[r:…]->`) one row per edge. trace names it.
+
+**The web server no longer dies with the database.** The client re-emits connection errors as
+'error' events and an unheard one crashes Node; connect() now logs them, and the client reconnects —
+tested by restarting FalkorDB under the running server (back in 1 s).
+
 ## FalkorDB 6.0.2, Pinned — and the Data Was Never in the Volume (October 14 2026)
 
 **The CI failure was a FalkorDB version difference, not randomness.** CI pulls `falkordb:latest`

@@ -141,6 +141,13 @@ describe.skipIf(!reachable)('graph tools', () => {
     expect(fileNames('src/a.ts', share, 0.1)).toEqual([]);
   });
 
+  it('search fails loudly on a graph without its full-text index, instead of finding nothing', async () => {
+    const bare = db.selectGraph(`test-bare-${process.pid}-${Date.now()}`);
+    await bare.query("CREATE (:Decision {id: 'x', title: 'deletion', body: 'deletion'})");
+    await expect(search(bare, 'deletion')).rejects.toThrow(/no full-text index/);
+    await bare.delete();
+  });
+
   it('search puts entries with every word first', async () => {
     const r = await search(g, 'router rule reverted');
     expect(r[0]).toMatchObject({ id: 'new', matched: 'all' });

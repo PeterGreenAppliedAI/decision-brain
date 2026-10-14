@@ -49,4 +49,13 @@ describe('runLoop', () => {
     expect(r.steps[0].result).toHaveLength(50);
     expect((llm.chat as any).mock.calls[1][0].messages.at(-1).content).toMatch(/40 more chars truncated/);
   });
+
+  it('with finalAnswer, makes one last tool-free call when the step budget runs out', async () => {
+    const llm = scripted(reply({ toolCalls: [call('echo', { n: 1 })] }), reply({ content: 'From what I found: x.' }));
+    const r = await runLoop({ llm, model: 'm', system: 's', user: 'u', tools: [echo], maxSteps: 1, finalAnswer: 'Answer now.' });
+    expect(r).toMatchObject({ answer: 'From what I found: x.', exhausted: true });
+    const last = (llm.chat as unknown as { mock: { calls: Array<[{ tools?: unknown; messages: Array<{ content: string }> }]> } }).mock.calls.at(-1)![0];
+    expect(last.tools).toBeUndefined();
+    expect(last.messages.at(-1)!.content).toBe('Answer now.');
+  });
 });

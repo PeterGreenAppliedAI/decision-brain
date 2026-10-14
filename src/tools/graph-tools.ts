@@ -51,9 +51,23 @@ export async function resolveTarget(g: Graph, text: string): Promise<Target> {
  * word rank first; entries containing any of them fill the rest — so a long entry full of common
  * words cannot outrank the one that is actually about the question.
  */
+const indexed = new WeakMap<Graph, boolean>();
+
+/** FalkorDB answers a full-text query on a missing index with an empty result, not an error — so
+ *  "no matches" could silently mean "no index". Check once per graph, and fail loudly instead. */
+async function assertSearchIndex(g: Graph): Promise<void> {
+  if (indexed.get(g)) return;
+  const idx = await rows<{ types: Record<string, string[]> }>(g,
+    "CALL db.indexes() YIELD label, types WHERE label = 'Decision' RETURN types");
+  const ok = idx.some((r) => (r.types?.title ?? []).includes('FULLTEXT'));
+  if (!ok) throw new Error('this graph has no full-text index on decisions — re-run npm run ingest for it');
+  indexed.set(g, true);
+}
+
 export async function search(g: Graph, text: string, limit = 8): Promise<Array<DecisionRef & { score: number; matched: 'all' | 'any' }>> {
   const words = [...new Set(text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [])];
   if (!words.length) return [];
+  await assertSearchIndex(g);
   const run = (q: string) => rows<{ decision: DecisionRef; score: number }>(g,
     `CALL db.idx.fulltext.queryNodes('Decision', $q) YIELD node AS d, score
      RETURN ${DECISION} AS decision, score ORDER BY score DESC, d.id LIMIT $limit`, { q, limit });

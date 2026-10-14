@@ -36,6 +36,9 @@ export interface LoopOptions {
   maxResultChars?: number;
   think?: boolean;
   history?: ChatMessage[];
+  /** When the step budget runs out, make one last call with no tools so the model answers from what
+   *  it has gathered (or says it cannot), instead of returning nothing. */
+  finalAnswer?: string;
 }
 
 export async function runLoop(opts: LoopOptions): Promise<LoopResult> {
@@ -80,6 +83,11 @@ export async function runLoop(opts: LoopOptions): Promise<LoopResult> {
       const seen = result.length > cap ? `${result.slice(0, cap)}\n… [${result.length - cap} more chars truncated]` : result;
       messages.push({ role: 'tool', content: seen, tool_name: name });
     }
+  }
+  if (opts.finalAnswer) {
+    messages.push({ role: 'user', content: opts.finalAnswer });
+    const res = await opts.llm.chat({ model: opts.model, messages, think: opts.think });
+    return { answer: stripThinking(res.content), steps, exhausted: true };
   }
   return { answer: '', steps, exhausted: true };
 }
