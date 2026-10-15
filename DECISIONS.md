@@ -4,6 +4,15 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Ask Is Capped; Deployment Options Written Down (October 15 2026)
+
+Any public option puts this machine's model time behind a URL, so Ask now runs at most
+`ASK_MAX_CONCURRENT` questions at once (default 2); others get "busy". A slot is freed when the agent
+finishes, not when the browser leaves — the model keeps working either way. docs/DEPLOY.md lays out
+video-only, a tunnel to the live views, or a Board-only tunnel, with a checklist; the choice is Peter's.
+The blog draft (docs/BLOG-DRAFT.md) quotes only figures from this repo; its v2 table must be refreshed
+after the eval re-run.
+
 ## Adding a Repository from the Page — Local Only (October 15 2026)
 
 Peter asked how to point the page at a new GitHub URL; it could not — the server was read-only. Now,

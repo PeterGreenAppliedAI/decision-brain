@@ -13,9 +13,9 @@ and **shows the path** behind every answer.
 | Rationale graph, nine tools, MCP server | done |
 | Agent (local GLM over MCP) + grounding check | done — demo questions 1–4 answered, Kubernetes declined |
 | `review <commit>` (Track 01 action) | done — deterministic, as-of-change |
-| Board view (live) | done |
+| Board view (live) | done — every tile opens what it produced (decision evidence; file summary, resting decisions, birth; directory parts); rejected summaries outlined; demo copies hidden unless linked |
 | Ask + Path views | done — answer streamed with tool calls, citations clickable, cited subgraph drawn |
-| File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — Invarail trial 20 files/12 dirs in 140 s; full run (318 files, 63 dirs) in progress |
+| File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — all three repos: Invarail 381 tasks/52 min, log4brains 283/17 min, content-publisher 539/38 min; 9 of 631 rejected by the code check |
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…): every version as section spans; `told(commit)` | done — Invarail CLAUDE.md, 71 versions, 216 spans |
 | Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
@@ -25,13 +25,17 @@ and **shows the path** behind every answer.
 | Demo (code-review story) — DEMO.md, every step run and verified | done — Peter records |
 | `sync`, scoped to one acceptance test | done — 3 tests, mutation-checked; real repos: 0 model calls when current |
 | Agent cites ids, never "[same decision]"; lists keep their citation (checker stays strict) | done (prompt) — not re-measured |
-| Section-aware reading of long entries; question memory | if time remains |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
-| Question memory | after that |
-| **Judge path**: done — eval/JUDGE-PATH.md; 4 defects found and fixed; Ollama still unverified (Peter chose GLM only). Original finish line: fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |
+| Section-aware reading of long entries; question memory | if time remains |
+| **Judge path**: done — eval/JUDGE-PATH.md; 4 defects found and fixed; clean re-run passed; Ollama still unverified (Peter chose GLM only) | done |
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
-| Deployment, demo video, blog post | Day 4 |
+| Reviewer cut-off and `told` by ancestry (with the repo) | done |
+| Add repository from the Board (local only, `WEB_ALLOW_INGEST=1`) | built — end-to-end run pending GLM |
+| Blog post | draft in docs/BLOG-DRAFT.md — Peter edits |
+| Deployment | options in docs/DEPLOY.md — Peter decides; Ask capped (`ASK_MAX_CONCURRENT`) |
+| Demo video | dry run after reset (needs GLM), then Peter records |
+| Re-run eval v2 after the `what_breaks` fix | needs GLM (~1 h) |
 
 ## The rules boundary (read first)
 

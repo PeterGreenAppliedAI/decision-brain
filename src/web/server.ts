@@ -28,6 +28,8 @@ const port = Number(process.env.WEB_PORT ?? 4100);
 const db = await connect();
 const graphs = new Map<string, Graph>();
 const graph = (name: string) => { if (!graphs.has(name)) graphs.set(name, db.selectGraph(name)); return graphs.get(name)!; };
+const ASK_MAX = Number(process.env.ASK_MAX_CONCURRENT ?? 2);
+let asking = 0;
 const safeName = (s: string) => /^[A-Za-z0-9_.-]+$/.test(s) ? s : null;
 
 export async function boardSnapshot(board: Graph) {
@@ -112,6 +114,13 @@ const server = createServer(async (req, res) => {
       if (parts[1] === 'ask' && parts[3] === 'stream') {
         const question = (url.searchParams.get('q') ?? '').trim().slice(0, 500);
         if (!question) return send(res, 400, { error: 'empty question' });
+        // Each question spends the model host's time: at most ASK_MAX_CONCURRENT at once.
+        if (asking >= ASK_MAX) {
+          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' });
+          res.end(`event: error\ndata: ${JSON.stringify({ message: `busy — ${asking} question${asking === 1 ? '' : 's'} already running on the local model; try again shortly` })}\n\n`);
+          return;
+        }
+        asking++;   // released when the agent finishes, not when the browser leaves — the model keeps working
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
         const emit = (type: string, data: unknown) => res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
         const ping = setInterval(() => res.write(': keep-alive\n\n'), 10_000);
@@ -125,6 +134,7 @@ const server = createServer(async (req, res) => {
         } catch (err) {
           emit('error', { message: (err as Error).message });
         } finally {
+          asking--;
           clearInterval(ping);
           res.end();
         }

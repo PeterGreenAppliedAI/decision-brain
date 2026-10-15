@@ -7,15 +7,19 @@ in git history.
 
 ## Where things stand
 
-Updated 2026-10-15 (Day 2). Built, tested and evaluated: ingest, the extraction and file-summary teams,
-the graph tools, MCP server, the grounded agent, `review`, `sync`, and the Board/Ask/Path views (114
-tests, CI green). Evaluation v2 is frozen and reported (eval/v2/RESULTS.md); the judge path on
-log4brains passed a clean, uninterrupted re-run (eval/JUDGE-PATH.md). **Now:** record the demo from
-DEMO.md (the code-review story; `scripts/demo/setup.ts` resets it safely, `scripts/demo/step.ts` makes
-its scripted commits — step 5's decision update is simulated and says so). **Then:** blog post and
-deployment build around the recording; long-entry reading and question memory only if time remains.
-The repo is private at github.com/PeterGreenAppliedAI/decision-brain; making it public is Peter's call.
-Graphs `invarail-demo*` and `data/corpora/invarail-demo` are the disposable demo copy.
+Updated 2026-10-15 (Day 2, evening). Built, tested (120 tests, CI green) and evaluated: ingest, the
+extraction and file-summary teams (all three repos summarized), the graph tools, MCP server, the
+grounded agent, `review` (log at the commit; reviewers and `told` by ancestry with the repo), `sync`,
+and the Board/Ask views — every tile and node now opens what it produced. Demo copies are hidden unless
+linked and carry a banner. "Add repository" exists for local use only (`WEB_ALLOW_INGEST=1`).
+
+**Waiting on GLM (Peter is using it):** demo dry run after `scripts/demo/setup.ts` (then Peter records);
+one end-to-end run of Add repository on a small public repo; re-run eval v2 (numbers predate the
+`what_breaks` fix); retry the 9 rejected summaries and 5 large Invarail files.
+**Waiting on Peter:** recording; edit docs/BLOG-DRAFT.md; choose deployment (docs/DEPLOY.md); public
+repo; label spot-check. **If time remains:** long-entry reading, question memory.
+The repo is private at github.com/PeterGreenAppliedAI/decision-brain. Graphs `invarail-demo*` and
+`data/corpora/invarail-demo` are the disposable demo copy (marked `DemoCopy`).
 
 ## Running things
 
