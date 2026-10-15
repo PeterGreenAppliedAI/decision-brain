@@ -4,6 +4,22 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Simulated Update Changes the Deployment, Not Just the Measurement (October 15 2026)
+
+A reviewer caught a real flaw in the demo's step 5: the September result is about qwen2.5:7b, and a
+fictional good result on qwen3.5:9b does not invalidate it. Newer evidence on a different model is not
+automatically better. The scripted entry now says what would actually justify the change: the deployment
+retires the 7B and supports only the tested 9B router; for that configuration the corrected rule
+replaces the old one; the 7B result stays valid history, and a deployment still running the 7B must
+keep the old rule. It is captioned as simulated, not an actual benchmark. The scripted commits moved
+into `scripts/demo/step.ts`, so the demo replays exactly.
+Also from that review: `scripts/demo/setup.ts` recursively deleted whatever directory it was given and
+dropped any existing target graph. It now resolves both and refuses unless the directory is a clone of
+the source repo (and is not, does not contain and is not inside the source, the working directory, home
+or root) and each existing target graph carries the `DemoCopy` marker setup writes; a target name equal
+to a source graph is refused. Six bad inputs tried — all refused before anything was touched. The two
+demo graphs made before markers existed were marked by hand.
+
 ## The Demo, Run for Real — and the Flaw It Exposed (October 15 2026)
 
 The code-review story the reviewer suggested, run end to end on a copy of Invarail (repo cloned, graphs

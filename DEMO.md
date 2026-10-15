@@ -1,21 +1,23 @@
 # Demo — "before you merge this, here's why it is the way it is"
 
 A code-review story on real data (Invarail's decision log and history), run on a disposable copy so
-the demo can commit freely. Every step below was run and verified on 2026-10-15; timings are from
-that run (glm-5.3-flash on vLLM, M4 Mac mini).
+the demo can commit freely. Timings are from the verified run (glm-5.3-flash on vLLM, M4 Mac mini).
 
-**Honesty note for the recording:** the proposed change is a realistic cleanup, written for the demo.
-The "re-measurement" decision in step 4 is **scripted for the demo** — say so on screen. Everything
-the system shows about the September 30 decision, its A/B and its revert is Invarail's real record.
+**Honesty note for the recording:** the proposed change in step 2 is a realistic cleanup, written for
+the demo. The decision update in step 5 is **simulated — not an actual benchmark**; keep that caption on
+screen for all of step 5. Everything shown about the September 30 decision, its A/B on qwen2.5:7b and
+its revert is Invarail's real record.
 
-## Setup (once, before recording — ~5 s)
+## Setup (before recording — ~5 s, safe to repeat)
 
 ```sh
-npx tsx --env-file=.env scripts/demo/setup.ts <path-to-invarail> invarail data/corpora/invarail-demo invarail-demo
+D=data/corpora/invarail-demo
+npx tsx --env-file=.env scripts/demo/setup.ts <path-to-invarail> invarail $D invarail-demo
 npm run web          # http://127.0.0.1:4100 — Board and Ask views (run where the model host is reachable)
 ```
-The setup clones the repo and copies the three Invarail graphs server-side, so extraction (31 min) and
-file summaries (52 min) are reused, not redone.
+Setup clones the repo and copies the three Invarail graphs server-side, so extraction (31 min) and file
+summaries (52 min) are reused, not redone. Re-running it resets the demo; it replaces only a directory
+that is a clone of the source and graphs it marked itself, and refuses anything else.
 
 ## 1 · The brain, built by a team (Track 02) — ~30 s
 Board view → `invarail · decisions`: 151 entries extracted by four local agents; open a handoff (one
@@ -23,20 +25,20 @@ agent raised a supersession, a different agent confirmed it with a quote). Switc
 `invarail · file summaries`: 318 files and 63 directories, summarized bottom-up.
 
 ## 2 · A proposed change — ~10 s
-In `data/corpora/invarail-demo/src/router/prompt.ts`, line 27 says "personal, memory, and web_search
-can only READ" — factually wrong (memory can save). A contributor fixes it:
+`src/router/prompt.ts` line 27 says "personal, memory, and web_search can only READ" — factually wrong
+(memory can save). A contributor fixes it:
 ```sh
-# edit line 27 to: "memory and web_search cannot create files…; memory saves and recalls facts"
-git -C data/corpora/invarail-demo commit -am "Router prompt: fix the factually wrong memory rule"
+npx tsx scripts/demo/step.ts $D propose        # prints the commit
 ```
 
-## 3 · Sync and review it (Track 01, the action) — ~65 s + 2 s
+## 3 · Sync and review it (Track 01, the action)
 ```sh
-npm run sync   -- --graph invarail-demo --repo data/corpora/invarail-demo
-npm run review -- --graph invarail-demo --repo data/corpora/invarail-demo <commit>
+npm run sync   -- --graph invarail-demo --repo $D
+npm run review -- --graph invarail-demo --repo $D <commit>
 ```
-`sync` re-summarizes exactly 1 file and its 3 directories (4 model calls). The review packet:
-- **R1** *The Router Prompt's "Wrong" Rule Was Load-Bearing* — measured **0/20 vs 16/20**
+`sync` re-summarizes exactly 1 file and its 3 directories (4 model calls). Cut the wait but show the
+elapsed time it prints. The review packet:
+- **R1** *The Router Prompt's "Wrong" Rule Was Load-Bearing* — qwen2.5:7b, measured **0/20 vs 16/20**
 - **D1** *"Corrected router prompt text would fix the 7B's memory routing"* — **tried and disproven**
 - **P1** Peter Green — 8 commits on the file
 
@@ -49,26 +51,32 @@ tool calls stream in, the answer cites the decision and quotes 0/20 vs 16/20, th
 citations and figures matched, and the path draws prompt.ts → the revert commit → the decision → the
 disproven experiment and its measurements. Click the decision to read its source lines.
 
-## 5 · The record changes; the review refreshes — ~70 s + 2 s
-The team re-measures on a newer model and records it (**scripted for the demo**):
+## 5 · The deployment changes; the review follows — *Simulated decision update — not an actual benchmark*
+In the simulated scenario, the deployment retires qwen2.5:7b and supports only a tested qwen3.5:9b
+router. The team records that — the new decision replaces the old requirement **for that configuration**,
+and says the 7B result remains valid history. Then the contributor resubmits:
 ```sh
-# add a DECISIONS.md entry, "The Corrected Router Rule, Re-measured on qwen3.5:9b (October 15 2026)":
-# supersedes the Sep 30 decision; corrected text 20/20 vs old 19/20 on qwen3.5:9b; names src/router/prompt.ts
-git -C data/corpora/invarail-demo commit -am "DECISIONS: the corrected router rule re-measured on qwen3.5:9b"
-# the contributor resubmits (any further edit to prompt.ts), then:
-npm run sync   -- --graph invarail-demo --repo data/corpora/invarail-demo
-npm run review -- --graph invarail-demo --repo data/corpora/invarail-demo <new commit>
+npx tsx scripts/demo/step.ts $D record          # the DECISIONS entry (text in scripts/demo/step.ts)
+npx tsx scripts/demo/step.ts $D resubmit        # prints the new commit
+npm run sync   -- --graph invarail-demo --repo $D
+npm run review -- --graph invarail-demo --repo $D <new commit>
 ```
-`sync` extracts only the new entry; one agent raises "supersedes", another confirms it (6 model calls).
-The packet now shows:
-- **R1** *The Corrected Router Rule, Re-measured* — **20/20 vs 19/20**
-- **S1** the September decision — **superseded, do not cite**, with what it had disproven filed under
-  it as history, not as a live warning
+`sync` extracts only the new entry; one agent raises "supersedes", another confirms it. Show the elapsed
+time. The packet now shows:
+- **R1** the new decision — qwen3.5:9b, **20/20 vs 19/20**, scoped to the supported configuration
+- **S1** the September decision — **superseded**, with what it had disproven filed under it as history,
+  not as a live warning
 
-Re-run the review of the *first* proposal: it still shows the September evidence — history is judged
-as it stood.
+**Say:** the system did not take the newer measurement as automatically better — the old rule went
+because the model it was measured on is no longer supported. Had the deployment kept the 7B, its warning
+would still apply.
 
-## 6 · It runs anywhere a judge points it (close) — ~15 s
-`eval/JUDGE-PATH.md`: a fresh clone on a repository we had never seen, four defects found and fixed, then
-an uninterrupted clean run. `eval/v2/RESULTS.md`: on 24 frozen questions, more answers correct than the
-same model given keyword-search results (17/20 vs 11/20), at about 2.6x the latency.
+## 6 · Close on the proof — ~20 s
+1. The resubmitted change gets the updated guidance (end of step 5, on screen).
+2. Review the **original** proposal again:
+   `npm run review -- --graph invarail-demo --repo $D <first commit>` — it still retrieves the
+   September decision and the 7B evidence: a change is judged by the record as it stood at that commit.
+
+Then one line: tested on three repositories using the documented GLM/vLLM setup (`eval/JUDGE-PATH.md`);
+on 24 frozen questions, more answers correct than the same model given keyword-search results
+(17/20 vs 11/20), at about 2.6x the latency (`eval/v2/RESULTS.md`).

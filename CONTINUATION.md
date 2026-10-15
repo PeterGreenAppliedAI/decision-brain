@@ -7,12 +7,15 @@ in git history.
 
 ## Where things stand
 
-Day 1 evening, well ahead of the plan: ingest, the extraction team, the integrator, the nine graph
-tools, the MCP server, the agent with its grounding check, `review`, and the live board view are built
-and tested (62 tests; CI green on GitHub). Both corpora are extracted and integrated. **Next:** the Ask
-and Path views (the Track 03 proof — never cut), question memory (Track 02), then drift (secondary),
-then Day 4: deployment, demo video, blog post. The repo is private at
-github.com/PeterGreenAppliedAI/decision-brain; making it public before submitting is Peter's call.
+Updated 2026-10-15 (Day 2). Built, tested and evaluated: ingest, the extraction and file-summary teams,
+the graph tools, MCP server, the grounded agent, `review`, `sync`, and the Board/Ask/Path views (114
+tests, CI green). Evaluation v2 is frozen and reported (eval/v2/RESULTS.md); the judge path on
+log4brains passed a clean, uninterrupted re-run (eval/JUDGE-PATH.md). **Now:** record the demo from
+DEMO.md (the code-review story; `scripts/demo/setup.ts` resets it safely, `scripts/demo/step.ts` makes
+its scripted commits — step 5's decision update is simulated and says so). **Then:** blog post and
+deployment build around the recording; long-entry reading and question memory only if time remains.
+The repo is private at github.com/PeterGreenAppliedAI/decision-brain; making it public is Peter's call.
+Graphs `invarail-demo*` and `data/corpora/invarail-demo` are the disposable demo copy.
 
 ## Running things
 
