@@ -69,6 +69,9 @@ judged by the same Claude session that built the system, with a disclosed blindi
   goals", merging "the migration effort from 2016" and "Architecture Goals 2017-18+" into a figure the
   source does not state — a small misstatement, correctly flagged.
 - **Borderline judging calls:** the run-2 judge reported 10 (listed in DECISIONS.md, October 15,
-  "Evaluation v2, Run Again"). Re-scored with every one of them decided against the agent: 15/20 vs
-  12/20, false premises 2/4 vs 2/4. Decided for it: 18/20 vs 9/20. The agent leads in every case; how
-  far depends on the judging, and the premise result is not robust to it.
+  "Evaluation v2, Run Again"). Re-scored with every one of them decided against the agent: 14/20 vs
+  12/20, false premises 2/4 vs 2/4. Decided for it: 19/20 vs 9/20. (First published as 15–12 to 18–9:
+  two answers' sides were swapped by hand — corrected, with the sides now read from the key in code.)
+  The agent leads in every case on this question set; how far depends on the judging, and the premise
+  result is not robust to it. A sensitivity check on 24 questions, not a guarantee of broader
+  performance.

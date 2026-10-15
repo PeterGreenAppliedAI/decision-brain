@@ -105,7 +105,7 @@ a fresh subagent that saw only the blind sheet.
 **The claim this supports:** on a frozen 24-question evaluation across three repositories, Decision
 Brain answered more questions correctly than the same model given keyword-search results, at roughly
 2.6–2.9x the latency (in each run 7 questions only the agent got right, 1 only the baseline). With every
-borderline judging call of run 2 decided against the agent it still leads, 15/20 vs 12/20 — but the
+borderline judging call of run 2 decided against the agent it still leads, 14/20 vs 12/20 — but the
 false-premise result (4/4 vs 2/4) does not survive that, so it is not claimed as robust. It measures the whole
 workflow — several searches, specialised tools and graph relationships all differ from the one-call
 baseline — and does not isolate which part contributed how much. "Correct" means passing the rubric
@@ -114,9 +114,11 @@ the checker were checked by hand: in run 1 all were in the source, misplaced rel
 in run 2 two were reformatted ("96,000" for `96000`) and one was a merged figure the source does not
 state ("2016/2017") — small, and caught. One
 question failed for both systems because the answer sat beyond the 2,500 characters of a long entry
-each reads. **Limits:** 24 questions, one run, one model; questions, key facts and judging by Claude,
-which built the system; judging blind to which system answered, but only partly (the run's progress
-log named each system's check status); owner spot-check pending.
+each reads. **Limits:** 24 questions, two runs, one model; questions and key facts written by Claude,
+which built the system. Run 1 was judged by that same session, blind to which system answered but only
+partly (its progress log named each system's check status); run 2 by a fresh subagent that saw only the
+anonymized sheet. Owner spot-check pending. The borderline range is a sensitivity check on this set,
+not a guarantee of broader performance.
 
 **v1 — the regression set** ([eval/RESULTS.md](eval/RESULTS.md)): the first 25 questions, used while
 developing — so not a fair comparison any more. On them, recall of relevant decisions tied with

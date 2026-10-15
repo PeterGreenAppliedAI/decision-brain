@@ -4,6 +4,21 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Correction: the Borderline Range Was 14–12 to 19–9 (October 15 2026)
+
+An outside reviewer recomputed run 2 from the saved sheet, key and labels: the headline figures were
+right (16/20 vs 10/20 etc.), the borderline range was not. I had typed which system each borderline
+answer belonged to by hand and swapped two: l4b-01's B is the keyword baseline and l4b-06's B is
+Decision Brain (the key says A=agent and A=rag respectively). So my "against the agent" scenario
+handed the agent a point on l4b-06. Recomputed with the sides read from the key in code: against the
+agent 14/20 vs 12/20 (premises 2/4 vs 2/4), for it 19/20 vs 9/20. Corrected in RESULTS, README, blog
+and PLAN. Also from that review: the summary check is described as identifier presence (finding
+`TaskStore` and `add` doesn't prove `add` belongs to `TaskStore`); DEMO no longer says a flagged figure
+just means a missing citation — run 2 itself caught a reformatted and a merged figure; the README's
+limits paragraph still described one run and is rewritten for two.
+The lesson repeats one from earlier: a figure about the system's own performance gets computed, not
+transcribed.
+
 ## Evaluation v2, Run Again (October 15 2026)
 
 Re-run on the current code (after the `what_breaks`, summary-check and handoff fixes), same frozen set,
@@ -14,9 +29,9 @@ only one system got right. Run 1's results and sheet are kept beside run 2's.
 The judge's 10 borderline calls: inv-04 A(rag).fact2 not ticked (no "two months"); inv-05 A(agent).fact1
 ticked (no benchmark name); inv-08 A(agent).premise ticked (hedged "It didn't, really"), .fact1 not
 ticked (no 1/7), .wrong1 not ticked; cp-06 A(agent).premise ticked (only a closing note), .fact1 not
-ticked; l4b-01 B(agent).fact2 not ticked; l4b-05 both .fact1 ticked (no "everywhere"); l4b-06
-B(rag).fact1 not ticked. Re-scored with all of them against the agent: 15/20 vs 12/20 and premises 2/4
-vs 2/4; for it: 18/20 vs 9/20. So the README claims the lead, not the premise result, as robust.
+ticked; l4b-01 B(agent → in fact rag).fact2 not ticked; l4b-05 both .fact1 ticked (no "everywhere"); l4b-06
+B(rag → in fact agent).fact1 not ticked. Re-scored with all of them against the agent: 15/20 vs 12/20 (in fact 14/20) and premises 2/4
+vs 2/4; for it: 18/20 vs 9/20 (in fact 19/20) — see the correction above. So the README claims the lead, not the premise result, as robust.
 I first wrote that no borderline call "would change a total by more than one" — true of each alone,
 misleading together; replaced with the re-scored range before committing.
 Flagged figures, checked by hand: two reformatted ("96,000 → 32,768" for `96000 → 32768`) and one merged
@@ -29,7 +44,8 @@ The entry below ("File Summaries on All Three Repositories") said 9 file summari
 naming code the file does not contain, and Invarail had 5 more from earlier. Looking at them: they named
 class members as `TaskStore.add`, `Edition#publish` — real members, but no file contains that literal
 string, so the check dropped them and the summary fell below the threshold. A qualified name now passes
-if each part is in the file as a whole identifier (an invented part still fails), and
+if each part is in the file as a whole identifier (an invented part still fails; it checks presence,
+not that the member belongs to that class), and
 `summarize --retry-rejected` re-summarized all 14 with their directories: 13 pass now (Invarail's 5 at
 17/17 to 33/33 names), 1 content-publisher view is still rejected (4 of 11 names). Total model time
 about 4.5 minutes.

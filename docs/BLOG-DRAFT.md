@@ -57,8 +57,10 @@ rejected by the second agent, each with a reason you can read on the board.
 
 Nothing a model writes enters the brain unchecked. Every quote must appear verbatim in the entry;
 every figure must appear inside its quote; every file name must exist in git; a file summary that names
-a function the file doesn't contain is rejected. (That check had its own bug: it rejected `TaskStore.add`
-because no file contains that exact string. Thirteen good summaries were thrown out before I noticed.)
+a name the file doesn't contain is rejected — a presence check, not proof the description is right.
+(It had its own bug: it rejected `TaskStore.add` because no file contains that exact string. Thirteen
+good summaries were thrown out before I noticed. Now each part of a qualified name must appear as an
+identifier — which still doesn't prove `add` belongs to `TaskStore`.)
 
 Then a derived `RATIONALE` edge joins each decision to the files it rests on, and FalkorDB's built-in
 algorithms answer structural questions directly — which files carry the most reasoning
@@ -118,7 +120,7 @@ answers were judged by a fresh agent that saw only an anonymized A/B sheet.
 The difference comes almost entirely from retrieval: when keyword search misses the entry an answer
 must rest on, the model has nothing to answer from. The graph's tools find it. It costs about 2.6–2.9x
 the latency. And to be honest about the margin: if every borderline judging call goes against Decision
-Brain, it's 15 vs 12 — still ahead, but the premise-correction edge disappears. (Everything is in
+Brain, it's 14 vs 12 — still ahead, but the premise-correction edge disappears. (Everything is in
 `eval/v2/`.)
 
 ## What went wrong, on the record

@@ -46,7 +46,7 @@ const has = (text: string, name: string) => {
   if (/^[\w$]+$/.test(n)) return word(text, n);
   // A qualified name — TaskStore.add, Edition#publish, Foo::Bar — is how a summary names a member; the
   // file declares `add(` inside `class TaskStore`, never the string "TaskStore.add". Each part must be
-  // in the file as a whole identifier.
+  // in the file as a whole identifier — a presence check: it does not prove `add` belongs to TaskStore.
   if (/^[\w$]+(?:(?:\.|#|::)[\w$]+)+$/.test(n)) return n.split(/\.|#|::/).every((part) => word(text, part));
   return text.includes(n);
 };

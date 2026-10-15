@@ -35,7 +35,7 @@ and **shows the path** behind every answer.
 | Blog post | draft in docs/BLOG-DRAFT.md — Peter edits |
 | Deployment | options in docs/DEPLOY.md — Peter decides; Ask capped (`ASK_MAX_CONCURRENT`) |
 | Demo video | dry run passed after a fix (invalid confirmations retried); demo copy reset — Peter records |
-| Re-run eval v2 after the `what_breaks` fix | done — 16/20 vs 10/20, judged blind by a fresh subagent; worst-case borderline 15 vs 12 |
+| Re-run eval v2 after the `what_breaks` fix | done — 16/20 vs 10/20, judged blind by a fresh subagent; borderline range 14–12 to 19–9 |
 
 ## The rules boundary (read first)
 

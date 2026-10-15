@@ -51,8 +51,10 @@ Ask view on the demo copy — open `http://127.0.0.1:4100/ask.html?graph=invarai
 listed only when the link names one, under a "Demo copy" banner): *"If I change src/router/prompt.ts, what should I re-check?"* — the
 tool calls stream in, the answer cites the decision and quotes 0/20 vs 16/20, the code checks show
 citations and figures matched, and the path draws prompt.ts → the revert commit → the decision → the
-disproven experiment and its measurements. Click the decision to read its source lines. If the checks show a flagged figure, the agent left a figure without its
-citation (an occasional formatting slip the checker is right to catch) — ask again.
+disproven experiment and its measurements. Click the decision to read its source lines. If the checks show a flagged figure, open the
+claim it belongs to: the checker flags a figure it cannot match to the cited evidence — sometimes a
+figure placed away from its citation (asking again may resolve that), sometimes a reformatted or altered
+figure. Don't wave it off.
 
 ## 5 · The deployment changes; the review follows — *Simulated decision update — not an actual benchmark*
 In the simulated scenario, the deployment retires qwen2.5:7b and supports only a tested qwen3.5:9b
