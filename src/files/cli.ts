@@ -14,6 +14,7 @@ import { connect, GraphConnectError } from '../graph/db.js';
 import { createJsonClient } from '../llm/openai.js';
 import { integrateSummaries } from './integrate.js';
 import { planTasks, sourceFiles } from './scan.js';
+import { blobsAt } from '../sync/sync.js';
 import { runSummaryWorker, seedFileBoard } from './worker.js';
 
 const { values } = parseArgs({ options: {
@@ -37,7 +38,7 @@ try {
   const { sha, files } = sourceFiles(repo);
   const chosen = values.limit ? files.slice(0, Number(values.limit)) : files;
   const tasks = planTasks(chosen);
-  await seedFileBoard(board, tasks, sha);
+  await seedFileBoard(board, tasks, sha, blobsAt(repo, sha));
   const llm = createJsonClient();
   const names = Array.from({ length: Number(values.workers) }, (_, i) => `glm-${i + 1}`);
   console.log(`[summarize] ${chosen.length} files, ${tasks.length - chosen.length} directories at ${sha.slice(0, 7)} · ${names.length} workers · board ${boardName}`);

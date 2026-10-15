@@ -76,7 +76,9 @@ Every decision carries a content hash of its title and text. Every finding recor
 text it was extracted from (read in the same query as the text), and every confirmed relation the
 hash of the other entry its confirmer read. The integrator promotes only evidence whose hash matches
 the entry's current text, and reports what it left out. Re-running the team after an entry is edited
-re-extracts exactly the changed entries and re-checks the relations that touch them.
+re-extracts exactly the changed entries and re-checks the relations that touch them. `npm run sync`
+does all of it after a pull — ingest, re-extraction of changed entries, re-summaries of changed files
+and their directories — and a second sync does nothing.
 
 ## Evaluation
 
@@ -117,9 +119,9 @@ used correctly — v1's inv-02 copied the right numbers and reversed what they m
 
 ## Limitations (known, not yet fixed)
 
-- **File summaries are flagged stale, not yet re-made automatically.** `what_is` reports when a file
-  changed since its summary; re-running `summarize` re-does every file, not only the changed ones.
-  (Decision evidence *is* invalidated precisely: see "Evidence follows the text" above.)
+- **Keeping current is a command, not a daemon.** `npm run sync` after a pull redoes only what changed
+  (changed files and their directories, changed or new decisions) and nothing else; it does not run by
+  itself — schedule it, or call it from a hook.
 - **A retitled entry looks new to a historical review.** A decision's id follows its title, so an
   entry whose *heading* was edited after the reviewed commit is not matched to its earlier self, and
   is treated as not existing then. (Text edits are handled; heading edits are not yet.)
@@ -236,6 +238,7 @@ npm run mcp -- --graph <name>                             # the tools for any MC
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
 npm run eval:candidates && npm run eval:run              # labelled evaluation vs a keyword-search baseline
 npm run summarize -- --graph <name> --repo <path>         # file → directory → repo summaries (board <name>__files)
+npm run sync -- --graph <name> --repo <path>              # after a pull: redo only what changed; again → nothing
 ```
 
 Corpora used: [Invarail](https://github.com/PeterGreenAppliedAI/Invarail) (151 decision-log entries,

@@ -4,6 +4,25 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Sync, Scoped to One Acceptance Test; a Clean Run (October 15 2026)
+
+**Clean re-run first** (the reviewer's order): the final commit, `7f5270c`, from a new empty directory
+and volume, README steps only, no fixes pulled midway — every step exited 0, including extraction,
+ask, review, the test suite and restart. A repeatable installation on this (warm) machine.
+
+**Then `npm run sync`**, to the reviewer's acceptance test rather than a background system: change one
+source file and one decision → only the changed file, its directories and the changed decision are
+regenerated; everything else untouched (same finding ids); a second sync makes zero model calls and
+changes nothing; a removed file loses its summary and a new one gains one. File sections now record
+the git blob they describe; boards made before that are backfilled from the commit they were
+summarized at — on Invarail, 318 summaries backfilled, none redone. Mutation-checked: treating every
+file as changed fails all three tests. A re-queued section loses its old summary at once, so a failed
+re-summary leaves none rather than a stale one.
+
+**The agent's citation habit**, after v2: told to repeat the full id in every paragraph and list item
+that states a number, never "[same decision]". The checker is unchanged. v2's results describe the
+agent as frozen at `bbc2f66`.
+
 ## Evaluation v2: What the Graph Adds, Measured (October 15 2026)
 
 To the reviewer's spec: 24 untouched questions over three repositories, frozen with labels (required

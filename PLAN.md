@@ -21,9 +21,10 @@ and **shows the path** behind every answer.
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
 | Fresh evaluation v2 (frozen, blind) | done — agent 17/20 correct vs 11/20 same-model-on-keyword; 2.6x latency |
 | **Deadline: Sunday Oct 18, 2:29 PM EDT** (internal finish line: Saturday) | — |
-| Clean re-run of the final commit, uninterrupted; record the demo (code-review story) | next |
-| `sync`, scoped to one acceptance test: change one source file + one decision → sync → only affected summaries/evidence regenerate, the rest untouched → a second sync changes nothing | after the clean run |
-| Agent cites ids, never "[same decision]"; lists keep their citation (checker stays strict) | small fix, with sync |
+| Clean re-run of the final commit, uninterrupted | done — every step exit 0 (7f5270c) |
+| Demo (code-review story) — script + verified run; Peter records | next |
+| `sync`, scoped to one acceptance test | done — 3 tests, mutation-checked; real repos: 0 model calls when current |
+| Agent cites ids, never "[same decision]"; lists keep their citation (checker stays strict) | done (prompt) — not re-measured |
 | Section-aware reading of long entries; question memory | if time remains |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
 | Question memory | after that |

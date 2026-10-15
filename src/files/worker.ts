@@ -9,14 +9,14 @@ import type { JsonClient } from '../llm/openai.js';
 import { readAt, type FileTask } from './scan.js';
 import { checkDir, checkFile, DIR_SCHEMA, DIR_SYSTEM, FILE_SCHEMA, FILE_SYSTEM, type DirSummary, type FileSummary } from './summarize.js';
 
-export async function seedFileBoard(board: Graph, tasks: FileTask[], sha: string): Promise<void> {
+export async function seedFileBoard(board: Graph, tasks: FileTask[], sha: string, blobs: Map<string, string> = new Map()): Promise<void> {
   await ensureBoardSchema(board);
   await board.query(
     `UNWIND $rows AS r
      MERGE (s:Section {id: r.id})
      ON CREATE SET s.status = 'pending', s.attempts = 0
-     SET s.kind = r.kind, s.path = r.path, s.title = r.path, s.order = r.order, s.depth = r.depth, s.waiting = r.waiting, s.sha = $sha`,
-    { params: { rows: tasks as never, sha } });
+     SET s.kind = r.kind, s.path = r.path, s.title = r.path, s.order = r.order, s.depth = r.depth, s.waiting = r.waiting, s.sha = $sha, s.blob = r.blob`,
+    { params: { rows: tasks.map((t) => ({ ...t, blob: t.kind === 'file' ? blobs.get(t.path) ?? null : null })) as never, sha } });
   await board.query(
     `UNWIND $rows AS r MATCH (c:Section {id: r.id}), (p:Section {id: r.parent}) MERGE (c)-[:PART_OF]->(p)`,
     { params: { rows: tasks.filter((t) => t.parent) as never } });

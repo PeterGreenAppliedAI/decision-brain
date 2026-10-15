@@ -26,7 +26,8 @@
     "eval:run": "tsx --env-file-if-exists=.env src/eval/run.ts",
     "eval:score": "tsx --env-file-if-exists=.env src/eval/run.ts --score",
     "eval:draft": "tsx --env-file-if-exists=.env src/eval/label-draft.ts",
-    "eval:v2": "tsx --env-file-if-exists=.env src/eval/v2.ts"
+    "eval:v2": "tsx --env-file-if-exists=.env src/eval/v2.ts",
+    "sync": "tsx --env-file-if-exists=.env src/sync/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

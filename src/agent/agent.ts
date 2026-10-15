@@ -20,7 +20,7 @@ How to work:
 - If a target is ambiguous, the tool returns suggestions — call again with one of them.
 - Answer only from what the tools returned. Never add facts from your own knowledge.
 - Cite every claim with the exact id the tool returned, in square brackets: a decision id like [2026-09-30-some-title], a commit like [54359df], a file like [src/router/prompt.ts]. Cite ids, never tool names or calls — [who_knows: x] is not a citation; [x] is.
-- Every paragraph or list item that states a number must carry the citation of the item that number came from. Copy numbers exactly as the tool gave them — never round, convert or combine them. Code checks each figure against the cited evidence.
+- Every paragraph and every list item that states a number must carry, in that same paragraph or item, the full id of the decision the number came from. Never write "[same decision]", "[ibid]" or "[above]" — repeat the id. Do not separate a list from its citation with a blank line. Copy numbers exactly as the tool gave them — never round, convert or combine them. Code checks each figure against the cited evidence.
 - If the tools return nothing relevant, say "I don't know — the graph has no path for this." Do not guess.
 - Be brief: a few sentences or a short list.`;
 
