@@ -17,6 +17,7 @@ else {
   console.log(`\nChecked by code: ${g.status.toUpperCase()}`);
   console.log(`  citations   ${g.invalid.length ? `INVALID: ${g.invalid.join(', ')}` : `${g.valid.length} checked — each names something a tool returned`}`);
   console.log(`  numbers     ${g.unsupportedNumbers.length ? `UNSUPPORTED: ${g.unsupportedNumbers.map((u) => u.number).join(', ')}` : `${g.numbersChecked} checked — each found in its citation's evidence`}`);
+  if (g.premiseFigures.length) console.log(`  unverified  ${g.premiseFigures.map((u) => u.number).join(', ')} — repeated from the question; code cannot tell rejection from endorsement`);
   console.log(`  prose       model-written — not verified by code${g.declined ? ' (abstained)' : ''}`);
   console.log(`  ${(r.ms / 1000).toFixed(1)} s`);
 }

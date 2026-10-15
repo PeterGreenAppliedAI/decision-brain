@@ -13,9 +13,12 @@ corrected instructions.
 
 ## Result
 
-All steps pass **after four defects found by this run were fixed** — three in the product, one
-introduced by me while fixing the second. Each fix is a commit with a test; the clone pulled each
-fix and continued, as a judge pulling the latest version would.
+**A successful warm setup on the existing GLM infrastructure** — after four defects found by this run
+were fixed (three in the product, one introduced by me while fixing the second), each a commit with a
+test; the clone pulled each fix mid-run. That makes this a debugging session that ended in success,
+not yet a repeatable installation: **before recording the demo, the final commit must be run once from
+another empty directory and volume, start to finish, with no fixes pulled midway.** Ollama and a cold
+machine remain unverified.
 
 ## Commands and timings
 
@@ -54,11 +57,14 @@ would reuse that volume — not a concern on a judge's machine).
    test runner does not enforce named exports and no fixture had an ADR directory — and I had not run
    the typecheck before committing. The fresh clone's ingest crashed on it at once. Fixed in `7014d29`,
    with an end-to-end ADR-ingest test (mutation-checked).
-4. **"As of the change" used the date a commit was written, not when it entered the history.**
+4. **"As of the change" used the date a commit was written (author date).**
    log4brains' `feat: initial features` was written 2020-09-25 and squashed in on 2020-12-10 (22 of its
    149 commits differ), so its review looked like a September commit recording November decisions.
-   Fixed in `38d9388`: commits carry their commit date; review, reviewer cut-off, `told` and
-   instruction-file versions use it; the author date is still shown.
+   Fixed in `38d9388`: commits carry their committer timestamp, which the date-based fallbacks, the
+   reviewer cut-off, `told` and instruction-file versions use; the author date is still shown. The
+   committer timestamp is an approximation, not merge time — a commit can exist on a branch long before
+   it is merged. What a commit truly includes is its tree and ancestry: review's rebuilt path reads the
+   commit's own tree; moving the reviewer cut-off and `told` to ancestry is open.
 
 ## What this run did not verify
 

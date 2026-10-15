@@ -92,7 +92,7 @@ Latest result ([eval/RESULTS.md](eval/RESULTS.md)):
 | Abstained on the 5 unanswerable questions | 5/5 | 0/5 — keyword retrieval has no answer stage, so it cannot abstain |
 | False premises corrected | 2/3 (cp-10's has an invalid citation) | — |
 | Ownership (one question, three expected names) | 3/3 | — |
-| Figures flagged by the checker / invalid citations | 0 / 1 of 25 answers | — |
+| Figures flagged by the checker / invalid citations | 0 / 1 of 25 answers (1 more "unverified": inv-11 repeats the question's 20/20 to reject it) | — |
 
 **What it says:** the agent finds no more of the right decisions than keyword search does. Its gains
 here are precision, abstention and the ownership answer — promising observations on 25 questions, not
@@ -124,6 +124,11 @@ adversarial probes kept as tests so the refinement could not loosen them.
   is treated as not existing then. (Text edits are handled; heading edits are not yet.)
 - **The by-date fallback is approximate** (no repo path given): an entry written later but dated
   earlier shows through. Set `REPO_PATHS` (or pass `--repo`) for the rebuilt review.
+- **Timestamps, not ancestry, for the reviewer cut-off and `told`.** They use the committer timestamp,
+  which a branch merged long after its commits can mislead. The rebuilt review itself reads the
+  commit's own tree.
+- **A figure the answer repeats from the question is "unverified"**, whether the answer rejects or
+  endorses it — code does not try to tell them apart.
 - **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files
   gets ownership, history and file summaries — not reasons. Commit messages and PR descriptions are
   not mined yet.

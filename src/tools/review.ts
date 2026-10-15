@@ -34,7 +34,8 @@ export interface ReviewItem {
 
 export interface ReviewPacket {
   change: { ref: string; sha: string | null; date: string | null; committedAt: string | null; authors: string[]; message: string | null; files: string[]; unknownFiles: string[] };
-  /** The day the change entered the history (committer date) — not when it was written. */
+  /** The commit's committer-timestamp day — an approximation used by the date fallback and the reviewer
+   *  cut-off. The rebuilt path follows the commit's own tree, not a date. */
   asOf: string | null;
   /** How "as of the change" was established, and which graph state the packet was built from. */
   basis: { method: 'log-at-commit' | 'by-date'; entriesThen: number | null; editedSince: number | null; fingerprint: string };

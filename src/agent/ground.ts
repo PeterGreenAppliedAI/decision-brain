@@ -14,7 +14,7 @@
  */
 import type { Step } from '../../lib/loop.js';
 
-export type GroundingStatus = 'supported' | 'abstained' | 'invalid-citation' | 'unsupported-number' | 'uncited';
+export type GroundingStatus = 'supported' | 'abstained' | 'invalid-citation' | 'unsupported-number' | 'unverified-premise-figure' | 'uncited';
 
 export interface Grounding {
   status: GroundingStatus;
@@ -24,6 +24,12 @@ export interface Grounding {
   invalid: string[];
   /** Figures not found in the evidence of the sentence that states them (or stated with no citation). */
   unsupportedNumbers: Array<{ number: string; sentence: string }>;
+  /**
+   * Figures the answer repeats from the question that the evidence does not hold. Code cannot tell
+   * whether the answer rejects them ("there is no record of 20/20") or endorses them ("it scored
+   * 20/20") — so they are reported as unverified, never as supported.
+   */
+  premiseFigures: Array<{ number: string; sentence: string }>;
   numbersChecked: number;
   declined: boolean;
   prose: 'model-written';
@@ -134,8 +140,7 @@ const DECLINE_OPENING = /^\s*(i don'?t know|i do not know|the graph (has|holds|c
 const NEGATION = /\b(no|not|never|none|nothing|neither|nor|without|isn'?t|aren'?t|wasn'?t|doesn'?t|don'?t|didn'?t|cannot|can'?t)\b/i;
 const RECORD = /\b(graph|log|record(s|ed)?|decisions?|entry|entries|ADRs?|mentions?|mentioned|documented|captured|evidence|sources?|path|rationale|searches|history)\b/i;
 const absence = (clause: string) => NEGATION.test(clause) && RECORD.test(clause);
-/** Words that put a figure from the question in a rejection: "there is no record of 20/20", "the opposite". */
-const REJECTING = /\b(no|not|never|didn'?t|doesn'?t|wasn'?t|isn'?t|opposite|contrary|instead|rather than|premise|false|wrong|incorrect|myth)\b/i;
+
 
 /**
  * Clauses of a declining answer that assert something without a citation: every sentence, split at
@@ -167,9 +172,9 @@ function blocks(answer: string): string[] {
 }
 
 /**
- * `question`: a figure the question states may be repeated in order to REJECT it ("there is no record
- * of 20/20") — exempt only in a line that rejects it. Repeating it as fact ("it scored 20/20") is a
- * claim like any other and is checked.
+ * `question`: a figure the answer repeats from the question, if the evidence does not hold it, is
+ * "unverified" — code does not try to tell rejection from endorsement (word lists were tried and
+ * fooled twice), so such an answer is never reported as supported.
  */
 export function ground(answer: string, steps: Step[], question = ''): Grounding {
   const asked = new Set(numbersIn(question));
@@ -184,16 +189,17 @@ export function ground(answer: string, steps: Step[], question = ''): Grounding 
   const invalid = cites.filter((c) => !resolve(c));
 
   const unsupportedNumbers: Grounding['unsupportedNumbers'] = [];
+  const premiseFigures: Grounding['premiseFigures'] = [];
   let numbersChecked = 0;
   for (const block of blocks(answer)) {
     const cited = citationsOf(block, toolNames).map(resolve).filter((x): x is string => Boolean(x));
     // The block's evidence: for each citation, the item it identifies in each response that returned it.
     const evidence = cited.flatMap((c) => results.filter((r) => r.ids.has(c)).map((r) => evidenceFor(r.text, c))).join('\n');
     for (const line of block.split('\n')) {
-      const prose = line.replace(/\[[^\]]*\]/g, ' ');   // ids can contain words like "wrong" — read rejection from the prose
-      for (const n of numbersIn(line).filter((x) => !(asked.has(x) && REJECTING.test(prose)))) {
+      for (const n of numbersIn(line)) {
         numbersChecked++;
-        if (!cited.length || !figureIn(n, evidence)) unsupportedNumbers.push({ number: n, sentence: line.trim().slice(0, 160) });
+        if (cited.length && figureIn(n, evidence)) continue;
+        (asked.has(n) ? premiseFigures : unsupportedNumbers).push({ number: n, sentence: line.trim().slice(0, 160) });
       }
     }
   }
@@ -205,8 +211,9 @@ export function ground(answer: string, steps: Step[], question = ''): Grounding 
   const declined = declinedOpening && claimsAfter.length === 0;
   const status: GroundingStatus = invalid.length ? 'invalid-citation'
     : unsupportedNumbers.length ? 'unsupported-number'
+    : premiseFigures.length ? 'unverified-premise-figure'
     : declined ? 'abstained'
     : declinedOpening ? 'uncited'                      // declined, then asserted something without a citation
     : valid.length ? 'supported' : 'uncited';
-  return { status, grounded: status === 'supported' || status === 'abstained', valid, invalid, unsupportedNumbers, numbersChecked, declined, prose: 'model-written' };
+  return { status, grounded: status === 'supported' || status === 'abstained', valid, invalid, unsupportedNumbers, premiseFigures, numbersChecked, declined, prose: 'model-written' };
 }

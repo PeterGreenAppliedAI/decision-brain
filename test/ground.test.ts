@@ -36,11 +36,11 @@ describe('ground', () => {
     expect(ground("I don't know — closest is [made-up-id].", steps).status).toBe('invalid-citation');
   });
 
-  it("does not hold the answer to figures the question itself states", () => {
+  it('a figure repeated from the question is unverified — never supported, never called invented', () => {
     const q = 'The corrected rule improved routing to 20/20 — when was that shipped?';
     const a = `It never was: there is no record of 20/20. The corrected text scored 0/20 vs 16/20 [${ID}].`;
-    expect(ground(a, steps, q).status).toBe('supported');
-    expect(ground(a, steps).status).toBe('unsupported-number');   // without the question, 20/20 is a claim
+    expect(ground(a, steps, q)).toMatchObject({ status: 'unverified-premise-figure', grounded: false, unsupportedNumbers: [] });
+    expect(ground(a, steps).status).toBe('unsupported-number');   // without the question, 20/20 is just a claim
   });
 
   it('treats model sizes as names, and only id-shaped brackets as citations', () => {
@@ -106,10 +106,11 @@ describe('numbersIn', () => {
 });
 
 describe('outside review, third round — two regressions', () => {
-  it('a question\'s figure is exempt only when the answer rejects it, not when it endorses it', () => {
+  it('endorsing or rejecting a question\'s figure is not told apart by word lists — both are unverified (reviewer rounds 3 and 4)', () => {
     const q = 'When did it improve to 20/20?';
-    expect(ground(`It scored 20/20 [${ID}].`, steps, q).status).toBe('unsupported-number');
-    expect(ground(`There is no record of 20/20; the corrected text scored 0/20 vs 16/20 [${ID}].`, steps, q).status).toBe('supported');
+    expect(ground(`It scored 20/20 [${ID}].`, steps, q).status).toBe('unverified-premise-figure');
+    expect(ground(`Not surprisingly, the corrected rule scored 20/20 [${ID}].`, steps, q).status).toBe('unverified-premise-figure');
+    expect(ground(`There is no record of 20/20; the corrected text scored 0/20 vs 16/20 [${ID}].`, steps, q).status).toBe('unverified-premise-figure');
   });
 
   it('a negative claim about the world is a claim; only silence of the record is an absence', () => {

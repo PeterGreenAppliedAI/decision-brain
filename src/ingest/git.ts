@@ -13,8 +13,11 @@ export interface GitCommit {
   author: string;
   /** When it was written (author date) — what people see. */
   date: string;
-  /** When it entered the history (committer date) — what "as of this commit" means. They differ after
-   *  a rebase or squash: log4brains' "initial features" was written 2020-09-25, committed 2020-12-10. */
+  /** Committer timestamp — the closer approximation of when the commit was made into this history
+   *  (it differs from the author date after a rebase or squash: log4brains' "initial features" was
+   *  written 2020-09-25, committed 2020-12-10). It is NOT merge time: a commit can sit on a branch long
+   *  before it is merged. What a commit truly includes is its tree and ancestry — which review's
+   *  rebuilt path uses; timestamps serve only the date-based fallbacks. */
   committedAt: string;
   subject: string;
   coauthors: string[];

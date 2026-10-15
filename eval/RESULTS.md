@@ -25,7 +25,7 @@ _Baseline precision is over a fixed top 5, so it is low by construction; recall 
 | inv-08 | find | 1/3 | 100% | 2/3 | 40% | supported |
 | inv-09 | find | 3/6 | 100% | 0/6 | 0% | supported |
 | inv-10 | find | 1/1 | 100% | 1/1 | 20% | supported |
-| inv-11 | trap | 1/1 | 100% | 1/1 | 20% | supported |
+| inv-11 | trap | 1/1 | 100% | 1/1 | 20% | unverified-premise-figure |
 | inv-12 | trap | 0/1 | 0% | 0/1 | 0% | abstained |
 | inv-13 | abstain | abstained ✓ | | returned 5 ✗ | | abstained |
 | inv-14 | abstain | abstained ✓ | | returned 5 ✗ | | abstained |
@@ -187,7 +187,7 @@ Injection marks the weak classes (`[observed, unconfirmed]`, `[inferred]`) so th
 
 ### inv-11 — The corrected router rule improved memory routing to 20/20 — when was that shipped?
 
-_tools: search → trace · 23.5 s · supported_
+_tools: search → trace · 23.5 s · unverified-premise-figure_
 
 The premise doesn't match the record: the corrected rule was **not** shipped — it was measured and **reverted** the same night, 2026-09-30 [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].
 

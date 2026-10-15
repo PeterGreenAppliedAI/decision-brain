@@ -4,6 +4,24 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Fourth Review: Stop Extending Word Lists (October 15 2026)
+
+The reviewer reproduced the same exemption hole a third way — "Not surprisingly, the corrected rule
+scored 20/20 [id]" passed, because "not" anywhere on the line marked it a rejection — and advised
+stopping the word lists. Agreed: code cannot tell a figure repeated to reject a premise from one
+repeated to endorse it, so it no longer tries. A figure the answer repeats from the question that the
+evidence does not hold is reported as **unverified** — never supported, never called invented.
+inv-11 in the regression set, which rejects the 20/20 premise correctly, is now "unverified": the
+truthful label for what code can check. Also narrowed: the judge path is "a successful warm setup on
+the existing GLM infrastructure", and a clean re-run of the final commit (empty directory and volume,
+no mid-run fixes) is required before the demo; "committer timestamp" is described as an approximation,
+not merge time — the rebuilt review follows the commit's tree, while the reviewer cut-off and `told`
+still use timestamps (open). Next evaluation, to the reviewer's spec: frozen questions, labels,
+repository revisions, model settings and scoring; required vs supporting evidence; correctness of what
+the numbers describe; a second baseline — the same model answering from keyword-retrieved entries;
+latency and tool calls; the 25 existing questions kept as regression, untouched questions for the
+comparison.
+
 ## The Judge Path: a Fresh Clone, an Unseen Repository, Four Defects (October 15 2026)
 
 The outside review's finish line, followed step by step (eval/JUDGE-PATH.md): fresh clone,
