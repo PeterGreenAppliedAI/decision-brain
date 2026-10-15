@@ -2,7 +2,8 @@
  * npm run web  →  http://127.0.0.1:4100  (WEB_HOST / WEB_PORT)
  *
  * Read-only HTTP for the views: static files from web/, JSON snapshots, and server-sent events that
- * push a fresh board snapshot whenever it changes. No writes, no auth — the same build judges get.
+ * push a fresh board snapshot whenever it changes. No auth — the same build judges get. The one write,
+ * adding a repository (src/web/add.ts), is off unless WEB_ALLOW_INGEST=1, for local use.
  */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -14,6 +15,7 @@ import { ask } from '../agent/agent.js';
 import { buildPath } from '../agent/path.js';
 import { origin, whatBreaks, whatIs, why } from '../tools/graph-tools.js';
 import { trace } from '../tools/trace.js';
+import { addEnabled, currentJob, startAdd } from './add.js';
 
 const ROOT = resolve(import.meta.dirname, '../../web');
 const VENDOR: Record<string, string> = {
@@ -62,6 +64,20 @@ const server = createServer(async (req, res) => {
     const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
 
     if (parts[0] === 'api') {
+      // Adding a repository: GET for whether it is on and the job's progress; POST (JSON, same origin) to start.
+      if (parts[1] === 'add') {
+        if (req.method === 'GET') return send(res, 200, { enabled: addEnabled, job: currentJob() });
+        if (req.method !== 'POST') return send(res, 405, { error: 'GET or POST' });
+        const origin = req.headers.origin;
+        if (!/^application\/json\b/.test(req.headers['content-type'] ?? '') || (origin && origin !== `http://${req.headers.host}`))
+          return send(res, 403, { error: 'same-origin JSON only' });
+        let body = '';
+        for await (const chunk of req) { body += chunk; if (body.length > 4096) return send(res, 413, { error: 'too large' }); }
+        let input: { url?: unknown; summaries?: unknown };
+        try { input = JSON.parse(body); } catch { return send(res, 400, { error: 'bad JSON' }); }
+        const r = await startAdd(String(input.url ?? ''), input.summaries === true, await db.list());
+        return 'error' in r ? send(res, 400, r) : send(res, 202, r);
+      }
       if (parts[1] === 'graphs') {
         const all = await db.list();
         const names = all.filter((g) => !/__(board|files)$/.test(g) && !g.startsWith('test-'));

@@ -163,10 +163,9 @@ function showExamples() {
   if (!graphs.some((g) => g.name === graphName)) graphName = graphs[0]?.name;
   const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; };
   demoBanner();
-  $('graph').addEventListener('change', demoBanner);
   $('graph').value = graphName;
   $('graph').onchange = () => {
-    graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`);
+    graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`); demoBanner();
     // Nothing from the previous graph stays on screen.
     source?.close(); $('answer').hidden = true; $('steps').innerHTML = ''; $('detail').hidden = true; cy.elements().remove(); $('empty').hidden = false;
     $('go').disabled = false; $('status').className = 'live'; $('status').textContent = 'ready';

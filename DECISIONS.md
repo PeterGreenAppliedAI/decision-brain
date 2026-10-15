@@ -4,6 +4,20 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Adding a Repository from the Page — Local Only (October 15 2026)
+
+Peter asked how to point the page at a new GitHub URL; it could not — the server was read-only. Now,
+with `WEB_ALLOW_INGEST=1`, the Board has "Add repository": a public GitHub URL is cloned into
+data/corpora/<name>, ingested, and handed to the extraction team (and the summary team if ticked) —
+the README's own commands, as child processes — and the Board switches to it so the agents can be
+watched. Off by default because it spends this machine's model time on whatever is pasted: a public
+deployment must not offer it. Guards: github.com URLs only (no other host, path or scheme), GitHub's API
+must report it public and under `ADD_MAX_KB`, one job at a time, an existing name is refused (sync
+updates it), and the POST must be same-origin JSON so another site cannot trigger it from a browser.
+Tests cover the URL rules and refusals; the full add needs the model and is run separately.
+Also fixed: the demo banner's change listener ran before the graph switched, showing the previous
+graph's banner.
+
 ## Reviewers and `told` by Ancestry, Not the Clock (October 15 2026)
 
 The judge path left this open: review's suggested reviewers and `told`'s "instructions in force" used

@@ -197,21 +197,75 @@ function connectStream() {
   source.onerror = () => { $('live').className = 'live'; $('live').textContent = 'reconnecting…'; };
 }
 
-(async () => {
-  const all = await fetch('/api/graphs').then((r) => r.json());
-  const graphs = all.filter((g) => !g.demo || g.name === graphName);   // demo copies only when the URL names one
+let allGraphs = [];
+const demoBanner = () => { $('demo').hidden = !allGraphs.find((g) => g.name === graphName)?.demo; };
+const select = (name, which) => {
+  [graphName, job] = [name, which];
+  $('graph').value = `${graphName}|${job}`;
+  history.replaceState(null, '', `?graph=${graphName}${job === 'files' ? '&job=files' : ''}`);
+  demoBanner(); connectStream();
+};
+
+async function loadGraphs() {
+  allGraphs = await fetch('/api/graphs').then((r) => r.json());
+  const graphs = allGraphs.filter((g) => !g.demo || g.name === graphName);   // demo copies only when the URL names one
   // One entry per board: the decision-extraction board and the file-summary board of each graph.
   const opts = graphs.flatMap((g) => [
     ...(g.board ? [{ v: `${g.name}|board`, label: `${g.name}${g.demo ? ' (demo copy)' : ''} · decisions` }] : []),
     ...(g.files ? [{ v: `${g.name}|files`, label: `${g.name}${g.demo ? ' (demo copy)' : ''} · file summaries` }] : []),
   ]);
   $('graph').innerHTML = opts.map((o) => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join('');
+  return opts;
+}
+
+// Adding a repository (only when the server allows it — local use).
+async function showAdd() {
+  panel(`<h3>Add a repository</h3>
+    <form id="add-form" class="add">
+      <input id="add-url" placeholder="https://github.com/owner/repo" autocomplete="off" required>
+      <label><input type="checkbox" id="add-sum"> also summarize every file (long: minutes per hundred files)</label>
+      <button type="submit">Add</button>
+    </form>
+    <div class="src">Public GitHub repositories only. Clones, ingests, then four local agents extract its decision
+      records — this board follows them. Decisions need a decision log (DECISIONS.md or an ADR folder).</div>
+    <div id="add-status"></div>`);
+  $('add-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const r = await fetch('/api/add', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: $('add-url').value, summaries: $('add-sum').checked }) });
+    const body = await r.json();
+    if (!r.ok) { $('add-status').innerHTML = `<div class="stale">${esc(body.error)}</div>`; return; }
+    followAdd();
+  });
+  followAdd();
+}
+let following = null;
+// Shows the job's progress; returns whether it is still running.
+async function addTick() {
+  const { job: j } = await fetch('/api/add').then((r) => r.json());
+  if (!j) return false;
+  if ($('add-status')) $('add-status').innerHTML = `<div class="ev"><b>${esc(j.name)} — ${esc(j.state === 'running' ? j.step + '…' : j.state)}</b>
+    ${j.error ? `<div class="stale">${esc(j.error)}</div>` : ''}<pre class="body">${esc(j.log.slice(-8).join('\n'))}</pre></div>`;
+  // Once the agents start, watch them on this board; when the job ends, list its boards.
+  const which = j.step === 'summarize files' ? 'files' : 'board';
+  if (j.state === 'running' && ['extract decisions', 'summarize files'].includes(j.step) && (graphName !== j.name || job !== which)) {
+    await loadGraphs();
+    if (allGraphs.some((g) => g.name === j.name && (which === 'files' ? g.files : g.board))) select(j.name, which);
+  }
+  if (j.state !== 'running') { await loadGraphs(); $('graph').value = `${graphName}|${job}`; }
+  return j.state === 'running';
+}
+async function followAdd() {
+  clearInterval(following);
+  if (await addTick()) following = setInterval(async () => { if (!(await addTick())) clearInterval(following); }, 2000);
+}
+
+(async () => {
+  const opts = await loadGraphs();
   if (!graphName) [graphName, job] = (opts[0]?.v ?? '|board').split('|');
   if (!graphName) { $('live').textContent = 'no boards yet — run npm run team or npm run summarize'; return; }
-  $('graph').value = `${graphName}|${job}`;
-  const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; };
-  demoBanner();
-  $('graph').addEventListener('change', demoBanner);
-  $('graph').onchange = () => { [graphName, job] = $('graph').value.split('|'); history.replaceState(null, '', `?graph=${graphName}${job === 'files' ? '&job=files' : ''}`); connectStream(); };
-  connectStream();
+  $('graph').onchange = () => select(...$('graph').value.split('|'));
+  select(graphName, job);
+  const add = await fetch('/api/add').then((r) => r.json()).catch(() => ({ enabled: false }));
+  if (add.enabled) { $('add').hidden = false; $('add').onclick = showAdd; }
 })();

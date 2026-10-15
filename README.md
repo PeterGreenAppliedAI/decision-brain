@@ -233,6 +233,7 @@ npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Brows
 npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph
 npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
 npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html (run where the model is reachable)
+WEB_ALLOW_INGEST=1 npm run web                         # local only: adds an "Add repository" button (public GitHub URL → ingest → team)
 
 npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
 npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit

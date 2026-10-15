@@ -146,3 +146,7 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .sw.rejected { background: var(--pending); outline: 2px solid var(--failed); outline-offset: -2px; }
 .detail h3 { overflow-wrap: anywhere; padding-right: 18px; }
 .demo-banner { background: #3a2a00; color: var(--claimed); padding: 6px 16px; border-bottom: 1px solid var(--claimed); }
+.add-btn { background: var(--panel); color: var(--agent); border: 1px solid var(--line); border-radius: 4px; font: inherit; padding: 2px 10px; cursor: pointer; }
+.detail form.add { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.detail form.add input[type=text], .detail form.add input:not([type]) { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: inherit; padding: 6px 8px; }
+.detail form.add button { align-self: flex-start; background: var(--agent); color: #0b0e14; border: 0; border-radius: 4px; font: inherit; font-weight: 600; padding: 4px 14px; cursor: pointer; }
