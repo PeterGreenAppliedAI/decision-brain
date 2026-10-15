@@ -740,5 +740,352 @@
       ],
       "ms": 6
     }
+  },
+  {
+    "id": "v2-cp-07",
+    "graph": "content-publisher",
+    "kind": "abstain",
+    "question": "Why was MongoDB chosen as the datastore?",
+    "agent": {
+      "answer": "The graph doesn't contain a decision that explicitly names MongoDB as the datastore — I don't know why MongoDB specifically was chosen.\n\nWhat the graph does record is the decision to use a **local datastore** at all ([adr-0002], \"Use local datastore for publisher workflow\", 2018-07-20). That ADR chose Option 2 (local datastore) over Option 1 (no local datastore, everything in the Publishing API) because:\n\n- It's standard Rails, quick to build and easy to understand, and easy to test (testing against an API requires lots of stubbing) [adr-0002]\n- It's easy to iterate the workflow locally, whereas changing the API workflow is much harder [adr-0002]\n- Interim data is needed that isn't required for publishing, plus publisher metadata like notes, which would otherwise require new Publishing API features [adr-0002]\n- Difficulties building Specialist Publisher as an API-only client led the team to reconsider the 2016/2017 \"no local datastore\" architecture goals [adr-0002]\n\nThe decision was recorded in commit [61bd78b2] by Erin Raj-Staniland. But for MongoDB itself as the specific technology, I don't know — the graph has no path for this.",
+      "status": "unsupported-number",
+      "cited": [
+        "adr-0002",
+        "61bd78b2"
+      ],
+      "figuresFlagged": [
+        "2016/2017"
+      ],
+      "premiseFigures": [],
+      "ms": 40942,
+      "toolCalls": 6
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. The decision log covers the choice of a local datastore for the publisher workflow [adr-0002] and the use of Redis for bulk data caching [adr-0015], but no entry explains why MongoDB (or any specific datastore) was chosen.",
+      "status": "abstained",
+      "cited": [
+        "adr-0002",
+        "adr-0015"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 4238,
+      "retrieved": [
+        "adr-0002",
+        "adr-0011",
+        "adr-0015"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0002",
+        "adr-0011",
+        "adr-0015"
+      ],
+      "ms": 5
+    }
+  },
+  {
+    "id": "v2-l4b-01",
+    "graph": "log4brains",
+    "kind": "find",
+    "question": "Why does log4brains use Lunr for search?",
+    "agent": {
+      "answer": "Log4brains chose Lunr.js over Fuse.js for its ADR search bar ([adr-20201103]).\n\nThe decision drivers were that the search must work in both preview mode and the statically built version, provide fuzzy search and stemming, be fast enough to show results while typing, and not consume too much client-side CPU/RAM ([adr-20201103]).\n\nLunr won because, compared to Fuse.js (fast indexing but slow searching, fuzzy-only with no stemming), Lunr offers fast searching, stemming and multi-language support, index serialization so indexes can be pre-built for the static version, and it retrieves the position of matched tokens ([adr-20201103]).",
+      "status": "supported",
+      "cited": [
+        "adr-20201103"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19201,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "Log4brains chose Lunr.js over Fuse.js for the ADR search bar because Lunr offers fast searching (results while typing), stemming and multi-language support, and supports index serialization so indexes can be pre-built — important since search must work in both preview mode and the statically built version without consuming too much client-side CPU/RAM. Fuse.js was rejected because its searching is slow and it only does fuzzy search with no stemming. [adr-20201103]",
+      "status": "supported",
+      "cited": [
+        "adr-20201103"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 5752,
+      "retrieved": [
+        "adr-20210113",
+        "adr-20201103",
+        "adr-20200924",
+        "adr-20240926"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20210113",
+        "adr-20201103",
+        "adr-20200924",
+        "adr-20240926"
+      ],
+      "ms": 3
+    }
+  },
+  {
+    "id": "v2-l4b-02",
+    "graph": "log4brains",
+    "kind": "find",
+    "question": "Why is log4brains split into multiple packages in a monorepo?",
+    "agent": {
+      "answer": "It's a deliberate architecture decision recorded in [adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna] (2020-09-25, commit [03550dc]):\n\n- A monolith was rejected because the team wanted the **core library/API to be very well tested**, developed with DDD and hexagonal architecture, with other packages (CLI, web UI) containing as few business rules as possible — good for extensibility since future features were uncertain (possible VSCode extension, ADR aggregation from multiple repos).\n- Among monorepo options, **Yarn + Lerna** was chosen because it's a well-established practice used by many open-source projects to publish npm packages.\n- A multi-repo split was considered but the monorepo with Yarn workspaces + Lerna won.\n\nThe result is the `packages/` layout (core, cli, cli-common, web-ui) you see today.",
+      "status": "supported",
+      "cited": [
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "03550dc"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 23668,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "Log4brains uses a multi-package monorepo (with Yarn and Lerna) rather than a monolith because the team wanted the core library/API to be very well tested and developed with DDD and hexagonal architecture, with other packages (web UI, CLI) just calling that core API and containing as few business rules as possible. Since future features were uncertain (e.g., editing ADRs from the web UI, a VSCode extension, multi-repo ADR aggregation), this structure was seen as good for extensibility. Yarn + Lerna was also considered a well-established practice among open-source projects for publishing npm packages [adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna].",
+      "status": "supported",
+      "cited": [
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 8594,
+      "retrieved": [
+        "adr-20210113",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20200924",
+        "adr-20240926",
+        "adr-20241217"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20210113",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20200924",
+        "adr-20240926",
+        "adr-20241217"
+      ],
+      "ms": 3
+    }
+  },
+  {
+    "id": "v2-l4b-03",
+    "graph": "log4brains",
+    "kind": "find",
+    "question": "Why does the core API, rather than the UI, enhance ADR markdown with MDX?",
+    "agent": {
+      "answer": "Per [adr-20201026], the ADR markdown body can't be used as-is: inter-ADR links must be replaced with correct URLs and the header (status, date, deciders) must be rendered with specific components. Two options were considered — UI responsible vs. core API responsible (with MDX) — and the core API was chosen because a potential future VSCode extension would benefit from having more business logic in the core package, which is also better tested [adr-20201026]. Trade-offs: the header metadata is simply removed (positive), but each UI package must implement its own Header component (negative) [adr-20201026].",
+      "status": "supported",
+      "cited": [
+        "adr-20201026"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 20802,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "The core API enhances ADR markdown with MDX because, if a VSCode extension is developed in the future, it's better to keep more business logic in the core package, where it is better tested [adr-20201026]. This aligns with the broader monorepo architecture, where the core library/API is well tested and other packages just call it, containing as few business rules as possible [adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna].\n\nA trade-off of this choice: the metadata in the header is simply removed, but each UI package must implement its own Header component [adr-20201026].",
+      "status": "supported",
+      "cited": [
+        "adr-20201026",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 6020,
+      "retrieved": [
+        "adr-20201026",
+        "adr-20200924",
+        "adr-20201016",
+        "adr-20200926",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20201026",
+        "adr-20200924",
+        "adr-20201016",
+        "adr-20200926",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna"
+      ],
+      "ms": 4
+    }
+  },
+  {
+    "id": "v2-l4b-04",
+    "graph": "log4brains",
+    "kind": "find",
+    "question": "Why is log4brains distributed as a global npm package?",
+    "agent": {
+      "answer": "Log4brains is distributed as a global npm package because its original install (`npx init-log4brains`, installing `@log4brains/cli` and `@log4brains/web` locally) only worked well for JS projects — non-JS projects had to install manually and the init script didn't work. Since Log4brains is intended for all projects, not just JS ones, the goal was a simpler, language-agnostic install with a faster getting-started experience: `npm install -g log4brains` then `log4brains init` [adr-20210113].\n\nThe global `log4brains` package requires the existing `@log4brains/cli` and `@log4brains/web` packages, and `init-log4brains` was renamed to `@log4brains/init` [adr-20210113]. Known trade-off: JS projects can no longer pin a specific version; an xo-like behavior (using a local install when available) was left as a possible future improvement [adr-20210113].",
+      "status": "supported",
+      "cited": [
+        "adr-20210113"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 18782,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "Log4brains is distributed as a global npm package to make installation simpler and language-agnostic [adr-20210113]. The previous procedure (`npx init-log4brains`, installing `@log4brains/cli` and `@log4brains/web` locally) was optimized for JS projects and didn't work for non-JS ones, but Log4brains is intended for all projects [adr-20210113]. The decision drivers were simplicity of installation, language agnosticism, an init script that works on any project, and a faster \"getting started\" [adr-20210113]. The new procedure is `npm install -g log4brains` followed by `log4brains init` [adr-20210113].\n\nA noted trade-off: JS projects can no longer pin Log4brains to a specific version; an xo-like behavior (using a local install when available) may be implemented later [adr-20210113].",
+      "status": "supported",
+      "cited": [
+        "adr-20210113"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 7843,
+      "retrieved": [
+        "adr-20210113",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20200924",
+        "adr-20200925-use-prettier-eslint-airbnb-for-the-code-style",
+        "adr-20201026"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20210113",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20200924",
+        "adr-20200925-use-prettier-eslint-airbnb-for-the-code-style",
+        "adr-20201026"
+      ],
+      "ms": 4
+    }
+  },
+  {
+    "id": "v2-l4b-05",
+    "graph": "log4brains",
+    "kind": "find",
+    "question": "What does the codebase do instead of default exports?",
+    "agent": {
+      "answer": "The codebase uses **named exports instead of default exports** — per ADR [adr-20200927] (\"Avoid default exports\", accepted 2020-09-27, source: docs/adr/20200927-avoid-default-exports.md:1-13), recorded in commit [03550dc]. The ADR cites external arguments against default exports (humanwhocodes blog, basarat's \"default is bad\").",
+      "status": "supported",
+      "cited": [
+        "adr-20200927",
+        "03550dc"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 17524,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "The codebase uses named exports instead of default exports [adr-20200927].",
+      "status": "supported",
+      "cited": [
+        "adr-20200927"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 1582,
+      "retrieved": [
+        "adr-20200927",
+        "adr-20240926"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20200927",
+        "adr-20240926"
+      ],
+      "ms": 2
+    }
+  },
+  {
+    "id": "v2-l4b-06",
+    "graph": "log4brains",
+    "kind": "trap",
+    "question": "Why does log4brains still use Simplified Git Flow?",
+    "agent": {
+      "answer": "It doesn't anymore — the graph shows the opposite. Simplified Git Flow was adopted on 2024-09-26 to separate development from releases while enabling automated beta releases [adr-20240926], but that experiment was **disproven** due to tooling limitations [adr-20241217]. On 2024-12-17 the project switched back to GitHub Flow, keeping only the automated beta releases [adr-20241217].",
+      "status": "supported",
+      "cited": [
+        "adr-20240926",
+        "adr-20241217"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 11763,
+      "toolCalls": 1
+    },
+    "rag": {
+      "answer": "It doesn't anymore. Log4brains switched back to GitHub Flow on 2024-12-17 [adr-20241217]. The Simplified Git Flow (adopted 2024-09-26 [adr-20240926]) was abandoned because Lerna, used to manage the monorepo, doesn't integrate well with Git Flow — it couldn't publish a stable release from a branch other than the main one [adr-20241217]. They kept the automated beta releases but made stable releases a manual script run by maintainers [adr-20241217].",
+      "status": "supported",
+      "cited": [
+        "adr-20241217",
+        "adr-20240926"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 6552,
+      "retrieved": [
+        "adr-20240926",
+        "adr-20210113",
+        "adr-20241217",
+        "adr-20200924",
+        "adr-20201016"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20240926",
+        "adr-20210113",
+        "adr-20241217",
+        "adr-20200924",
+        "adr-20201016"
+      ],
+      "ms": 3
+    }
+  },
+  {
+    "id": "v2-l4b-07",
+    "graph": "log4brains",
+    "kind": "abstain",
+    "question": "Why was PostgreSQL chosen for storing ADRs?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. There's no decision, commit, or disproven experiment mentioning PostgreSQL anywhere in the graph. In fact, the ADRs here were decided to be stored as Markdown files, not in a database [adr-20200924].",
+      "status": "abstained",
+      "cited": [
+        "adr-20200924"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 23874,
+      "toolCalls": 6
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. They cover ADR format (MADR), search (Lunr), code style, monorepo architecture, and MDX rendering, but no decision about PostgreSQL or any database for storing ADRs.",
+      "status": "uncited",
+      "cited": [],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 4116,
+      "retrieved": [
+        "adr-20201026",
+        "adr-20200924",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20201103",
+        "adr-20200925-use-prettier-eslint-airbnb-for-the-code-style"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-20201026",
+        "adr-20200924",
+        "adr-20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna",
+        "adr-20201103",
+        "adr-20200925-use-prettier-eslint-airbnb-for-the-code-style"
+      ],
+      "ms": 5
+    }
   }
 ]

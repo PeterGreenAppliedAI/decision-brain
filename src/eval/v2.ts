@@ -72,7 +72,7 @@ if (mode === 'run') {
     const top = (await baselineSearch(g, q.question, 5)).map((b) => b.id);
     rows.push({ id: q.id, graph: q.graph, kind: q.kind, question: q.question, agent, rag, keyword: { top, ms: Date.now() - t0 } });
     // Progress only — nothing that identifies a system's result: the judge may see this output.
-    console.log(`${q.id}: done (${rows.length + 1}/${set.questions.length})`);
+    console.log(`${q.id}: done (${rows.length}/${set.questions.length})`);   // pushed above: already counted
     writeFileSync(`${DIR}/${stamp}.json`, JSON.stringify(rows, null, 2));
   }
   writeFileSync(`${DIR}/${stamp}.key.json`, JSON.stringify(Object.fromEntries(rows.map((r) => [r.id, agentIsA(stamp, r.id) ? 'A=agent' : 'A=rag']))));

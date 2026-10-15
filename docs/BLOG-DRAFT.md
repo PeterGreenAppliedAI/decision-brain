@@ -1,6 +1,5 @@
 <!-- DRAFT for Peter to edit into his own voice before posting. Every figure below is from eval/,
-     DECISIONS.md or DEMO.md in this repo; links marked TODO need the final URLs.
-     NOTE: the v2 table predates the what_breaks fix (DECISIONS, Oct 15); re-run before posting and update it. -->
+     DECISIONS.md or DEMO.md in this repo; links marked TODO need the final URLs. -->
 
 # The rule that was wrong on purpose: building a "why" graph for codebases with FalkorDB
 
@@ -104,21 +103,23 @@ the record as it stood.
 ## Does the graph actually help?
 
 I froze 24 questions across three repositories — Invarail (mine), GOV.UK's content-publisher, and
-log4brains, which I had never seen — before running anything, and judged the answers blind (with one gap, disclosed in `eval/v2/`: the run's
-progress log showed answer statuses). The
-comparison that matters is the same local model given keyword-search results instead of graph tools:
+log4brains, which I had never seen — before running anything. The comparison that matters is the same
+local model given keyword-search results instead of graph tools. I ran it twice; the second time the
+answers were judged by a fresh agent that saw only an anonymized A/B sheet.
 
 | | Decision Brain | Same model + keyword search |
 |---|---|---|
-| Required evidence found | 20/20 | 15/20 |
-| Answers passing the rubric | 17/20 | 11/20 |
-| False premises corrected | 4/4 | 2/4 |
-| Correct "I don't know" | 4/4 | 4/4 |
-| Median latency | 20.6 s | 7.9 s |
+| Required evidence found | 20/20 · 20/20 | 15/20 · 15/20 |
+| Answers passing the rubric | 17/20 · 16/20 | 11/20 · 10/20 |
+| False premises corrected | 4/4 · 4/4 | 2/4 · 2/4 |
+| Correct "I don't know" | 4/4 · 4/4 | 4/4 · 4/4 |
+| Median latency | 20.6 s · 22.9 s | 7.9 s · 7.8 s |
 
 The difference comes almost entirely from retrieval: when keyword search misses the entry an answer
-must rest on, the model has nothing to answer from. The graph's tools find it. It costs about 2.6x the
-latency. (The full table, every miss and the judging protocol are in `eval/v2/`.)
+must rest on, the model has nothing to answer from. The graph's tools find it. It costs about 2.6–2.9x
+the latency. And to be honest about the margin: if every borderline judging call goes against Decision
+Brain, it's 15 vs 12 — still ahead, but the premise-correction edge disappears. (Everything is in
+`eval/v2/`.)
 
 ## What went wrong, on the record
 

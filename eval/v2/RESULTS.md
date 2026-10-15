@@ -1,4 +1,4 @@
-# Evaluation v2 — 2026-10-15T00-24-44
+# Evaluation v2 — 2026-10-15T15-42-48
 
 Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/JUDGING.md), then unblinded.
 
@@ -6,11 +6,11 @@ Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/J
 |---|---|---|---|
 | Required evidence cited / retrieved | 100% (20/20) | 75% (15/20) | 75% (15/20) (in top 5) |
 | Supporting evidence cited / retrieved | 50% (2/4) | 25% (1/4) | 25% (1/4) |
-| Answers passing the rubric (all listed key facts, no listed wrong claim) | 85% (17/20) | 55% (11/20) | n/a |
+| Answers passing the rubric (all listed key facts, no listed wrong claim) | 80% (16/20) | 50% (10/20) | n/a |
 | False premises corrected | 100% (4/4) | 50% (2/4) | n/a |
 | Correct abstentions | 100% (4/4) | 100% (4/4) | n/a |
-| Answers with a figure flagged by the checker | 5/24 | 2/24 | n/a |
-| Median latency | 20.6 s | 7.9 s | — |
+| Answers with a figure flagged by the checker | 4/24 | 2/24 | n/a |
+| Median latency | 22.9 s | 7.8 s | — |
 | Median tool calls | 3 | 0 (one model call) | — |
 
 | Question | Kind | Agent | Same model + keyword | Keyword only |
@@ -18,11 +18,11 @@ Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/J
 | v2-inv-01 | find | correct · req 1/1 | correct · req 1/1 | 1/1 in top 5 |
 | v2-inv-02 | find | correct · req 1/1 | correct · req 1/1 | 1/1 in top 5 |
 | v2-inv-03 | find | correct · req 1/1 | not correct · req 0/1 | 0/1 in top 5 |
-| v2-inv-04 | find | correct · req 1/1 | correct · req 1/1 | 1/1 in top 5 |
+| v2-inv-04 | find | correct · req 1/1 | not correct · req 1/1 | 1/1 in top 5 |
 | v2-inv-05 | find | correct · req 1/1 | correct · req 1/1 | 1/1 in top 5 |
 | v2-inv-06 | find | correct · req 1/1 | correct · req 1/1 | 1/1 in top 5 |
 | v2-inv-07 | trap | correct, premise ✓ · req 1/1 | correct, premise ✓ · req 1/1 | 1/1 in top 5 |
-| v2-inv-08 | trap | correct, premise ✓ · req 1/1 | not correct, premise ✗ · req 0/1 | 0/1 in top 5 |
+| v2-inv-08 | trap | not correct, premise ✓ · req 1/1 | not correct, premise ✗ · req 0/1 | 0/1 in top 5 |
 | v2-inv-09 | abstain | abstained ✓ | abstained ✓ | 0/0 in top 5 |
 | v2-inv-10 | abstain | abstained ✓ | abstained ✓ | 0/0 in top 5 |
 | v2-cp-01 | find | correct · req 1/1 | not correct · req 0/1 | 0/1 in top 5 |
@@ -42,31 +42,33 @@ Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/J
 
 ## Reading these numbers
 
-- **The defensible claim:** on this frozen set, Decision Brain answered more questions correctly than
-  the same model given keyword-search results (17/20 vs 11/20; 7 questions only the agent got right,
-  1 only the baseline), at roughly 2.6x the latency. It measures the complete workflow, not the graph
-  in isolation; "correct" means passing the rubric, not an exhaustive check of every assertion.
-- **What the graph adds, here:** when keyword retrieval misses the entry an answer must rest on
-  (v2-inv-03, inv-08, cp-01, cp-04, cp-06), the same model given keyword-retrieved entries has nothing to
-  answer from and says "I don't know"; the agent's tools find it. Required evidence: 20/20 vs 15/20.
-  Correct answers: 17/20 vs 11/20. False premises corrected: 4/4 vs 2/4.
-- **What it costs:** median latency 20.6 s vs 7.9 s (about 2.6x), with a median of 3 tool calls.
-- **Figures flagged: 5 agent answers vs 2.** All 47 flagged figures in those agent answers appear in the
-  source entry the question rests on: the flags are citation placement — the agent writing
-  "[same decision]" instead of the id, or a list separated from its citation by a blank line — not
-  invented numbers. The checker is right to flag them (those figures are not attached to a valid
-  citation); they are a formatting defect to fix in the agent, not fabrication. The one baseline flag
-  ("429") comes from an entry it retrieved that the abstain question is not about.
-- **Where both fail — a system limit:** cp-05's answer ("link and button labels are not extracted")
-  sits beyond the first 2,500 characters of a long ADR. Both systems cap an entry's text at 2,500
-  characters, both said the text was cut off, both failed. Long entries need section-aware reading.
-- **Agent misses:** cp-06 corrected the premise but left out the reason (access-limited data); l4b-06
-  corrected it but did not give the Lerna reason — strict key facts count both as not correct.
+**Run 2** (this file) re-ran the same frozen set on the code as of 2026-10-15 afternoon — after the
+`what_breaks` fix, the summary-check fix and file summaries on all three repositories — and was judged
+blind by a **fresh subagent that saw only the sheet** (no key, no earlier results, no repository). Run 1's
+results and judged sheet are kept: `RESULTS-run1-2026-10-15T00-24-44.md`, `JUDGING-run1-…md`; run 1 was
+judged by the same Claude session that built the system, with a disclosed blinding gap.
 
-## Limits of this evaluation
+| | Run 1 (agent / same model + keyword) | Run 2 (agent / same model + keyword) |
+|---|---|---|
+| Answers passing the rubric | 17/20 vs 11/20 | 16/20 vs 10/20 |
+| Required evidence cited | 20/20 vs 15/20 | 20/20 vs 15/20 |
+| False premises corrected | 4/4 vs 2/4 | 4/4 vs 2/4 |
+| Correct abstentions | 4/4 vs 4/4 | 4/4 vs 4/4 |
+| Median latency | 20.6 s vs 7.9 s | 22.9 s vs 7.8 s |
 
-24 questions, one run each, one model. Questions, key facts and judgements by Claude, which built the
-system; judging was blind to which system wrote which answer, but **only partly**: the run's progress
-log named each system's code-check status and the judge saw it, so where one side abstained its
-system could be guessed. Key facts were applied strictly. Owner spot-check pending. These are
-observations on this set, not general capability claims.
+- **The claim holds across both runs and both judges:** on this frozen set, Decision Brain answered more
+  questions correctly than the same model given keyword-search results — 16–17 of 20 vs 10–11 — at
+  roughly 2.6–2.9x the latency. Differences between runs are sampling and judging (e.g. v2-inv-04 and
+  v2-inv-08 changed hands), not a measured improvement or regression.
+- **Where the gap comes from** is unchanged: when keyword retrieval misses the entry an answer rests on
+  (v2-inv-03, inv-08, cp-01, cp-04, cp-06), the baseline has nothing to answer from.
+- **Figures flagged in 4 agent answers.** Checked by hand against the repositories: every flagged figure
+  in v2-inv-05 and v2-inv-08 is in the cited entry (citation placement, as in run 1). In v2-inv-03 the
+  agent wrote "96,000 → 32,768" where the entry says `96000 → 32768` — reformatted, which the prompt
+  forbids and the exact-match check rightly flags. In v2-cp-07 it wrote "the 2016/2017 architecture
+  goals", merging "the migration effort from 2016" and "Architecture Goals 2017-18+" into a figure the
+  source does not state — a small misstatement, correctly flagged.
+- **Borderline judging calls:** the run-2 judge reported 10 (listed in DECISIONS.md, October 15,
+  "Evaluation v2, Run Again"). Re-scored with every one of them decided against the agent: 15/20 vs
+  12/20, false premises 2/4 vs 2/4. Decided for it: 18/20 vs 9/20. The agent leads in every case; how
+  far depends on the judging, and the premise result is not robust to it.

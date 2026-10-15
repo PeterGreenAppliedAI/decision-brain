@@ -4,6 +4,25 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Evaluation v2, Run Again (October 15 2026)
+
+Re-run on the current code (after the `what_breaks`, summary-check and handoff fixes), same frozen set,
+judged blind by a fresh subagent that read only the A/B sheet — stronger than run 1, where the judge was
+the session that built the system. Results: rubric 16/20 vs 10/20, required evidence 20/20 vs 15/20,
+premises 4/4 vs 2/4, abstentions 4/4 vs 4/4, latency 22.9 s vs 7.8 s. Same 7-to-1 split of questions
+only one system got right. Run 1's results and sheet are kept beside run 2's.
+The judge's 10 borderline calls: inv-04 A(rag).fact2 not ticked (no "two months"); inv-05 A(agent).fact1
+ticked (no benchmark name); inv-08 A(agent).premise ticked (hedged "It didn't, really"), .fact1 not
+ticked (no 1/7), .wrong1 not ticked; cp-06 A(agent).premise ticked (only a closing note), .fact1 not
+ticked; l4b-01 B(agent).fact2 not ticked; l4b-05 both .fact1 ticked (no "everywhere"); l4b-06
+B(rag).fact1 not ticked. Re-scored with all of them against the agent: 15/20 vs 12/20 and premises 2/4
+vs 2/4; for it: 18/20 vs 9/20. So the README claims the lead, not the premise result, as robust.
+I first wrote that no borderline call "would change a total by more than one" — true of each alone,
+misleading together; replaced with the re-scored range before committing.
+Flagged figures, checked by hand: two reformatted ("96,000 → 32,768" for `96000 → 32768`) and one merged
+("2016/2017" from "2016" and "2017-18+") — the checker caught both kinds; the rest were in the cited entry.
+Also: the run's progress counter read 25/24 (counted after the push); fixed.
+
 ## Correction: Most "Rejected" Summaries Were the Check's Fault (October 15 2026)
 
 The entry below ("File Summaries on All Three Repositories") said 9 file summaries were rejected for

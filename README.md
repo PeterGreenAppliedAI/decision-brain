@@ -91,22 +91,28 @@ Two sets, both scored against labels and against baselines that use no graph.
 repositories, frozen (questions, labels, key facts, revisions, model settings, scoring —
 [eval/v2/SPEC.md](eval/v2/SPEC.md)) before any system saw them; answers judged blind against key facts.
 
+Run twice: run 1 judged by the session that built the system, run 2 (after the latest fixes) judged by
+a fresh subagent that saw only the blind sheet.
+
 | | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |
 |---|---|---|---|
-| Required evidence cited / retrieved | 20/20 | 15/20 | 15/20 (top 5) |
-| Answers passing the rubric (every listed key fact, no listed wrong claim) | 17/20 | 11/20 | — |
-| False premises corrected | 4/4 | 2/4 | — |
-| Correct abstentions | 4/4 | 4/4 | — |
-| Median latency | 20.6 s (3 tool calls) | 7.9 s | — |
+| Required evidence cited / retrieved | 20/20 · 20/20 | 15/20 · 15/20 | 15/20 (top 5) |
+| Answers passing the rubric (every listed key fact, no listed wrong claim) | 17/20 · 16/20 | 11/20 · 10/20 | — |
+| False premises corrected | 4/4 · 4/4 | 2/4 · 2/4 | — |
+| Correct abstentions | 4/4 · 4/4 | 4/4 · 4/4 | — |
+| Median latency | 20.6 s · 22.9 s (3 tool calls) | 7.9 s · 7.8 s | — |
 
 **The claim this supports:** on a frozen 24-question evaluation across three repositories, Decision
 Brain answered more questions correctly than the same model given keyword-search results, at roughly
-2.6x the latency (7 questions only the agent got right, 1 only the baseline). It measures the whole
+2.6–2.9x the latency (in each run 7 questions only the agent got right, 1 only the baseline). With every
+borderline judging call of run 2 decided against the agent it still leads, 15/20 vs 12/20 — but the
+false-premise result (4/4 vs 2/4) does not survive that, so it is not claimed as robust. It measures the whole
 workflow — several searches, specialised tools and graph relationships all differ from the one-call
 baseline — and does not isolate which part contributed how much. "Correct" means passing the rubric
-(listed key facts, listed wrong claims), not that nothing else in the answer was checked. Five agent
-answers had figures flagged by the checker — all 47 of those figures are in the source; the agent put
-them where no valid citation covered them ("[same decision]", or a list cut off from its citation). One
+(listed key facts, listed wrong claims), not that nothing else in the answer was checked. Figures flagged by
+the checker were checked by hand: in run 1 all were in the source, misplaced relative to their citation;
+in run 2 two were reformatted ("96,000" for `96000`) and one was a merged figure the source does not
+state ("2016/2017") — small, and caught. One
 question failed for both systems because the answer sat beyond the 2,500 characters of a long entry
 each reads. **Limits:** 24 questions, one run, one model; questions, key facts and judging by Claude,
 which built the system; judging blind to which system answered, but only partly (the run's progress
