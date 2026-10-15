@@ -58,7 +58,8 @@ rejected by the second agent, each with a reason you can read on the board.
 
 Nothing a model writes enters the brain unchecked. Every quote must appear verbatim in the entry;
 every figure must appear inside its quote; every file name must exist in git; a file summary that names
-a function the file doesn't contain is rejected (9 of 631 were, on the two repositories that aren't mine).
+a function the file doesn't contain is rejected. (That check had its own bug: it rejected `TaskStore.add`
+because no file contains that exact string. Thirteen good summaries were thrown out before I noticed.)
 
 Then a derived `RATIONALE` edge joins each decision to the files it rests on, and FalkorDB's built-in
 algorithms answer structural questions directly — which files carry the most reasoning

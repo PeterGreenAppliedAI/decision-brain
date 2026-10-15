@@ -4,6 +4,17 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Correction: Most "Rejected" Summaries Were the Check's Fault (October 15 2026)
+
+The entry below ("File Summaries on All Three Repositories") said 9 file summaries were rejected for
+naming code the file does not contain, and Invarail had 5 more from earlier. Looking at them: they named
+class members as `TaskStore.add`, `Edition#publish` — real members, but no file contains that literal
+string, so the check dropped them and the summary fell below the threshold. A qualified name now passes
+if each part is in the file as a whole identifier (an invented part still fails), and
+`summarize --retry-rejected` re-summarized all 14 with their directories: 13 pass now (Invarail's 5 at
+17/17 to 33/33 names), 1 content-publisher view is still rejected (4 of 11 names). Total model time
+about 4.5 minutes.
+
 ## A Mis-copied Quote Is Not a Rejection (October 15 2026)
 
 The demo dry run after a reset lost the supersession the run before had found. The second agent

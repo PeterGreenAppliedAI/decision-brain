@@ -85,7 +85,7 @@ would reuse that volume — not a concern on a judge's machine).
   MADR, log4brains and a single DECISIONS.md.
 - ~~**File summaries** (`npm run summarize`) on this repository.~~ Run afterwards (2026-10-15, same
   warm setup): 200 files and 83 directories in 17 min, 4 agents, 0 failures; 2 file summaries rejected by
-  the code check (they named code the file does not contain) and kept out of the graph.
+  the code check — wrongly, it turned out (qualified member names; fixed, both re-summarized and kept).
 
 ## Setup corrections made to the README
 

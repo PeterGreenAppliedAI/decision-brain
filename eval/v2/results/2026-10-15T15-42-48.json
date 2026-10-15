@@ -1,0 +1,744 @@
+[
+  {
+    "id": "v2-inv-01",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why was a fabrication gate added for research reports?",
+    "agent": {
+      "answer": "The fabrication gate was added after an incident on 2026-08-14 where a manually-triggered weekly-news job produced a polished 15k-character \"report\" that was **entirely fabricated** — invented model names, version numbers, benchmarks, and URLs — and the `revision_pass` then spent 166s polishing the hallucination [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].\n\nThree causes stacked [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate]:\n1. The job's stored category was mis-authored as `\"cron\"`, so dispatch fell back to live routing and landed on the thin `web_search` pipeline instead of `research`.\n2. SearXNG's upstream engines had flagged the host (DDG CAPTCHA, Brave 429s, Wikidata 403s) after two days of unspaced eval+research bursts.\n3. Neither synthesis stage treated \"zero sources fetched\" as fatal.\n\nThe fix (commit [e5ca468]) added evidence gates: `research` and `web_search` pipelines now abort before synthesis when zero sources exist, with an honest \"search is down — I won't answer from memory\" message. The doctrine: **degrade honestly, never fabricate** — no verifier can rescue a report whose every source is imaginary [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].",
+      "status": "supported",
+      "cited": [
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate",
+        "e5ca468"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19551,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "The fabrication gate was added after a manually-triggered weekly-news job produced a polished 15k-character report that was **entirely fabricated** — invented version numbers, benchmarks, and URLs — with the model even confessing in its intro that live search returned no results and it had \"extrapolated,\" and the `revision_pass` then spending 166s polishing the hallucination [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].\n\nThree stacked causes: (1) the job's stored category was `\"cron\"`, so dispatch fell back to live routing and landed on the thin `web_search` pipeline instead of `research`; (2) SearXNG's upstream engines had flagged the host (DDG CAPTCHA, Brave 429s, Wikidata 403s) after two days of unspaced eval+research bursts; (3) neither synthesis stage treated \"zero sources fetched\" as fatal [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].\n\nThe fix (commit e5ca468): `research` and `web_search` pipelines now abort (`ctx.abort`) before synthesis when zero sources exist, with an honest \"search is down — I won't answer from memory\" message. Doctrine: **degrade honestly, never fabricate** — no verifier can rescue a report whose every source is imaginary [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate]. This extends the verification layer's principle (\"no claim should outrun its evidence\") to the front door [2026-06-evidence-verification-layer-for-research].",
+      "status": "supported",
+      "cited": [
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate",
+        "2026-06-evidence-verification-layer-for-research"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 11870,
+      "retrieved": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate"
+      ],
+      "ms": 13
+    }
+  },
+  {
+    "id": "v2-inv-02",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why must prep proposals never ask the model to construct a timestamp?",
+    "agent": {
+      "answer": "Because asking the model to build `whenISO` (an ISO-8601 timestamp with offset from text like \"Wed, Jul 8 2:00 PM\") is date math + timezone reasoning pushed into the model — a violation of the \"code decides, model executes\" rail. In live testing, qwen3.5:9b burned its entire 1024-token budget on timezone prose and never emitted the JSON array, so the prep-proposal check returned an empty section — even though all mocked-model unit tests were green [2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp].\n\nThe fix: code parses calendar lines and does all time math in the configured timezone; the model now returns only an event index, an action, and an integer `minutesBefore` — nothing code could compute [2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp].",
+      "status": "supported",
+      "cited": [
+        "2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 22289,
+      "toolCalls": 4
+    },
+    "rag": {
+      "answer": "Because asking the model to build `whenISO` (ISO-8601 with offset) from calendar text pushed date math and timezone reasoning into the model — a violation of \"code decides, model executes.\" On a real qwen3.5:9b, the model burned its entire 1024-token budget on timezone prose and never emitted the JSON array, returning an empty section; mocked unit tests were green and missed it. The fix: code parses calendar lines and does all time math in the configured timezone; the model returns only an event index, an action, and an integer `minutesBefore` — an output shape too small to ruminate over [2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp].",
+      "status": "supported",
+      "cited": [
+        "2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 10758,
+      "retrieved": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-28-the-synthesis-gate-re-run-and-a-harness-mistake-that-looked"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-07-prep-proposals-never-ask-a-model-to-construct-a-timestamp",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-28-the-synthesis-gate-re-run-and-a-harness-mistake-that-looked"
+      ],
+      "ms": 19
+    }
+  },
+  {
+    "id": "v2-inv-03",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why did the foreground model move to the RTX 3060 instead of staying on the Mac Mini?",
+    "agent": {
+      "answer": "The foreground model moved to the RTX 3060 because a head-to-head benchmark showed the 3060 was ~10x faster at prefill than the Mac Mini — the dominant cost for a context-heavy resident agent [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n\nDetails:\n- Identical model (gemma4:12b), identical 9K-token cold prompt: the 3060 prefilled at **1,220 tok/s** (~3.3s for a 4,000-token chat prompt) vs the M4 Mini's **123 tok/s** (~33s) [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n- Prefill is compute-bound (parallel matmul over every input token), and a resident agent spends nearly all its time there — published benchmarks put a 4090 at \"3x+\" an M4 Max on prompt processing [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n- The Mini wasn't discarded: it stays routable for short-prompt work (subagent tasks, evals, batch), where it went 7/7 in the duel — 400-token prompts cost ~3s there [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n- One trade-off: `session.contextSize` was cut from 96,000 to 32,768 because the 3060's 12GB means a large KV cache competes with the weights [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].\n- Also ruled out: clustering Minis over Thunderbolt doesn't fix it — pipeline parallelism adds capacity, not per-request FLOPS, and tensor parallelism needs ~900GB/s interconnect vs Thunderbolt's ~10GB/s [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060"
+      ],
+      "figuresFlagged": [
+        "96,000",
+        "32,768"
+      ],
+      "premiseFigures": [],
+      "ms": 39654,
+      "toolCalls": 5
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. They describe the opposite direction of movement: voice serving moved *to* the Mac Mini (mlx-audio on `Peters-Mac-mini`) [2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat], and the voice fast-path was moved off the 3060 onto the A5000's 27B [2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat]. No entry explains a foreground model relocating to the RTX 3060.",
+      "status": "abstained",
+      "cited": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 11691,
+      "retrieved": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ],
+      "ms": 18
+    }
+  },
+  {
+    "id": "v2-inv-04",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why must FalkorDB's data volume be mounted at /var/lib/falkordb/data?",
+    "agent": {
+      "answer": "Because FalkorDB's actual persistence path is `/var/lib/falkordb/data` (its `FALKORDB_DATA_PATH`), and an earlier container mounted the volume at `/data` instead — leaving the volume empty while the real `dump.rdb` sat in the container's disposable writable layer. Two months of graph memory (1,301 turns, all facts/entities) would have been destroyed by any plain `docker rm`. The fix was to mount the volume at the correct path, plus a host-side RDB backup and `--restart unless-stopped` [2026-07-14-falkordb-the-volume-that-wasn-t].",
+      "status": "supported",
+      "cited": [
+        "2026-07-14-falkordb-the-volume-that-wasn-t"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19356,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "Because FalkorDB persists to `/var/lib/falkordb/data` (its `FALKORDB_DATA_PATH`) — the May container had mounted its volume at `/data` instead, so the volume was empty and the real `dump.rdb` lived in the container's disposable writable layer, meaning a plain `docker rm` would have destroyed all graph memory [2026-07-14-falkordb-the-volume-that-wasn-t]. The fix was mounting the volume at the correct path so the process's actual persistence path writes into it [2026-07-14-falkordb-the-volume-that-wasn-t].",
+      "status": "supported",
+      "cited": [
+        "2026-07-14-falkordb-the-volume-that-wasn-t"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 9142,
+      "retrieved": [
+        "2026-07-14-falkordb-the-volume-that-wasn-t",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database",
+        "2026-07-25-the-skill-system-was-dead-for-three-months-resurrection-by-a",
+        "2026-07-30-the-46-fact-removal-guards-that-stop-floods-can-create-leaks"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-07-14-falkordb-the-volume-that-wasn-t",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-05-memory-system-overhaul-flat-store-to-graph-database",
+        "2026-07-25-the-skill-system-was-dead-for-three-months-resurrection-by-a",
+        "2026-07-30-the-46-fact-removal-guards-that-stop-floods-can-create-leaks"
+      ],
+      "ms": 14
+    }
+  },
+  {
+    "id": "v2-inv-05",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Can Qwen3.8-27B at Q2 on a Mac Mini carry the conversational traffic?",
+    "agent": {
+      "answer": "No — it was measured and failed, 1/7, dead on that hardware [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas]. Two independent cliffs:\n\n- **Quant cliff (model):** with thinking ON, the model got 17×23 wrong, and one task thrashed 30 iterations/259s without writing the file (vs 8.8s on NVFP4); its one clean pass was 6× slower. Only think-OFF short answers stayed correct and fast [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas].\n- **Memory cliff (box):** ~13.5GB dynamic ceiling vs a 27B that barely fits — oMLX bounced requests as KV grew (12.92→13.85GB creep) and then evicted the model entirely (507). Conversational/agentic loops grow context, which this box rejects by design; Q3 never fit at all [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas].\n\nStanding conclusion from that decision: 2-bit is past the quality cliff for agentic work even when it fits, and a 16GB-class Mini can't hold a 27B with KV headroom. The Mini's real profile is small-model (4–14B at 4–8bit) utility work with short prompts — the follow-up tenant tested was gemma4:12b, which matched the flagship [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches].",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches"
+      ],
+      "figuresFlagged": [
+        "16GB"
+      ],
+      "premiseFigures": [],
+      "ms": 25410,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "No — it was measured and failed. Qwen3.8-27B@Q2 on the .221 Mac Mini scored **1/7** on the oracle duel, dead on two independent cliffs [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas]:\n\n- **Quant cliff:** with thinking ON, 17×23 came out wrong, md-linecounts thrashed 30 iterations/259s without writing the file (vs NVFP4's 8.8s), and the one clean pass (csv-revenue) was 6× slower at 117s. Only think-OFF short answers stayed correct and fast.\n- **Memory cliff:** ~13.5GB dynamic ceiling vs a 27B that barely fits — prefill guard bounced requests as KV grew, then evicted the model entirely (507). Q3 never fit at all.\n\nStanding conclusion: 2-bit is past the quality cliff for agentic work even when it fits, and a 16GB-class box can't hold a 27B with agentic KV headroom. The Mini's real profile is small-model (4–14B at 4–8bit) short-prompt utility work. Conversational traffic went to gemma4:12b (7/7, avg 43.4s/task) on the Mini, with foreground later moved to the 3060 [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches] [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060"
+      ],
+      "figuresFlagged": [
+        "17",
+        "23",
+        "30",
+        "259s",
+        "8.8s",
+        "6×",
+        "117s",
+        "13.5GB",
+        "507",
+        "16GB"
+      ],
+      "premiseFigures": [],
+      "ms": 13354,
+      "retrieved": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches",
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches",
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas"
+      ],
+      "ms": 15
+    }
+  },
+  {
+    "id": "v2-inv-06",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "What went wrong right after the SGLang cutover?",
+    "agent": {
+      "answer": "Right after the cutover, two things went wrong:\n\n1. **The midnight cron produced a one-facet, 3-source report** — the same failure class the eval catches. Root cause: the LLM pipeline stages never forwarded `think` at all, so qwen's default-on thinking burned decompose's 700-token budget (\"thinking models fail at budgets\", now observed in prod). Verification carried the report honestly (6/9 flagged, 3 Tier-1 contradictions caught, self-flagged source concentration) [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency].\n\n2. **Chat latency complaint** — logs showed queueing behind the research cron on the shared fleet box, not model slowness; deepseek never felt this only because it had a dedicated box (tenancy, not intelligence) [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency].\n\nBoth were fixed in the cutover itself: per-stage think control (`LlmStage.think`, caps-gated forwarding, decompose/gap_check pinned to `think:false` with raised budgets) and Peter deploying SGLang + NVFP4 on Spark-2 with `--max-running-requests 4` for real continuous batching [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency].",
+      "status": "supported",
+      "cited": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19383,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "Right after the SGLang cutover, the midnight cron produced a one-facet, 3-source report — the eval's own failure class. Root cause: the llm pipeline stages never forwarded `think` at all, so qwen's default-on thinking burned decompose's 700-token budget (\"thinking models fail at budgets,\" now observed in prod). Verification carried the report honestly (6/9 flagged, 3 Tier-1 contradictions caught, self-flagged source concentration) [2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency].",
+      "status": "supported",
+      "cited": [
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 8389,
+      "retrieved": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-09-20-facts-carry-how-we-know-them-epistemic-provenance"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-16-the-sglang-cutover-one-model-one-box-real-concurrency",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-09-20-facts-carry-how-we-know-them-epistemic-provenance"
+      ],
+      "ms": 13
+    }
+  },
+  {
+    "id": "v2-inv-07",
+    "graph": "invarail",
+    "kind": "trap",
+    "question": "Why was the RTX 3060 rejected in favour of the Mac Mini for the foreground model?",
+    "agent": {
+      "answer": "The premise is inverted: the graph shows the RTX 3060 was *chosen* over the Mac Mini, not rejected. The head-to-head [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060] measured identical gemma4:12b with a 9K-token cold prompt: the 3060 prefilled at 1,220 tok/s (~3.3s for a 4,000-token prompt) vs the M4 Mini's 123 tok/s (~33s) — a 10x prefill gap from a card costing half the Mini. Since prefill is compute-bound and a context-heavy resident agent spends nearly all its time there, the foreground moved to the 3060; the Mini was demoted to short-prompt subagent work (400-token prompts cost ~3s there), where it went 7/7 in the duel.\n\nThe Mini's earlier foreground run [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches] had scored 7/7 on quality, but it was superseded the same day by the 3060 on speed. Note also the standing warning that clustering Minis over Thunderbolt wouldn't fix it — pipeline parallelism adds capacity, not per-request FLOPS [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060].",
+      "status": "supported",
+      "cited": [
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 42087,
+      "toolCalls": 6
+    },
+    "rag": {
+      "answer": "The entries say the opposite happened: the foreground model moved **to** the 3060, not away from it. A head-to-head with identical model (gemma4:12b) and 9K-token cold prompt showed the 3060 at 1,220 tok/s prefill (~3.3s for a 4,000-token prompt) vs the M4 Mac Mini's 123 tok/s (~33s) — a 10x prefill advantage from a card costing half the Mini [2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060]. The Mini was kept only for short-prompt subagent work, where it went 7/7 on the duel [2026-09-19].\n\nIf you're asking why the 3060 was later *reduced* in role: the voice fast-path model `qwen2.5:7b` living on the 12GB 3060 beside phi4 caused model thrashing (2.5s cold, 7.6s mid-thrash), so voice moved to the A5000's resident 27B [2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat] — but that's about voice, not the foreground model.",
+      "status": "supported",
+      "cited": [
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-09-19",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 15582,
+      "retrieved": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead"
+      ],
+      "ms": 17
+    }
+  },
+  {
+    "id": "v2-inv-08",
+    "graph": "invarail",
+    "kind": "trap",
+    "question": "Why did Q2 quantisation make the 27B model faster on the Mac Mini?",
+    "agent": {
+      "answer": "It didn't, really — the graph says Q2 was only faster in a narrow case, and the experiment was a failure overall.\n\nPer [2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas]:\n\n- **Where it was fast:** think-OFF short answers stayed correct and fast (3 ctok / 1.2s) — with 2-bit weights the model barely fits and reads far less memory per token, so short generations are quick.\n- **Where it wasn't:** with thinking ON, the model signal degraded — it got 17×23 wrong, and md-linecounts thrashed 30 iterations / 259s without writing the file (vs 8.8s on NVFP4). The one clean pass (csv-revenue) took 117s, 6× slower.\n- **It also didn't fit reliably:** the Mini's ~13.5GB dynamic ceiling meant oMLX's prefill guard bounced requests as KV grew (12.92→13.85GB creep), then evicted the model entirely (507, \"current: 2.70GB\"). Q3 never fit at all.\n\nStanding conclusion from that decision: 2-bit is past the quality cliff for agentic work even when it fits, and a 16GB-class box can't hold a 27B with agentic KV headroom. The Mini's real profile is small-model (4–14B at 4–8bit) work — which is why the next tenant tested was gemma4:12b [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches].",
+      "status": "unsupported-number",
+      "cited": [
+        "2026-09-19-q2-on-the-221-mini-the-quant-cliff-and-the-memory-cliff-meas",
+        "2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches"
+      ],
+      "figuresFlagged": [
+        "1.2s",
+        "17",
+        "23",
+        "30",
+        "259s",
+        "8.8s",
+        "117s",
+        "6×",
+        "13.5GB",
+        "12.92",
+        "13.85GB",
+        "507",
+        "2.70GB",
+        "16GB"
+      ],
+      "premiseFigures": [],
+      "ms": 26349,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. They cover voice latency on the Mac Mini (mlx-audio, keepAlive pinning, model residency on the A5000) and model evaluation, but no decision-log entry mentions Q2 quantisation of the 27B model or why it made things faster.",
+      "status": "uncited",
+      "cited": [],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 8428,
+      "retrieved": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit"
+      ],
+      "ms": 16
+    }
+  },
+  {
+    "id": "v2-inv-09",
+    "graph": "invarail",
+    "kind": "abstain",
+    "question": "Why was the gateway rewritten in Rust?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. I searched for a Rust rewrite of the gateway and found no decision, commit, or experiment recording one. The graph does show gateway-related problems that were open or parked — 429 rate limiting under bursts (cap of 100 requests/minute, proposed raise to 300–500, fixes \"NOT yet done\") [2026-06-gateway-429-rate-limit-under-request-bursts] and routing latency of 4957ms attributed inconclusively to gateway contention [2026-06-routing-latency-on-the-gateway] — but neither mentions a Rust rewrite as the cause or the fix.",
+      "status": "abstained",
+      "cited": [
+        "2026-06-gateway-429-rate-limit-under-request-bursts",
+        "2026-06-routing-latency-on-the-gateway"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 52289,
+      "toolCalls": 7
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. They describe gateway issues (429 rate limits, routing latency, a `format` typing bug, the gateway box being retired on the 19th) [2026-06-gateway-429-rate-limit-under-request-bursts, 2026-06-routing-latency-on-the-gateway, 2026-07-05-small-model-hardening-bounded-autonomy-gates, 2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat], but no entry mentions a Rust rewrite of the gateway or a reason for one.",
+      "status": "unsupported-number",
+      "cited": [],
+      "figuresFlagged": [
+        "429"
+      ],
+      "premiseFigures": [],
+      "ms": 8473,
+      "retrieved": [
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-06-gateway-429-rate-limit-under-request-bursts",
+        "2026-06-routing-latency-on-the-gateway",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-06-gateway-429-rate-limit-under-request-bursts",
+        "2026-06-routing-latency-on-the-gateway",
+        "2026-08-11-the-model-eval-that-kept-finding-our-bugs-instead",
+        "2026-09-25-voice-comes-home-to-the-mini-mlx-audio-replaces-the-dead-gat"
+      ],
+      "ms": 11
+    }
+  },
+  {
+    "id": "v2-inv-10",
+    "graph": "invarail",
+    "kind": "abstain",
+    "question": "Why did Invarail choose AWS Lambda for scheduled jobs?",
+    "agent": {
+      "answer": "I don't know — the graph has no path for this. There is no decision in the log about choosing AWS Lambda for scheduled jobs (searches for \"Lambda\" and \"AWS Lambda scheduled jobs\" return nothing relevant). The closest related material is about a heartbeat cron [2026-04-briefing-on-heartbeat-cron] and the cron path generally [2026-07-20-the-three-reminders-every-seam-in-the-cron-path-at-once], but neither mentions AWS Lambda or why it would have been chosen.",
+      "status": "abstained",
+      "cited": [
+        "2026-04-briefing-on-heartbeat-cron",
+        "2026-07-20-the-three-reminders-every-seam-in-the-cron-path-at-once"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 25393,
+      "toolCalls": 5
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on AWS Lambda or scheduled jobs. The decision log covers topics like the Pi coding substrate, the LocalClaw→Invarail rename, the harness duel, and the Laya router experiment, but no AWS Lambda decision appears anywhere.",
+      "status": "uncited",
+      "cited": [],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 6644,
+      "retrieved": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-08-22-the-harness-duel-dsh-vs-our-arena-measured",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-27-the-harness-was-measuring-the-engine-not-invarail"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-08-10-localclaw-explored-the-design-space-invarail-is-what-survive",
+        "2026-08-22-the-harness-duel-dsh-vs-our-arena-measured",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-09-27-the-harness-was-measuring-the-engine-not-invarail"
+      ],
+      "ms": 14
+    }
+  },
+  {
+    "id": "v2-cp-01",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How does Content Publisher stop elements flashing while the page initialises?",
+    "agent": {
+      "answer": "Content Publisher hides elements **before** JavaScript initialises using a `js-enabled` class added to the `<body>` while the page loads [adr-0005].\n\nDetails from [adr-0005]:\n- The problem: elements meant to be hidden until a user acts via JavaScript caused a distracting flash on load, with several ad-hoc fixes flagged in testing.\n- Three options were considered: do nothing; hide content in advance using the existing `js-enabled` body class; or add a `js-failed` fallback class after a 2-second grace period (via `setTimeout` checking `window.jsInitialised`) for when JS is enabled but fails.\n- The decision: take option 2 — use the `js-enabled` class — as the pragmatic interim approach, since option 1 was causing tester problems and option 3 was considered unusual and worth investigating further. The trade-off accepted is no fallback if JavaScript is enabled but fails.",
+      "status": "supported",
+      "cited": [
+        "adr-0005"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19417,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. None of the decision-log entries (covering publishing times, history modelling, file attachment rendering, political tagging, and bulk data loading) mention preventing elements from flashing during page initialisation.",
+      "status": "abstained",
+      "cited": [],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 6182,
+      "retrieved": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0012",
+        "adr-0014",
+        "adr-0015"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0012",
+        "adr-0014",
+        "adr-0015"
+      ],
+      "ms": 6
+    }
+  },
+  {
+    "id": "v2-cp-02",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How does Content Publisher send email notifications?",
+    "agent": {
+      "answer": "Content Publisher sends email notifications via **GOV.UK Notify**, using Rails **Action Mailer** with delivery handled asynchronously through **Active Job on Sidekiq** [adr-0010].\n\nKey points from the ADR [adr-0010]:\n- Emails notify users of actions like publishing a document; recipients are worked out, content generated, then sent via the Notify Ruby client.\n- Sending is deliberately not on the critical path: emails are only sent after DB updates and critical API calls succeed, and the design is robust against transient failure (Active Job retry semantics with Sidekiq).\n- Non-production environments have a means of seeing what notifications *would* be sent rather than delivering them (Notify's team allow-list/whitelist behavior).\n- Failures are reported to Sentry (Raven's Active Job integration), and Sidekiq is monitored via Grafana.\n\nThe related worker code came from commits \"Create basic Scheduled Publishing Worker\" [88e27840] and \"Use AbortWorkerError in ScheduledPublishingWorker\" [ce13ccd3].",
+      "status": "supported",
+      "cited": [
+        "adr-0010",
+        "88e27840",
+        "ce13ccd3"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 25538,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "Per [adr-0010], Content Publisher sends email notifications (e.g. about publishing a document) via GOV.UK Notify. The entry notes the need to determine recipients, generate email content, and send the email, and that sending should be robust against transient failure and only happen after DB updates and critical API calls — but the entry is truncated, so the full decision details (e.g. exact job/mailer setup) aren't available.",
+      "status": "supported",
+      "cited": [
+        "adr-0010"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 7607,
+      "retrieved": [
+        "adr-0016",
+        "adr-0010",
+        "adr-0009",
+        "adr-0012",
+        "adr-0015"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0016",
+        "adr-0010",
+        "adr-0009",
+        "adr-0012",
+        "adr-0015"
+      ],
+      "ms": 6
+    }
+  },
+  {
+    "id": "v2-cp-03",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "How does Content Publisher avoid slow requests when it needs long lists from the Publishing API?",
+    "agent": {
+      "answer": "Content Publisher avoids slow web requests by never loading bulk data from the Publishing API during a request. Per [adr-0015]:\n\n- Long lists (organisations, contacts, topic taxonomy) require multiple HTTP requests, which risk slow responses or timeouts when done inline — partially mitigated before by caching [adr-0015].\n- Instead, data is read from Redis at runtime, and a background job re-populates it on boot and every 15 minutes, following the pattern Whitehall uses for the topic taxonomy [adr-0015].\n- The cache is wrapped in `BulkData::Cache`, with repository classes handling loading/modelling [adr-0015].\n- Cached data expires after 24 hours — far longer than the 15-minute refresh — as a safety net so users see no issues even if repopulation fails; errors are logged and retried, with Sentry reporting decided per error type [adr-0015].",
+      "status": "supported",
+      "cited": [
+        "adr-0015"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 19380,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "Content Publisher avoids slow requests by not loading bulk data from the Publishing API during web requests. Instead, it follows a pattern similar to Whitehall's: data is read from Redis at runtime, and a periodic background job re-populates the Redis data [adr-0015].\n\nSpecifically:\n- The Rails Redis cache store is wrapped in a `BulkData::Cache` object, with repository classes for loading and modelling the cached data [adr-0015].\n- A background job runs on application boot and every 15 minutes to re-populate the data, logging and retrying on errors [adr-0015].\n- Cached data expires after 24 hours — much longer than the 15-minute refresh interval — as a safety net so users see no issues even if repopulation fails for a while [adr-0015].",
+      "status": "supported",
+      "cited": [
+        "adr-0015"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 9179,
+      "retrieved": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0002",
+        "adr-0012",
+        "adr-0015"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0002",
+        "adr-0012",
+        "adr-0015"
+      ],
+      "ms": 6
+    }
+  },
+  {
+    "id": "v2-cp-04",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "When should a class in Content Publisher be treated as a model?",
+    "agent": {
+      "answer": "Per [adr-0007] (Minimal Model, 2019-01-21), a class should be treated as a model (and live in `app/models`) if it has all of these properties:\n\n- **Its name is a noun representing a domain concept** — e.g. `Document`; guideline: hard to rename to a verb, and documented in the README nomenclature.\n- **Instances have multiple attributes that encapsulate it** — e.g. `DocumentType` encapsulates publishing metadata and tags; attributes should be public and required.\n- **Instances have a unique identifier attribute** — e.g. `Document`'s database `id`, or `DocumentType`'s `id` in its config file.\n- **Instances support mass-assignment of attributes** — ActiveRecord-style for `Document`, assignment on initialize for readonly `DocumentType`.\n\nCounter-examples that are *not* models: `DocumentUrl` (no public attributes) and `UserFacingState` (no unique ID) [adr-0007]. Consequence: `DocumentType` and `Supertype` were moved into `app/models`, and classes there lacking these properties should be moved out [adr-0007].",
+      "status": "supported",
+      "cited": [
+        "adr-0007"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 22895,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. They cover domain modelling decisions (documents, editions, revisions, timeline) [adr-0009] [adr-0003], but none of them define criteria for when a class in Content Publisher should be treated as a model.",
+      "status": "uncited",
+      "cited": [
+        "adr-0009",
+        "adr-0003"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 6269,
+      "retrieved": [
+        "adr-0009",
+        "adr-0016",
+        "adr-0003",
+        "adr-0011",
+        "adr-0012"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0009",
+        "adr-0016",
+        "adr-0003",
+        "adr-0011",
+        "adr-0012"
+      ],
+      "ms": 4
+    }
+  },
+  {
+    "id": "v2-cp-05",
+    "graph": "content-publisher",
+    "kind": "find",
+    "question": "Which user-facing strings are extracted for translation, and which are not?",
+    "agent": {
+      "answer": "The graph's answer comes from the translations ADR [adr-0004] (recorded in commit [cf8cc160]):\n\n- **Extracted for translation:** all static user-facing strings in the application — page titles, button text, guidance pages, error messages — are extracted to a central location in `config/locales/en`, organized hierarchically (e.g. `I18n.t(\"publish.published.reviewed.title\")`), with support for pluralization, raw HTML, and variables like `%{title}` [adr-0004].\n- **Not extracted:** the ADR explicitly considered leaving some strings in the tests (to keep tests readable), but the text recording which option was finally chosen is truncated in the graph, so I can't confirm from the graph whether test strings were ultimately extracted or left inline [adr-0004].\n\nThe rationale for extraction: inline strings are hard to audit (some only appear under special conditions like error messages), hard to change consistently without a developer, and distract from the code's logical flow [adr-0004].",
+      "status": "supported",
+      "cited": [
+        "adr-0004",
+        "cf8cc160"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 42960,
+      "toolCalls": 6
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. [adr-0004] describes extracting static text into Rails translations in `config/locales/en` and discusses approaches for extracting strings in tests, but its text is truncated and never specifies which user-facing strings are extracted and which are not.",
+      "status": "uncited",
+      "cited": [
+        "adr-0004"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 4209,
+      "retrieved": [
+        "adr-0004",
+        "adr-0003",
+        "adr-0009"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0004",
+        "adr-0003",
+        "adr-0009"
+      ],
+      "ms": 6
+    }
+  },
+  {
+    "id": "v2-cp-06",
+    "graph": "content-publisher",
+    "kind": "trap",
+    "question": "Why does Content Publisher forbid deleting any data?",
+    "agent": {
+      "answer": "Content Publisher's deletion policy comes from [adr-0008] (Restricted Deletion, 2019-01-24, recorded in commit [86fae5cf]):\n\n- At the time, the team had **no real-world scenarios for deleting data from the database**, so they chose the simplest thing: `restrict` on all foreign key delete actions, specified explicitly to signal a conscious decision [adr-0008].\n- They acknowledged this makes deletion difficult (e.g. removing a user's personal data) and intended to revisit it if it became a pain point [adr-0008].\n- Dev-environment cleanup should be done by resetting the database, not by loosening production deletion rules [adr-0008].\n\nNote: it was later partially revised by [adr-0013] (Permitted Deletion, 2019-07-24), which dropped the hard-and-fast rule that all foreign keys must restrict deletion — so the current stance is case-by-case, not an absolute ban.",
+      "status": "supported",
+      "cited": [
+        "adr-0008",
+        "86fae5cf",
+        "adr-0013"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 20037,
+      "toolCalls": 3
+    },
+    "rag": {
+      "answer": "I don't know — the entries have nothing on this. None of the provided decision-log entries mention a rule forbidding the deletion of data in Content Publisher. The closest related themes are immutability used as an implicit means of storing history in the domain model [adr-0009], but no entry states a prohibition on deleting data or the reasons for one.",
+      "status": "abstained",
+      "cited": [
+        "adr-0009"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 7235,
+      "retrieved": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0015",
+        "adr-0012",
+        "adr-0002"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "adr-0016",
+        "adr-0009",
+        "adr-0015",
+        "adr-0012",
+        "adr-0002"
+      ],
+      "ms": 6
+    }
+  }
+]

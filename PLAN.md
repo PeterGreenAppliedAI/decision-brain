@@ -15,7 +15,7 @@ and **shows the path** behind every answer.
 | `review <commit>` (Track 01 action) | done — deterministic, as-of-change |
 | Board view (live) | done — every tile opens what it produced (decision evidence; file summary, resting decisions, birth; directory parts); rejected summaries outlined; demo copies hidden unless linked |
 | Ask + Path views | done — answer streamed with tool calls, citations clickable, cited subgraph drawn |
-| File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — all three repos: Invarail 381 tasks/52 min, log4brains 283/17 min, content-publisher 539/38 min; 9 of 631 rejected by the code check |
+| File and module summaries (map-reduce on the board, dependency-ordered) + `what_is`, `origin(file)` | done — all three repos: Invarail 381 tasks/52 min, log4brains 283/17 min, content-publisher 539/38 min; 1 summary still rejected after fixing the check (13 were false rejections) |
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…): every version as section spans; `told(commit)` | done — Invarail CLAUDE.md, 71 versions, 216 spans |
 | Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
@@ -31,10 +31,10 @@ and **shows the path** behind every answer.
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
 | Reviewer cut-off and `told` by ancestry (with the repo) | done |
-| Add repository from the Board (local only, `WEB_ALLOW_INGEST=1`) | built — end-to-end run pending GLM |
+| Add repository from the Board (local only, `WEB_ALLOW_INGEST=1`) | done — npryce/adr-tools added end to end in 25 s; Ask answered from it |
 | Blog post | draft in docs/BLOG-DRAFT.md — Peter edits |
 | Deployment | options in docs/DEPLOY.md — Peter decides; Ask capped (`ASK_MAX_CONCURRENT`) |
-| Demo video | dry run after reset (needs GLM), then Peter records |
+| Demo video | dry run passed after a fix (invalid confirmations retried); demo copy reset — Peter records |
 | Re-run eval v2 after the `what_breaks` fix | needs GLM (~1 h) |
 
 ## The rules boundary (read first)
