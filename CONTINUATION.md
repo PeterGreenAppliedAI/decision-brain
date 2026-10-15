@@ -13,9 +13,9 @@ grounded agent, `review` (log at the commit; reviewers and `told` by ancestry wi
 and the Board/Ask views — every tile and node now opens what it produced. Demo copies are hidden unless
 linked and carry a banner. "Add repository" exists for local use only (`WEB_ALLOW_INGEST=1`).
 
-**Waiting on GLM (Peter is using it):** demo dry run after `scripts/demo/setup.ts` (then Peter records);
-one end-to-end run of Add repository on a small public repo; re-run eval v2 (numbers predate the
-`what_breaks` fix); retry the 9 rejected summaries and 5 large Invarail files.
+**Done with GLM (Oct 15 afternoon):** demo dry run passed after the handoff fix — demo copy reset, ready to
+record; Add repository verified (npryce/adr-tools, graph `adr-tools`); 13 of 14 rejected summaries
+redone after fixing the check; eval v2 run 2 scored (16/20 vs 10/20).
 **Waiting on Peter:** recording; edit docs/BLOG-DRAFT.md; choose deployment (docs/DEPLOY.md); public
 repo; label spot-check. **If time remains:** long-entry reading, question memory.
 The repo is private at github.com/PeterGreenAppliedAI/decision-brain. Graphs `invarail-demo*` and
