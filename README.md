@@ -80,39 +80,36 @@ re-extracts exactly the changed entries and re-checks the relations that touch t
 
 ## Evaluation
 
-`eval/questions.json`: 25 questions over both repos — 16 with answers in specific decisions, 3 with a
-false premise, 5 the graph cannot answer, 1 ownership question. The agent is scored against labels in
-`eval/LABELS.md` **and against a baseline that simply keyword-searches the decision log**.
-Latest result ([eval/RESULTS.md](eval/RESULTS.md)):
+Two sets, both scored against labels and against baselines that use no graph.
 
-| | Decision Brain (agent) | Keyword search (top 5) |
-|---|---|---|
-| Recall of the decisions a good answer rests on | 52% (23/44) | 52% (23/44) |
-| Precision of what it cites / returns | 79% | 24% (fixed top 5) |
-| Abstained on the 5 unanswerable questions | 5/5 | 0/5 — keyword retrieval has no answer stage, so it cannot abstain |
-| False premises corrected | 2/3 (cp-10's has an invalid citation) | — |
-| Ownership (one question, three expected names) | 3/3 | — |
-| Figures flagged by the checker / invalid citations | 0 / 1 of 25 answers (1 more "unverified": inv-11 repeats the question's 20/20 to reject it) | — |
+**v2 — the comparison** ([eval/v2/RESULTS.md](eval/v2/RESULTS.md)): 24 questions over all three
+repositories, frozen (questions, labels, key facts, revisions, model settings, scoring —
+[eval/v2/SPEC.md](eval/v2/SPEC.md)) before any system saw them; answers judged blind against key facts.
 
-**What it says:** the agent finds no more of the right decisions than keyword search does. Its gains
-here are precision, abstention and the ownership answer — promising observations on 25 questions, not
-capability guarantees. "Zero figures flagged" means the checker found every figure in its cited
-evidence, **not** that the figures were used correctly: in inv-02 the answer copied the right numbers
-(2/5 with the tool, 5/5 without) but described them as malformed-call rates when the source reports task
-success — the checker matches figures, not their meaning. Its tools
-*returned* 29/44 of the right decisions — the agent cited 23 — so it under-cites what it has, and its
-retrieval stops early (usually one search, one trace). Those are the next things to improve, measured
-on fresh questions, not these.
+| | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |
+|---|---|---|---|
+| Required evidence cited / retrieved | 20/20 | 15/20 | 15/20 (top 5) |
+| Correct answers (every key fact, nothing wrong) | 17/20 | 11/20 | — |
+| False premises corrected | 4/4 | 2/4 | — |
+| Correct abstentions | 4/4 | 4/4 | — |
+| Median latency | 20.6 s (3 tool calls) | 7.9 s | — |
 
-**How the labels were made — not by a human:** drafted by the local model (each relevance judgement
-quoting the entry; code checked the quotes), then reviewed and corrected question by question by
-Claude against the entries before reading any results (the model was wrong on all three false-premise
-questions and missed the right entries for two others). Claude had seen the agent's answers to five
-questions in earlier demos. An outside model-based review agreed with five sampled labels and the
-three premise judgments (noting that inv-06 mixes required and supporting evidence). **Owner
-spot-check: still pending** — neither review is that. The code checks were also refined after the
-first scoring — three parsing bugs (abbreviations, lead-ins, "neither") — with the outside review's
-adversarial probes kept as tests so the refinement could not loosen them.
+Where keyword retrieval misses the entry an answer rests on, the same model without the graph has
+nothing to answer from; the agent's tools find it. The cost is about 2.6x the latency. Five agent
+answers had figures flagged by the checker — all 47 of those figures are in the source; the agent put
+them where no valid citation covered them ("[same decision]", or a list cut off from its citation). One
+question failed for both systems because the answer sat beyond the 2,500 characters of a long entry
+each reads. **Limits:** 24 questions, one run, one model; questions, key facts and judging by Claude,
+which built the system; judging blind to which system answered, but only partly (the run's progress
+log named each system's check status); owner spot-check pending.
+
+**v1 — the regression set** ([eval/RESULTS.md](eval/RESULTS.md)): the first 25 questions, used while
+developing — so not a fair comparison any more. On them, recall of relevant decisions tied with
+keyword search (52%/52%); they stay as regression cases. Labels: model-drafted, reviewed by Claude,
+described in the file.
+
+The code checks match figures, not their meaning: "zero figures flagged" never means the numbers were
+used correctly — v1's inv-02 copied the right numbers and reversed what they measure, and passed.
 
 ## Limitations (known, not yet fixed)
 

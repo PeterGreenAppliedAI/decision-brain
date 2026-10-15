@@ -19,7 +19,8 @@ and **shows the path** behind every answer.
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…): every version as section spans; `told(commit)` | done — Invarail CLAUDE.md, 71 versions, 216 spans |
 | Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
-| Freeze a FRESH evaluation set, then: cite everything the tools returned; explore beyond one search + one trace | after the judge path |
+| Fresh evaluation v2 (frozen, blind) | done — agent 17/20 correct vs 11/20 same-model-on-keyword; 2.6x latency |
+| Next agent work (measured on a further fresh set): cite with ids not "[same decision]"; keep lists with their citation; read long entries by section (cp-05 failed for both systems at the 2,500-char cap) | next |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
 | Question memory | after that |
 | **Judge path**: done — eval/JUDGE-PATH.md; 4 defects found and fixed; Ollama still unverified (Peter chose GLM only). Original finish line: fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |

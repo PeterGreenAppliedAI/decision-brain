@@ -4,6 +4,23 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Evaluation v2: What the Graph Adds, Measured (October 15 2026)
+
+To the reviewer's spec: 24 untouched questions over three repositories, frozen with labels (required
+vs supporting), key facts, revisions, model settings and scoring before any run; a second baseline —
+the same model answering from keyword-retrieved entries — to isolate the graph's contribution;
+latency and tool calls; answers judged blind against key facts, judgements committed before the key
+was opened. Results: required evidence 20/20 (agent) vs 15/20 (same model + keyword) vs 15/20 (keyword
+top 5); correct answers 17/20 vs 11/20; premises corrected 4/4 vs 2/4; abstentions 4/4 vs 4/4; median
+latency 20.6 s vs 7.9 s. Where keyword retrieval missed the entry, the model without the graph had
+nothing to answer from. The agent's figure flags (5 answers) were all citation placement — every one
+of the 47 flagged figures is in the source. A shared failure exposed a real limit: an answer beyond the
+2,500 characters each system reads of a long entry. Honest limits: 24 questions, one run, Claude as
+question-writer and judge, and blinding only partial — the runner's progress log named each system's
+check status and I read it before judging. The next runner prints nothing that identifies a system.
+Also: building v2 caught a truncated label id in v1 (inv-09) that no system could ever cite; scores
+did not change, and the scorer now refuses labelled ids missing from the graph.
+
 ## Fourth Review: Stop Extending Word Lists (October 15 2026)
 
 The reviewer reproduced the same exemption hole a third way — "Not surprisingly, the corrected rule
