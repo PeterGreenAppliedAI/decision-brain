@@ -1,8 +1,8 @@
 # Demo — "before you merge this, here's why it is the way it is"
 
 A code-review story on real data (Invarail's decision log and history), run on a disposable copy so
-the demo can commit freely. Every step was run end to end on 2026-10-15 with these scripts
-(after the change that made this run's one fix); timings are from that run (glm-5.3-flash on vLLM, M4 Mac mini).
+the demo can commit freely. Every step was run end to end on 2026-10-15 with these scripts;
+afterwards one review label was reworded (output only, re-checked). Timings are from that run (glm-5.3-flash on vLLM, M4 Mac mini).
 
 **Honesty note for the recording:** the proposed change in step 2 is a realistic cleanup, written for
 the demo. The decision update in step 5 is **simulated — not an actual benchmark**; keep that caption on
