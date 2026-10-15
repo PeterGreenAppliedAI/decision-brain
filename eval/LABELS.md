@@ -211,7 +211,7 @@ labelled: yes
 - [ ] `2026-04-exec-pipeline-vs-react-loop` — Exec pipeline vs ReAct loop (2026-04) _search_
 - [ ] `2026-06-web-search-over-trigger` — web_search over-trigger (2026-06) _search_
 - [ ] `2026-06-async-compaction-cache-turn-count-gated-prewarm` — Async compaction cache → turn-count gated + prewarm (2026-06) _search_
-add: 2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060, 2026-09-19-the-a5000-settles-the-fleet-qwen3-8-27b-foreground, 2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches-t, 2026-08-15-the-day-the-foreground-slot-became-empirical, 2026-06-model-split-foreground-on-spark-utility-on-a5000
+add: 2026-09-19-the-300-card-beat-the-600-mini-foreground-moves-to-the-3060, 2026-09-19-the-a5000-settles-the-fleet-qwen3-8-27b-foreground, 2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches, 2026-08-15-the-day-the-foreground-slot-became-empirical, 2026-06-model-split-foreground-on-spark-utility-on-a5000
 note: GLM's voice and Laya picks were wrong and the right entries were missing from its candidates; found by searching 'foreground'.
 labelled: yes
 

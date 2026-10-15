@@ -83,9 +83,20 @@ export function report(results: QuestionResult[], labels: Map<string, Label>, st
   ].join('\n');
 }
 
+/** Every labelled id must exist in its graph — a mistyped label would count a decision no system can cite. */
+export async function assertLabelIds(labels: Map<string, Label>, questions: Question[], db: Awaited<ReturnType<typeof connect>>): Promise<void> {
+  const missing: string[] = [];
+  for (const q of questions) for (const id of labels.get(q.id)?.relevant ?? []) {
+    const n = (await db.selectGraph(q.graph).roQuery<{ n: number }>('MATCH (d:Decision {id: $id}) RETURN count(d) AS n', { params: { id } })).data?.[0]?.n ?? 0;
+    if (!n) missing.push(`${q.id}: ${id}`);
+  }
+  if (missing.length) throw new Error(`labelled decision ids not in the graph — fix the labels first:\n  ${missing.join('\n  ')}`);
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { values } = parseArgs({ options: { only: { type: 'string' }, score: { type: 'boolean' } } });
   const labels = existsSync('eval/LABELS.md') ? parseLabels(readFileSync('eval/LABELS.md', 'utf8')) : new Map();
+  { const check = await connect(); try { await assertLabelIds(labels, loadQuestions(), check); } finally { await check.close(); } }
   mkdirSync('eval/results', { recursive: true });
   if (values.score) {
     const latest = readdirSync('eval/results').filter((f) => f.endsWith('.json')).sort().at(-1);
