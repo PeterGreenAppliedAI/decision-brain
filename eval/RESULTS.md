@@ -44,7 +44,6 @@ _Baseline precision is over a fixed top 5, so it is low by construction; recall 
 ## Trap questions — did the answer correct the false premise? (tick after reading)
 
 ### inv-11
-_Judged by Claude (reading): **corrected** — "In fact, the opposite happened… reverted… 0/20 vs 16/20". Owner to confirm._
 > The corrected router rule improved memory routing to 20/20 — when was that shipped?
 
 > The premise doesn't match the record: the corrected rule was **not** shipped — it was measured and **reverted** the same night, 2026-09-30 [2026-09-30-the-router-prompt-s-wrong-rule-was-load-bearing].
@@ -59,7 +58,6 @@ _Judged by Claude (reading): **corrected** — "In fact, the opposite happened�
 - [ ] corrected the premise
 
 ### inv-12
-_Judged by Claude (reading): **not corrected** — answered "I don't know" instead of that thinking hurt the 12B; its tools returned the small-tier eval but it did not use it. Owner to confirm._
 > Why did thinking mode improve the 12B models' scores?
 
 > I don't know — the graph has no path for this. The closest evidence: the gemma4:12b eval ran probes with thinking on (17×23 correct, 25.6 tok/s) [2026-09-19-gemma4-12b-takes-the-foreground-a-12b-on-a-mac-mini-matches], and a separate decision records that thinking models need headroom for internal reasoning tokens — a low `num_predict` budget (1024) starved them, and bumping it to 8192 fixed empty/truncated output [2026-05-low-num-predict-starving-thinking-models]. But no decision in the graph states *why* thinking mode improved the 12B models' scores specifically.
@@ -67,7 +65,6 @@ _Judged by Claude (reading): **not corrected** — answered "I don't know" inste
 - [ ] corrected the premise
 
 ### cp-10
-_Judged by Claude (reading): **corrected** — "It doesn't — the premise is off… superseded by ADR 14". Owner to confirm._
 > Why does ADR 6 still govern government tagging today?
 
 > It doesn't — the premise is off. ADR 6 ("Tagging Content to Governments", 2018-12-12) is marked **superseded** by ADR 14 ("Political and Government Tagging", 2019-12-19) [adr-0006].

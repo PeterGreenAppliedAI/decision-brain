@@ -4,6 +4,27 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Third Review: Two Regressions, and Words That Claimed Too Much (October 15 2026)
+
+The third review re-ran the earlier probes (all now rejected), recalculated the scores independently
+(they check out), spot-checked five labels and the three premise judgments against the sources
+(agreed, with one note: inv-06 mixes required and supporting evidence), and found:
+- **Two checker regressions.** Question figures were exempt everywhere, so an answer *endorsing* a
+  false premise ("it scored 20/20 [id]") passed; now a question's figure is exempt only in a line that
+  rejects it — read from the prose, because the first fix was fooled by a citation id containing the
+  word "wrong". And any negation counted as absence, so "the system never loses data" let a decline
+  pass as an abstention; now only silence *of the record* qualifies ("no decision records…").
+  Re-scoring with the tightened checker changed no real answer's result.
+- **A wrong answer the checker accepts:** inv-02 copied the right numbers (2/5 with the tool, 5/5
+  without) and reversed what they measure. The checker matches figures, not meaning — so the published
+  phrase "never inventing figures" became "zero figures flagged by the checker in this run", the
+  ownership result is described as one question with three names, and the abstention comparison notes
+  that keyword retrieval has no answer stage at all.
+- Its five-label check and premise check are model-based, not the owner's: the README keeps "owner
+  spot-check pending". My "everything addressed" in chat was also too strong.
+Agreed order: the judge path (with the reviewer's concrete finish line), then a fresh evaluation set
+before touching retrieval or citation behaviour, then question memory.
+
 ## The Second Review, and the First Honest Numbers (October 14 2026, late)
 
 **A second outside review** (at `4cb0b2a`) confirmed the first round's fixes and found what was left.

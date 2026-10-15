@@ -89,13 +89,17 @@ Latest result ([eval/RESULTS.md](eval/RESULTS.md)):
 |---|---|---|
 | Recall of the decisions a good answer rests on | 52% (23/44) | 52% (23/44) |
 | Precision of what it cites / returns | 79% | 24% (fixed top 5) |
-| Correct abstentions ("I don't know" when nothing answers it) | 5/5 | 0/5 — it cannot abstain |
-| False premises corrected | 2/3 (read by Claude; owner to confirm) | — |
-| Right reviewers named | 3/3 | — |
-| Unsupported figures / invalid citations | 0 / 1 of 25 answers | — |
+| Abstained on the 5 unanswerable questions | 5/5 | 0/5 — keyword retrieval has no answer stage, so it cannot abstain |
+| False premises corrected | 2/3 (cp-10's has an invalid citation) | — |
+| Ownership (one question, three expected names) | 3/3 | — |
+| Figures flagged by the checker / invalid citations | 0 / 1 of 25 answers | — |
 
 **What it says:** the agent finds no more of the right decisions than keyword search does. Its gains
-are precision, abstention, never stating a figure the evidence doesn't hold, and ownership. Its tools
+here are precision, abstention and the ownership answer — promising observations on 25 questions, not
+capability guarantees. "Zero figures flagged" means the checker found every figure in its cited
+evidence, **not** that the figures were used correctly: in inv-02 the answer copied the right numbers
+(2/5 with the tool, 5/5 without) but described them as malformed-call rates when the source reports task
+success — the checker matches figures, not their meaning. Its tools
 *returned* 29/44 of the right decisions — the agent cited 23 — so it under-cites what it has, and its
 retrieval stops early (usually one search, one trace). Those are the next things to improve, measured
 on fresh questions, not these.
@@ -104,7 +108,9 @@ on fresh questions, not these.
 quoting the entry; code checked the quotes), then reviewed and corrected question by question by
 Claude against the entries before reading any results (the model was wrong on all three false-premise
 questions and missed the right entries for two others). Claude had seen the agent's answers to five
-questions in earlier demos. Owner spot-check pending. The code checks were also refined after the
+questions in earlier demos. An outside model-based review agreed with five sampled labels and the
+three premise judgments (noting that inv-06 mixes required and supporting evidence). **Owner
+spot-check: still pending** — neither review is that. The code checks were also refined after the
 first scoring — three parsing bugs (abbreviations, lead-ins, "neither") — with the outside review's
 adversarial probes kept as tests so the refinement could not loosen them.
 
@@ -121,6 +127,10 @@ adversarial probes kept as tests so the refinement could not loosen them.
 - **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files
   gets ownership, history and file summaries — not reasons. Commit messages and PR descriptions are
   not mined yet.
+- **The checker verifies figures, not meaning.** A correctly copied number used for the wrong thing
+  passes (see inv-02 in the evaluation). Prose claims are model-written.
+- **Labels distinguish relevant from irrelevant, not required from supporting.** A good answer may
+  rest on fewer entries than were labelled (e.g. inv-06), which lowers measured recall.
 - **Tested on two repositories and one model server** (glm-5.3-flash on vLLM). Other OpenAI-compatible
   servers (e.g. Ollama) are expected to work but are not yet verified.
 

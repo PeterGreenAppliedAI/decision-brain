@@ -126,7 +126,16 @@ function figureIn(n: string, evidence: string): boolean {
 
 const DECLINE_OPENING = /^\s*(i don'?t know|i do not know|the graph (has|holds|contains) no)\b/i;
 /** A clause saying something is absent ("no decision records…", "never recorded") claims nothing. */
-const ABSENCE = /\b(no|not|never|none|nothing|neither|nor|without|isn'?t|aren'?t|wasn'?t|doesn'?t|don'?t|didn'?t|cannot|can'?t)\b/i;
+/**
+ * A clause saying the RECORD is silent ("no decision records…", "never recorded", "neither mentions
+ * GraphQL") claims nothing. A negative claim about the world ("the system never loses data") is a
+ * claim, so negation alone does not qualify — it must be about the record.
+ */
+const NEGATION = /\b(no|not|never|none|nothing|neither|nor|without|isn'?t|aren'?t|wasn'?t|doesn'?t|don'?t|didn'?t|cannot|can'?t)\b/i;
+const RECORD = /\b(graph|log|record(s|ed)?|decisions?|entry|entries|ADRs?|mentions?|mentioned|documented|captured|evidence|sources?|path|rationale|searches|history)\b/i;
+const absence = (clause: string) => NEGATION.test(clause) && RECORD.test(clause);
+/** Words that put a figure from the question in a rejection: "there is no record of 20/20", "the opposite". */
+const REJECTING = /\b(no|not|never|didn'?t|doesn'?t|wasn'?t|isn'?t|opposite|contrary|instead|rather than|premise|false|wrong|incorrect|myth)\b/i;
 
 /**
  * Clauses of a declining answer that assert something without a citation: every sentence, split at
@@ -144,7 +153,7 @@ export function uncitedClaims(answer: string, toolNames: string[] = []): string[
         if (/:\s*$/.test(c)) continue;                  // a lead-in ("Here is what it does record:") asserts nothing itself
         if (DECLINE_OPENING.test(c) && !/\b(but|however)\b/i.test(c)) continue;
         if (citationsOf(c, toolNames).length || (blockCited && /^\s*[-*\d]/.test(c))) continue;
-        if (ABSENCE.test(c)) continue;
+        if (absence(c)) continue;
         out.push(c.slice(0, 160));
       }
     }
@@ -158,8 +167,9 @@ function blocks(answer: string): string[] {
 }
 
 /**
- * `question`: figures the question itself states are the asker's, not claims of the answer — an
- * answer correcting "improved to 20/20" has to repeat 20/20 to say it never happened.
+ * `question`: a figure the question states may be repeated in order to REJECT it ("there is no record
+ * of 20/20") — exempt only in a line that rejects it. Repeating it as fact ("it scored 20/20") is a
+ * claim like any other and is checked.
  */
 export function ground(answer: string, steps: Step[], question = ''): Grounding {
   const asked = new Set(numbersIn(question));
@@ -180,7 +190,8 @@ export function ground(answer: string, steps: Step[], question = ''): Grounding 
     // The block's evidence: for each citation, the item it identifies in each response that returned it.
     const evidence = cited.flatMap((c) => results.filter((r) => r.ids.has(c)).map((r) => evidenceFor(r.text, c))).join('\n');
     for (const line of block.split('\n')) {
-      for (const n of numbersIn(line).filter((x) => !asked.has(x))) {
+      const prose = line.replace(/\[[^\]]*\]/g, ' ');   // ids can contain words like "wrong" — read rejection from the prose
+      for (const n of numbersIn(line).filter((x) => !(asked.has(x) && REJECTING.test(prose)))) {
         numbersChecked++;
         if (!cited.length || !figureIn(n, evidence)) unsupportedNumbers.push({ number: n, sentence: line.trim().slice(0, 160) });
       }

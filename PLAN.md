@@ -19,10 +19,10 @@ and **shows the path** behind every answer.
 | Agent-instruction files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions…): every version as section spans; `told(commit)` | done — Invarail CLAUDE.md, 71 versions, 216 spans |
 | Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
-| Agent: cite everything its tools returned; explore beyond one search + one trace | next — measured on NEW questions |
+| Freeze a FRESH evaluation set, then: cite everything the tools returned; explore beyond one search + one trace | after the judge path |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
 | Question memory | after that |
-| "Judge path": fresh clone, README only, third repo, Ollama | before submission |
+| **Judge path** (next): fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
 | Deployment, demo video, blog post | Day 4 |

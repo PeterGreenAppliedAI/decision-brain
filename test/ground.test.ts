@@ -105,6 +105,19 @@ describe('numbersIn', () => {
   });
 });
 
+describe('outside review, third round — two regressions', () => {
+  it('a question\'s figure is exempt only when the answer rejects it, not when it endorses it', () => {
+    const q = 'When did it improve to 20/20?';
+    expect(ground(`It scored 20/20 [${ID}].`, steps, q).status).toBe('unsupported-number');
+    expect(ground(`There is no record of 20/20; the corrected text scored 0/20 vs 16/20 [${ID}].`, steps, q).status).toBe('supported');
+  });
+
+  it('a negative claim about the world is a claim; only silence of the record is an absence', () => {
+    expect(ground("I don't know. The system never loses data.", steps).status).toBe('uncited');
+    expect(ground("I don't know. No decision in the log records why.", steps).status).toBe('abstained');
+  });
+});
+
 describe('uncited claims after a decline — parsing', () => {
   const ID3 = '2026-01-01-some-decision';
   const st = [{ tool: 'trace', args: {}, result: JSON.stringify({ decision: { id: ID3 }, text: 'x' }) }];
