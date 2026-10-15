@@ -1,0 +1,13 @@
+[
+  { "question": "v2-inv-04", "box": "A.fact2", "why": "says all graph memory would be destroyed, never says \"two months\"" },
+  { "question": "v2-inv-05", "box": "A.fact1", "why": "gives \"no ... 1/7\" without naming the oracle duel" },
+  { "question": "v2-inv-08", "box": "A.premise", "why": "opens \"It didn't, really\" - a hedged correction" },
+  { "question": "v2-inv-08", "box": "A.fact1", "why": "gives the 6x-slower pass but never the 1/7 score" },
+  { "question": "v2-inv-08", "box": "A.wrong1", "why": "\"only faster in a narrow case\" - read as denying the general claim" },
+  { "question": "v2-cp-06", "box": "A.premise", "why": "explains the restriction as if it held; only a closing note says ADR 13 revised it" },
+  { "question": "v2-cp-06", "box": "A.fact1", "why": "names ADR 13 revising ADR 8 but not its condition" },
+  { "question": "v2-l4b-01", "box": "B.fact2", "why": "mentions fuzzy search only as Fuse.js's limitation, not as a requirement" },
+  { "question": "v2-l4b-05", "box": "A.fact1", "why": "\"named exports instead of default exports\" without \"everywhere\"" },
+  { "question": "v2-l4b-05", "box": "B.fact1", "why": "\"named exports instead of default exports\" without \"everywhere\"" },
+  { "question": "v2-l4b-06", "box": "B.fact1", "why": "\"tooling limitations\" without the Lerna / stable-release detail" }
+]

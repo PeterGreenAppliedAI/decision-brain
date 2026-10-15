@@ -71,7 +71,9 @@ judged by the same Claude session that built the system, with a disclosed blindi
 - **Borderline judging calls:** the run-2 judge reported 10 (listed in DECISIONS.md, October 15,
   "Evaluation v2, Run Again"). Re-scored with every one of them decided against the agent: 14/20 vs
   12/20, false premises 2/4 vs 2/4. Decided for it: 19/20 vs 9/20. (First published as 15–12 to 18–9:
-  two answers' sides were swapped by hand — corrected, with the sides now read from the key in code.)
+  two answers' sides were swapped by hand — corrected, with the sides now read from the key in code.
+  Reproduce: `npm run eval:v2 -- sensitivity`, which re-scores from the saved sheet, results and
+  `eval/v2/borderline.json` and writes nothing.)
   The agent leads in every case on this question set; how far depends on the judging, and the premise
   result is not robust to it. A sensitivity check on 24 questions, not a guarantee of broader
   performance.

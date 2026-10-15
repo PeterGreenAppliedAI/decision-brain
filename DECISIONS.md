@@ -4,6 +4,16 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Sensitivity Check Is a Command (October 15 2026)
+
+From the same review: a memory rule helps the coder, executable scoring lets anyone check. `npm run
+eval:v2 -- sensitivity` re-scores run 2 with the judge's borderline boxes (eval/v2/borderline.json —
+question, box, reason; nothing about which system owns it) decided all against, then all for, the agent.
+Ownership comes from the run's own A/B assignment. Output: 16/20 vs 10/20 as judged, 14/20 vs 12/20
+against, 19/20 vs 9/20 for — matching the corrected figures. It reads only. The scorer was factored into
+a function both modes share; `score` reproduces RESULTS.md byte for byte and now keeps the hand-written
+notes below the tables instead of overwriting them.
+
 ## Correction: the Borderline Range Was 14–12 to 19–9 (October 15 2026)
 
 An outside reviewer recomputed run 2 from the saved sheet, key and labels: the headline figures were

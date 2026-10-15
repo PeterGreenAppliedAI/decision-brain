@@ -105,7 +105,8 @@ a fresh subagent that saw only the blind sheet.
 **The claim this supports:** on a frozen 24-question evaluation across three repositories, Decision
 Brain answered more questions correctly than the same model given keyword-search results, at roughly
 2.6–2.9x the latency (in each run 7 questions only the agent got right, 1 only the baseline). With every
-borderline judging call of run 2 decided against the agent it still leads, 14/20 vs 12/20 — but the
+borderline judging call of run 2 decided against the agent it still leads, 14/20 vs 12/20 (`npm run eval:v2 -- sensitivity`
+reproduces it from the saved sheet) — but the
 false-premise result (4/4 vs 2/4) does not survive that, so it is not claimed as robust. It measures the whole
 workflow — several searches, specialised tools and graph relationships all differ from the one-call
 baseline — and does not isolate which part contributed how much. "Correct" means passing the rubric

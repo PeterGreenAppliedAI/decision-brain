@@ -2,7 +2,9 @@
  * npm run eval:v2 -- run      runs eval/v2/set.json: the agent, the same model on keyword-retrieved
  *                             entries, and raw keyword retrieval; writes eval/v2/results/<stamp>.json
  *                             and a BLIND judging sheet (answers as A/B, seeded shuffle; key kept apart)
- * npm run eval:v2 -- score    reads the ticked sheet, unblinds, writes eval/v2/RESULTS.md
+ * npm run eval:v2 -- score    reads the ticked sheet, unblinds, writes eval/v2/RESULTS.md (keeps its notes)
+ * npm run eval:v2 -- sensitivity   re-scores with the judge's borderline calls (eval/v2/borderline.json)
+ *                             decided all against, then all for, the agent — reads only, writes nothing
  *
  * Frozen before any run (eval/v2/SPEC.md): questions, labels, key facts, repository revisions, model
  * settings, scoring rules. Runs where the model host is reachable (the lab tmux session).
@@ -79,11 +81,42 @@ if (mode === 'run') {
   writeFileSync('eval/v2/JUDGING.md', sheet(stamp, rows));
   console.log(`saved ${DIR}/${stamp}.json; blind sheet eval/v2/JUDGING.md (key: ${DIR}/${stamp}.key.json — do not open before judging)`);
   await db.close();
-} else if (mode === 'score') {
+} else if (mode === 'score' || mode === 'sensitivity') {
   const stamp = readdirSync(DIR).filter((f) => /^\d.*\.json$/.test(f) && !f.endsWith('.key.json')).sort().at(-1)!.replace('.json', '');
   const rows = JSON.parse(readFileSync(`${DIR}/${stamp}.json`, 'utf8')) as Row[];
   const md = readFileSync('eval/v2/JUDGING.md', 'utf8');
-  const ticked = (qid: string, label: string) => new RegExp(`^## ${qid} [\\s\\S]*?^- \\[[xX]\\] ${label.replace('.', '\\.')}[:\\s]`, 'm').test(md.split(/^(?=## )/m).find((b) => b.startsWith(`## ${qid} `)) ?? '');
+  const judged = (qid: string, label: string) => new RegExp(`^## ${qid} [\\s\\S]*?^- \\[[xX]\\] ${label.replace('.', '\\.')}[:\\s]`, 'm').test(md.split(/^(?=## )/m).find((b) => b.startsWith(`## ${qid} `)) ?? '');
+  if (mode === 'score') {
+    const { table } = score(stamp, rows, judged);
+    // Hand-written notes below the tables ("## Reading these numbers" onward) survive a re-score.
+    let notes = '';
+    try { const old = readFileSync('eval/v2/RESULTS.md', 'utf8'); const i = old.indexOf('\n## Reading these numbers'); if (i >= 0) notes = old.slice(i); } catch { /* first score */ }
+    writeFileSync('eval/v2/RESULTS.md', table + notes);
+    console.log('wrote eval/v2/RESULTS.md');
+  } else {
+    // The judge's borderline calls (eval/v2/borderline.json), each re-decided against and then for the
+    // agent. Which system a box belongs to comes from the run's own A/B assignment, never by hand.
+    const calls = JSON.parse(readFileSync('eval/v2/borderline.json', 'utf8')) as Array<{ question: string; box: string; why: string }>;
+    const owner = (q: string, box: string) => ((box[0] === 'A') === agentIsA(stamp, q) ? 'agent' : 'rag');
+    const scenario = (forAgent: boolean | null) => score(stamp, rows, (q, label) => {
+      const c = calls.find((x) => x.question === q && x.box === label);
+      if (!c || forAgent === null) return judged(q, label);
+      const helpsOwner = !/\.wrong\d/.test(label);                      // a fact or premise tick helps; a must-not tick hurts
+      return (owner(q, label) === 'agent') === forAgent ? helpsOwner : !helpsOwner;
+    }).sys;
+    console.log(`Run ${stamp} — ${calls.length} borderline boxes (eval/v2/borderline.json)`);
+    for (const c of calls) console.log(`  ${c.question} ${c.box} (${owner(c.question, c.box)}) — judged ${judged(c.question, c.box) ? 'ticked' : 'not ticked'}: ${c.why}`);
+    console.log('\n| Scenario | Rubric: agent vs baseline | Premises: agent vs baseline |\n|---|---|---|');
+    for (const [name, f] of [['as judged', null], ['all borderline against the agent', false], ['all borderline for the agent', true]] as const) {
+      const s = scenario(f);
+      console.log(`| ${name} | ${s.agent.correct[0]}/${s.agent.correct[1]} vs ${s.rag.correct[0]}/${s.rag.correct[1]} | ${s.agent.premise[0]}/${s.agent.premise[1]} vs ${s.rag.premise[0]}/${s.rag.premise[1]} |`);
+    }
+  }
+}
+
+/** Scores a run given which boxes count as ticked; returns the per-system tallies and the results table. */
+function score(stamp: string, rows: Row[], ticked: (qid: string, label: string) => boolean) {
+
   const sys = { agent: { req: [0, 0], sup: [0, 0], correct: [0, 0], premise: [0, 0], abstain: [0, 0], flagged: 0, ms: [] as number[], tools: [] as number[] },
     rag: { req: [0, 0], sup: [0, 0], correct: [0, 0], premise: [0, 0], abstain: [0, 0], flagged: 0, ms: [] as number[], tools: [] as number[] },
     keyword: { req: [0, 0], sup: [0, 0] } };
@@ -111,7 +144,7 @@ if (mode === 'run') {
   }
   const pct = ([n, d]: number[]) => (d ? `${Math.round((100 * n) / d)}% (${n}/${d})` : '—');
   const med = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? `${(s[Math.floor(s.length / 2)] / 1000).toFixed(1)} s` : '—'; };
-  writeFileSync('eval/v2/RESULTS.md', [
+  const table = [
     `# Evaluation v2 — ${stamp}`, '', 'Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/JUDGING.md), then unblinded.', '',
     '| | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |', '|---|---|---|---|',
     `| Required evidence cited / retrieved | ${pct(sys.agent.req)} | ${pct(sys.rag.req)} | ${pct(sys.keyword.req)} (in top 5) |`,
@@ -123,6 +156,6 @@ if (mode === 'run') {
     `| Median latency | ${med(sys.agent.ms)} | ${med(sys.rag.ms)} | — |`,
     `| Median tool calls | ${sys.agent.tools.length ? [...sys.agent.tools].sort((a, b) => a - b)[Math.floor(sys.agent.tools.length / 2)] : '—'} | 0 (one model call) | — |`, '',
     '| Question | Kind | Agent | Same model + keyword | Keyword only |', '|---|---|---|---|---|', ...lines, '',
-  ].join('\n'));
-  console.log('wrote eval/v2/RESULTS.md');
+  ].join('\n');
+  return { sys, table };
 }
