@@ -130,9 +130,9 @@ used correctly — v1's inv-02 copied the right numbers and reversed what they m
   is treated as not existing then. (Text edits are handled; heading edits are not yet.)
 - **The by-date fallback is approximate** (no repo path given): an entry written later but dated
   earlier shows through. Set `REPO_PATHS` (or pass `--repo`) for the rebuilt review.
-- **Timestamps, not ancestry, for the reviewer cut-off and `told`.** They use the committer timestamp,
-  which a branch merged long after its commits can mislead. The rebuilt review itself reads the
-  commit's own tree.
+- **Without a repo path, the reviewer cut-off and `told` use timestamps.** With `REPO_PATHS` or
+  `--repo` they use the commit's ancestry; without, the committer timestamp, which a branch merged long
+  after its commits can mislead.
 - **A figure the answer repeats from the question is "unverified"**, whether the answer rejects or
   endorses it — code does not try to tell them apart.
 - **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files

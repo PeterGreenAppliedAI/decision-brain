@@ -4,6 +4,7 @@
  * cite. No model anywhere in here.
  */
 import type { Graph } from '../graph/db.js';
+import { ancestors } from '../ingest/git.js';
 import { trace } from './trace.js';
 
 export interface DecisionRef { id: string; title: string; date: string | null; status: string; source: string }
@@ -257,7 +258,7 @@ export async function origin(g: Graph, text: string) {
  * the commit touched, then sections naming files in the same directories. Says which agents co-wrote
  * the commit, and whether each piece of guidance has changed since.
  */
-export async function told(g: Graph, ref: string, limit = 6) {
+export async function told(g: Graph, ref: string, limit = 6, repo?: string) {
   const c = (await rows<{ sha: string; short: string; date: string; message: string; files: string[]; agents: string[]; humans: string[] }>(g,
     `MATCH (c:Commit) WHERE c.sha STARTS WITH $ref
      OPTIONAL MATCH (c)-[:TOUCHED]->(f:File)
@@ -268,20 +269,26 @@ export async function told(g: Graph, ref: string, limit = 6) {
             [x IN collect(DISTINCT p) WHERE x.kind = 'human' | x.name] AS humans LIMIT 2`, { ref }));
   if (c.length !== 1) return { commit: null, error: c.length ? 'ambiguous commit prefix' : 'no such commit in the graph' };
   const commit = c[0];
+  // In force at the commit: with the repo, sections whose introducing commit is in its history and whose
+  // replacing commit is not (ancestry); without it, by committer timestamp — an approximation.
+  const anc = repo ? [...ancestors(repo, commit.sha)] : null;
   const dirs = [...new Set(commit.files.map((f) => (f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '')))].filter(Boolean);
   const inForce = await rows<{ id: string; path: string; heading: string; text: string; from: string; until: string | null; names: string[]; replacedBy: string | null; replacedOn: string | null }>(g,
-    `MATCH (gd:Guidance) WHERE gd.from <= $date AND (gd.until IS NULL OR gd.until > $date)
+    `MATCH (gd:Guidance)
+     WHERE CASE WHEN $anc IS NULL THEN gd.from <= $date AND (gd.until IS NULL OR gd.until > $date)
+                ELSE gd.fromSha IN $anc AND (gd.untilSha IS NULL OR NOT gd.untilSha IN $anc) END
      OPTIONAL MATCH (gd)-[:NAMES]->(f:File)
      WITH gd, collect(f.path) AS names
      OPTIONAL MATCH (newer:Guidance)-[:REPLACES]->(gd)
      RETURN gd.id AS id, gd.path AS path, gd.heading AS heading, gd.text AS text, gd.from AS from, gd.until AS until, names,
-            newer.id AS replacedBy, newer.from AS replacedOn`, { date: commit.date });
+            newer.id AS replacedBy, newer.from AS replacedOn`, { date: commit.date, anc });
   const score = (gd: { names: string[] }) =>
     gd.names.filter((n) => commit.files.includes(n)).length * 10 + gd.names.filter((n) => dirs.some((d) => n.startsWith(d + '/'))).length;
   const ranked = inForce.map((gd) => ({ ...gd, relevance: score(gd) })).filter((gd) => gd.relevance > 0)
     .sort((a, b) => b.relevance - a.relevance || a.id.localeCompare(b.id)).slice(0, limit);
   const versions = await rows<{ path: string; from: string }>(g,
-    `MATCH (gd:Guidance) WHERE gd.from <= $date RETURN gd.path AS path, max(gd.from) AS from`, { date: commit.date });
+    `MATCH (gd:Guidance) WHERE CASE WHEN $anc IS NULL THEN gd.from <= $date ELSE gd.fromSha IN $anc END
+     RETURN gd.path AS path, max(gd.from) AS from`, { date: commit.date, anc });
   return {
     commit: { sha: commit.sha, short: commit.short, date: commit.date, message: commit.message, files: commit.files.sort() },
     aiCoAuthored: commit.agents.length > 0, agents: commit.agents.sort(), humans: commit.humans.sort(),

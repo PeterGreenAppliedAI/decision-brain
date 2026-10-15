@@ -96,3 +96,39 @@ describe.skipIf(!reachable)('as of when a change entered the history, not when i
     expect(p.items.map((i) => i.decision?.id)).toContain('2020-11-03-use-a');
   });
 });
+
+describe.skipIf(!reachable)('"before the change" means in its history, not earlier on the clock', () => {
+  let db: Awaited<ReturnType<typeof connect>>, g: Graph, repo: string, reviewed: string;
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
+  const commit = (who: string, msg: string, date: string) => {
+    execFileSync('git', ['-C', repo, 'add', '.']);
+    execFileSync('git', ['-C', repo, '-c', `user.name=${who}`, '-c', `user.email=${who}@x`, 'commit', '-q', '-m', msg],
+      { env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } });
+    return git('rev-parse', 'HEAD');
+  };
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-anc-'));
+    git('init', '-q', '-b', 'main');
+    mkdirSync(join(repo, 'src'));
+    writeFileSync(join(repo, 'src/store.ts'), 'export const s = 1;\n');
+    commit('Ada', 'store', '2026-05-01T10:00:00Z');
+    // Bo works on a side branch BEFORE the reviewed change, merged only AFTER it.
+    git('checkout', '-q', '-b', 'side');
+    writeFileSync(join(repo, 'src/store.ts'), 'export const s = 2;\n');
+    commit('Bo', 'side edit', '2026-05-05T10:00:00Z');
+    git('checkout', '-q', 'main');
+    writeFileSync(join(repo, 'src/store.ts'), 'export const s = 3;\n');
+    reviewed = commit('Cy', 'main edit', '2026-05-10T10:00:00Z');
+    execFileSync('git', ['-C', repo, '-c', 'user.name=Ada', '-c', 'user.email=a@x', 'merge', '-q', '-X', 'ours', '--no-edit', 'side'],
+      { env: { ...process.env, GIT_AUTHOR_DATE: '2026-05-20T10:00:00Z', GIT_COMMITTER_DATE: '2026-05-20T10:00:00Z' } });
+    db = await connect(); g = db.selectGraph(`test-anc-${process.pid}-${Date.now()}`);
+    await ingestRepo(g, repo);
+  });
+  afterAll(async () => { await g?.delete().catch(() => {}); await db?.close(); rmSync(repo, { recursive: true, force: true }); });
+
+  it('with the repo, a side-branch commit the change never saw does not make its author a reviewer', async () => {
+    const reviewers = (p: Awaited<ReturnType<typeof review>>) => p.items.filter((i) => i.reviewer).map((i) => i.reviewer!.name);
+    expect(reviewers(await review(g, reviewed.slice(0, 8), { repo }))).toEqual(['Ada']);
+    expect(reviewers(await review(g, reviewed.slice(0, 8)))).toEqual(['Ada', 'Bo']);   // by timestamp: the approximation
+  });
+});

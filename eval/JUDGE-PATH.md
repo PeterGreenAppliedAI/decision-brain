@@ -73,7 +73,8 @@ would reuse that volume — not a concern on a judge's machine).
    reviewer cut-off, `told` and instruction-file versions use; the author date is still shown. The
    committer timestamp is an approximation, not merge time — a commit can exist on a branch long before
    it is merged. What a commit truly includes is its tree and ancestry: review's rebuilt path reads the
-   commit's own tree; moving the reviewer cut-off and `told` to ancestry is open.
+   commit's own tree, and (since 2026-10-15) the reviewer cut-off and `told` use ancestry when the repo
+   is at hand.
 
 ## What this run did not verify
 

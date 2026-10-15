@@ -58,6 +58,11 @@ export function blameLines(repo: string, file: string): string[] {
   return out;
 }
 
+/** Every commit reachable from `rev`, itself included — what that commit's history truly contains. */
+export function ancestors(repo: string, rev: string): Set<string> {
+  return new Set(git(repo, ['rev-list', rev]).split('\n').filter(Boolean));
+}
+
 /** The commit that added a file (following renames), or null. */
 export function firstCommitOf(repo: string, path: string): string | null {
   const shas = git(repo, ['log', '--follow', '--diff-filter=A', '--format=%H', '--', path]).trim().split('\n').filter(Boolean);

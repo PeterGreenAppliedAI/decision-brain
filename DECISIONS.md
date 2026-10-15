@@ -4,6 +4,17 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Reviewers and `told` by Ancestry, Not the Clock (October 15 2026)
+
+The judge path left this open: review's suggested reviewers and `told`'s "instructions in force" used
+committer timestamps, so a side-branch commit made *before* a change but merged *after* it counted as
+part of its past. With the repo at hand (`--repo` or `REPO_PATHS`), both now use the commit's own
+history (`git rev-list`): reviewers are authors of its ancestors; an instruction section is in force if
+the commit that introduced it is an ancestor and the one that replaced it is not. Without the repo,
+the timestamp approximation stays, as before. Two fixtures with a side branch, each asserting both
+answers — the side-branch author is a reviewer only by timestamp; the agent's tree had the old rule,
+which only ancestry returns.
+
 ## File Summaries on All Three Repositories (October 15 2026)
 
 log4brains (200 files, 83 directories) in 17 min and content-publisher (431 files, 108 directories) in

@@ -68,6 +68,42 @@ describe.skipIf(!reachable)('told(commit) on a real graph', () => {
   });
 });
 
+describe.skipIf(!reachable)('told: in force means in the commit\'s history', () => {
+  let db: Awaited<ReturnType<typeof connect>>, g: Graph, repo: string, agentCommit: string;
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
+  const at = (date: string) => ({ env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } });
+  const commit = (msg: string, date: string, ...trailer: string[]) => {
+    execFileSync('git', ['-C', repo, 'add', '.']);
+    execFileSync('git', ['-C', repo, 'commit', '-q', '-m', msg, ...trailer.flatMap((t) => ['-m', t])], at(date));
+    return git('rev-parse', 'HEAD');
+  };
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-told-anc-'));
+    git('init', '-q', '-b', 'main'); git('config', 'user.name', 'Ada'); git('config', 'user.email', 'a@x');
+    mkdirSync(join(repo, 'src'));
+    writeFileSync(join(repo, 'src/store.ts'), 'export const s = 1;\n');
+    writeFileSync(join(repo, 'CLAUDE.md'), '## Memory\nNever write `src/store.ts` directly.\n');
+    commit('start', '2026-01-01T10:00:00Z');
+    // The rule is rewritten on a side branch on Jan 3; the agent's Jan 5 commit on main never had it.
+    git('checkout', '-q', '-b', 'side');
+    writeFileSync(join(repo, 'CLAUDE.md'), '## Memory\nWrite `src/store.ts` freely.\n');
+    commit('loosen the rule', '2026-01-03T10:00:00Z');
+    git('checkout', '-q', 'main');
+    writeFileSync(join(repo, 'src/store.ts'), 'export const s = 2;\n');
+    agentCommit = commit('agent edits the store', '2026-01-05T10:00:00Z', 'Co-Authored-By: Claude Test <noreply@anthropic.com>');
+    execFileSync('git', ['-C', repo, 'merge', '-q', '--no-edit', 'side'], at('2026-01-10T10:00:00Z'));
+    db = await connect(); g = db.selectGraph(`test-told-anc-${process.pid}-${Date.now()}`);
+    await ingestRepo(g, repo);
+  });
+  afterAll(async () => { await g?.delete().catch(() => {}); await db?.close(); rmSync(repo, { recursive: true, force: true }); });
+
+  it('with the repo: the rule the agent\'s tree had, not a newer one from a branch it never saw', async () => {
+    const text = (t: Awaited<ReturnType<typeof told>>) => (t as { guidance: Array<{ text: string }> }).guidance.map((x) => x.text);
+    expect(text(await told(g, agentCommit.slice(0, 8), 6, repo))).toEqual([expect.stringContaining('Never write `src/store.ts` directly')]);
+    expect(text(await told(g, agentCommit.slice(0, 8)))).toEqual([expect.stringContaining('Write `src/store.ts` freely')]);   // by timestamp
+  });
+});
+
 describe('dates', () => {
   it('are stored in UTC, so string comparison orders them correctly across time zones', async () => {
     const { parseGitLog } = await import('../src/ingest/git.js');

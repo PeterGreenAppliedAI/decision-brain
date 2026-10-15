@@ -92,7 +92,7 @@ server.registerTool('origin', {
 server.registerTool('told', {
   description: "What an AI agent was told when it wrote a commit: the instruction-file guidance (CLAUDE.md, AGENTS.md, …) in force on the commit's date, about the files it touched — which agents co-wrote it, and whether that guidance has changed since.",
   inputSchema: { commit: z.string(), ...graphArg },
-}, run((g, a: { commit: string }) => told(g, a.commit)));
+}, run((g, a: { commit: string; graph?: string }) => told(g, a.commit, 6, repoFor(a.graph ?? defaultGraph ?? ''))));
 
 server.registerTool('review', {
   description: 'The deterministic review packet for a commit: the decision it records, standing decisions on its files to re-check (with measurements), disproven experiments, superseded reasoning, and reviewers — all as of the commit. Items have stable ids (C1, R1, D1, S1, P1).',

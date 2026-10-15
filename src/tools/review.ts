@@ -18,6 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { config } from '../config.js';
 import type { Graph } from '../graph/db.js';
 import { entriesAt, type EntryThen } from '../ingest/at-commit.js';
+import { ancestors } from '../ingest/git.js';
 import { disproven, whatBreaks, why, type DecisionRef, type Measured, type Tried } from './graph-tools.js';
 
 export interface ReviewItem {
@@ -152,12 +153,16 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
   }
 
   // Reviewers: humans with the most commits on the changed files before the change, excluding its authors.
+  // "Before" is the change's own history (its ancestors) when the repo is at hand; by committer
+  // timestamp otherwise — an approximation, since a branch's commits can be older than what it merges.
+  const history = opts.repo && change.sha ? [...ancestors(opts.repo, change.sha)].filter((s) => s !== change.sha) : null;
   const people = await rows<{ name: string; commits: number; files: string[] }>(g,
     `MATCH (p:Person {kind: 'human'})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)
-     WHERE f.path IN $files AND NOT p.name IN $authors AND ($at IS NULL OR coalesce(c.committedAt, c.date) <= $at)
+     WHERE f.path IN $files AND NOT p.name IN $authors
+       AND (CASE WHEN $history IS NULL THEN ($at IS NULL OR coalesce(c.committedAt, c.date) <= $at) ELSE c.sha IN $history END)
      WITH p, count(DISTINCT c) AS commits, collect(DISTINCT f.path) AS files
      RETURN p.name AS name, commits, files ORDER BY commits DESC, name LIMIT $n`,
-    { files: change.files, authors: change.authors, at: change.committedAt, n: opts.reviewers ?? 3 });
+    { files: change.files, authors: change.authors, at: change.committedAt, history, n: opts.reviewers ?? 3 });
   for (const p of people) items.push({ kind: 'reviewer', reviewer: { ...p, files: p.files.sort() } });
 
   // Fixed order, then ids: the same change on the same graph always yields the same ids.
