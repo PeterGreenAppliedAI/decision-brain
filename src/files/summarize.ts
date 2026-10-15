@@ -39,10 +39,15 @@ export const DIR_SYSTEM = [
 ].join('\n');
 
 const LIMITS = { responsibilities: 5, exports: 8, depends_on: 8, parts: 8 };
+const word = (text: string, w: string) => new RegExp(`(^|[^\\w$])${w.replace(/\$/g, '\\$')}($|[^\\w$])`).test(text);
 const has = (text: string, name: string) => {
-  const n = name.trim();
+  const n = name.trim().replace(/\(\)$/, '');
   if (n.length < 2) return false;
-  if (/^[\w$]+$/.test(n)) return new RegExp(`(^|[^\\w$])${n.replace(/\$/g, '\\$')}($|[^\\w$])`).test(text);
+  if (/^[\w$]+$/.test(n)) return word(text, n);
+  // A qualified name — TaskStore.add, Edition#publish, Foo::Bar — is how a summary names a member; the
+  // file declares `add(` inside `class TaskStore`, never the string "TaskStore.add". Each part must be
+  // in the file as a whole identifier.
+  if (/^[\w$]+(?:(?:\.|#|::)[\w$]+)+$/.test(n)) return n.split(/\.|#|::/).every((part) => word(text, part));
   return text.includes(n);
 };
 

@@ -104,6 +104,27 @@ export async function refreshFileBoard(board: Graph, repo: string) {
   return { sha, changed, added, removed, dirsRedone: [...affected].sort() };
 }
 
+/**
+ * Files whose summary the code check rejected (finished, nothing verified) go back to pending with
+ * their directories up to the root, so the next run re-summarizes them and rebuilds what contains
+ * them. Returns the files re-queued.
+ */
+export async function requeueRejected(board: Graph): Promise<string[]> {
+  const files = (await rows<{ id: string; path: string }>(board,
+    `MATCH (s:Section {kind: 'file', status: 'done'}) OPTIONAL MATCH (f:Finding)-[:ABOUT]->(s)
+     WITH s, sum(CASE WHEN f.verified THEN 1 ELSE 0 END) AS ok, count(f) AS n WHERE n > 0 AND ok = 0
+     RETURN s.id AS id, s.path AS path ORDER BY id`));
+  if (!files.length) return [];
+  const redo = [...new Set([...files.map((f) => f.id), ...files.flatMap((f) => ancestorsOf(f.path))])];
+  await board.query('MATCH (f:Finding)-[:ABOUT]->(s:Section) WHERE s.id IN $ids DETACH DELETE f', { params: { ids: redo } });
+  await board.query(`MATCH (s:Section) WHERE s.id IN $ids SET s.status = 'pending', s.attempts = 0, s.claimedBy = null, s.expiresAt = null
+                     WITH s OPTIONAL MATCH (:Agent)-[c:CLAIMED]->(s) DELETE c`, { params: { ids: redo } });
+  await board.query(`MATCH (d:Section {kind: 'dir'}) OPTIONAL MATCH (c:Section)-[:PART_OF]->(d) WHERE c.status <> 'done'
+                     WITH d, count(c) AS w SET d.waiting = w`);
+  await event(board, 'retry', null, null, `${files.length} rejected file summaries re-queued with their directories`);
+  return files.map((f) => f.path);
+}
+
 export async function sync(db: Db, graphName: string, repo: string, opts: { llm: JsonClient; workers?: number; log?: (l: string) => void }): Promise<SyncReport> {
   const log = opts.log ?? (() => {});
   const workers = opts.workers ?? 4;

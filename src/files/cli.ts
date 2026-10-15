@@ -1,9 +1,10 @@
 /**
- * npm run summarize -- --graph <repo-graph> --repo <path> [--workers 4] [--limit N] [--reset] [--no-integrate]
+ * npm run summarize -- --graph <repo-graph> --repo <path> [--workers 4] [--limit N] [--reset] [--no-integrate] [--retry-rejected]
  *
  * File and directory summaries by a team of local workers on the board `<repo-graph>__files`:
  * every source file at HEAD, then each directory once all its parts are done, then the repo.
  * --limit keeps only the first N files (and their directories) — for trying it out.
+ * --retry-rejected re-summarizes files whose summary the code check rejected, and their directories.
  * Runs where the model host is reachable (the lab tmux session on this Mac).
  */
 import { resolve } from 'node:path';
@@ -14,15 +15,15 @@ import { connect, GraphConnectError } from '../graph/db.js';
 import { createJsonClient } from '../llm/openai.js';
 import { integrateSummaries } from './integrate.js';
 import { planTasks, sourceFiles } from './scan.js';
-import { blobsAt } from '../sync/sync.js';
+import { blobsAt, requeueRejected } from '../sync/sync.js';
 import { runSummaryWorker, seedFileBoard } from './worker.js';
 
 const { values } = parseArgs({ options: {
   graph: { type: 'string' }, repo: { type: 'string' }, workers: { type: 'string', default: '4' }, limit: { type: 'string' },
-  reset: { type: 'boolean' }, 'no-integrate': { type: 'boolean' },
+  reset: { type: 'boolean' }, 'no-integrate': { type: 'boolean' }, 'retry-rejected': { type: 'boolean' },
 } });
 if (!values.graph || !values.repo) {
-  console.error('usage: npm run summarize -- --graph <repo-graph> --repo <path> [--workers 4] [--limit N] [--reset] [--no-integrate]');
+  console.error('usage: npm run summarize -- --graph <repo-graph> --repo <path> [--workers 4] [--limit N] [--reset] [--no-integrate] [--retry-rejected]');
   process.exit(2);
 }
 const db = await connect().catch((err) => {
@@ -39,6 +40,7 @@ try {
   const chosen = values.limit ? files.slice(0, Number(values.limit)) : files;
   const tasks = planTasks(chosen);
   await seedFileBoard(board, tasks, sha, blobsAt(repo, sha));
+  if (values['retry-rejected']) console.log(`[summarize] retrying rejected: ${JSON.stringify(await requeueRejected(board))}`);
   const llm = createJsonClient();
   const names = Array.from({ length: Number(values.workers) }, (_, i) => `glm-${i + 1}`);
   console.log(`[summarize] ${chosen.length} files, ${tasks.length - chosen.length} directories at ${sha.slice(0, 7)} · ${names.length} workers · board ${boardName}`);

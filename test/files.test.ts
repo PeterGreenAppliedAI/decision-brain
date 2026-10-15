@@ -60,6 +60,13 @@ describe('summary checks', () => {
     expect(c.value.depends_on).toEqual(['zod']);
     expect(c.dropped.sort()).toEqual(['Section', 'claim', 'lodash', 'releaseAll']);
   });
+  it('accepts a member by its qualified name when every part is in the file; an invented part still drops it', () => {
+    const ts = 'export class TaskStore {\n  constructor() {}\n  add(t) {}\n  save() {}\n}';
+    const rb = 'class Edition < ApplicationRecord\n  def publish\n  end\nend\nmodule Foo\n  class Bar; end\nend';
+    const keep = (names: string[], text: string) => checkFile({ purpose: 'p', responsibilities: [{ text: 't', symbols: names }], exports: [], depends_on: [] }, text);
+    expect(keep(['TaskStore.add', 'TaskStore.save()', 'TaskStore.constructor', 'TaskStore.remove', 'Store.add'], ts).dropped).toEqual(['TaskStore.remove', 'Store.add']);
+    expect(keep(['Edition#publish', 'Foo::Bar', 'Edition#archive'], rb).dropped).toEqual(['Edition#archive']);
+  });
   it('accepts a subdirectory named with the trailing slash it was listed with', () => {
     expect(checkDir({ purpose: 'p', parts: [{ name: 'lib/', role: 'r' }] }, ['lib', 'a.ts']).value.parts).toEqual([{ name: 'lib', role: 'r' }]);
   });

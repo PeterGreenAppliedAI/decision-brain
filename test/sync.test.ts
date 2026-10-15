@@ -14,7 +14,7 @@ import { seedFileBoard } from '../src/files/worker.js';
 import { connect, type Graph } from '../src/graph/db.js';
 import { ingestRepo } from '../src/ingest/repo.js';
 import type { JsonClient } from '../src/llm/openai.js';
-import { blobsAt, sync } from '../src/sync/sync.js';
+import { blobsAt, requeueRejected, sync } from '../src/sync/sync.js';
 
 const reachable = await connect().then(async (db) => { await db.close(); return true; }, () => false);
 
@@ -100,5 +100,19 @@ describe.skipIf(!reachable)('sync — only what changed, and then nothing', () =
     expect(calls.filter((c) => c.startsWith('file_summary')).sort()).toEqual(['file_summary:src/c.ts']);
     const paths = (await brain.roQuery<{ p: string }>('MATCH (f:File) WHERE f.purpose IS NOT NULL RETURN f.path AS p ORDER BY p')).data!.map((x) => x.p);
     expect(paths).toEqual(['src/a.ts', 'src/c.ts']);
+  });
+
+  it('a summary the code check rejected is re-queued with its directories, nothing else', async () => {
+    const files = db.selectGraph(`${name}__files`);
+    await files.query("MATCH (f:Finding)-[:ABOUT]->(:Section {id: 'file:src/a.ts'}) SET f.verified = false");
+    const cSummary = await findingIds(files, 'file:src/c.ts');
+    expect(await requeueRejected(files)).toEqual(['src/a.ts']);
+    const status = (await files.roQuery<{ id: string; s: string }>('MATCH (s:Section) RETURN s.id AS id, s.status AS s ORDER BY id')).data!;
+    expect(status).toEqual([{ id: 'dir:.', s: 'pending' }, { id: 'dir:src', s: 'pending' }, { id: 'file:src/a.ts', s: 'pending' }, { id: 'file:src/c.ts', s: 'done' }]);
+    calls.length = 0;
+    await sync(db, name, repo, { llm, workers: 2 });
+    expect(calls.sort()).toEqual(['dir_summary:(repository root)', 'dir_summary:src', 'file_summary:src/a.ts']);
+    expect(await findingIds(files, 'file:src/c.ts')).toEqual(cSummary);
+    expect(await requeueRejected(files)).toEqual([]);
   });
 });
