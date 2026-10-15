@@ -145,10 +145,15 @@ export function verifyExtraction(x: Extraction, section: { id: string; body: str
 }
 
 /** A second agent's verdict counts as confirmation only if its quote is really in the target. */
-export function verifyHandoff(v: HandoffVerdict, targetBody: string): { confirmed: boolean; quote: string | null; reason: string } {
+/**
+ * A confirmation whose quote fails the check is not a verdict — the checker may be right and have
+ * mis-copied its evidence. It is `invalid`: the worker gives the handoff back for another attempt
+ * (and after the last, it fails) instead of recording it as rejected.
+ */
+export function verifyHandoff(v: HandoffVerdict, targetBody: string): { confirmed: boolean; quote: string | null; reason: string; invalid?: true } {
   if (!v.confirmed) return { confirmed: false, quote: null, reason: v.reason || 'not confirmed' };
   const bad = quoteCheck(v.quote, targetBody);
   return bad
-    ? { confirmed: false, quote: null, reason: `claimed confirmed, but ${bad}` }
+    ? { confirmed: false, quote: null, reason: `claimed confirmed, but ${bad}`, invalid: true }
     : { confirmed: true, quote: v.quote, reason: v.reason };
 }

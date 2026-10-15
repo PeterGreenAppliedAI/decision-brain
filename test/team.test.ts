@@ -23,7 +23,7 @@ const index = [
 ];
 
 /** A model that answers from a script keyed by entry id, after a small delay. */
-function scriptedLlm(delayMs = 20): JsonClient & { calls: string[] } {
+function scriptedLlm(delayMs = 20, badVerdicts = 0): JsonClient & { calls: string[] } {
   const calls: string[] = [];
   const extraction = (id: string): Extraction => ({
     measurements: id === 'd-new' ? [{ metric: 'rule A/B', value: '0/20 vs 16/20', quote: 'it scored 0/20 vs 16/20 for the current text' },
@@ -41,7 +41,8 @@ function scriptedLlm(delayMs = 20): JsonClient & { calls: string[] } {
       const id = /Entry id: (\S+)/.exec(req.user)?.[1] ?? 'handoff';
       calls.push(`${req.schemaName}:${id}`);
       const value = req.schemaName === 'handoff_verdict'
-        ? { confirmed: true, quote: 'The router prompt rule was corrected to say memory lives in the graph.', reason: 'the newer entry reverts this correction' }
+        ? { confirmed: true, reason: 'the newer entry reverts this correction',
+            quote: badVerdicts-- > 0 ? 'a paraphrase that is not in the entry' : 'The router prompt rule was corrected to say memory lives in the graph.' }
         : extraction(id);
       return { value: value as T, reasoning: '', promptTokens: 0, completionTokens: 0, ms: delayMs };
     },
@@ -75,7 +76,8 @@ describe('verifyExtraction (no database)', () => {
   it("confirms a handoff only when the second agent's quote is really in the target", () => {
     expect(verifyHandoff({ confirmed: true, quote: 'The router prompt rule was corrected', reason: 'r' }, OLD_BODY).confirmed).toBe(true);
     expect(verifyHandoff({ confirmed: true, quote: 'something it never said at all', reason: 'r' }, OLD_BODY))
-      .toEqual({ confirmed: false, quote: null, reason: 'claimed confirmed, but quote not found verbatim in the entry' });
+      .toEqual({ confirmed: false, quote: null, reason: 'claimed confirmed, but quote not found verbatim in the entry', invalid: true });
+    expect(verifyHandoff({ confirmed: false, quote: '', reason: 'no' }, OLD_BODY).invalid).toBeUndefined();   // a real rejection
   });
 });
 
@@ -174,6 +176,18 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     expect((await brain.roQuery<{ n: number }>('MATCH (m:Measurement) RETURN count(m) AS n')).data![0].n).toBe(1);
   });
 
+  it('a confirmation with a mis-copied quote is retried, not recorded as a rejection', async () => {
+    await Promise.all(['w1', 'w2', 'w3'].map((w) => worker(w, scriptedLlm(20, 1))));
+    const h = (await board.roQuery<{ status: string; attempts: number }>('MATCH (h:Handoff) RETURN h.status AS status, h.attempts AS attempts')).data!;
+    expect(h).toEqual([{ status: 'confirmed', attempts: 2 }]);
+  });
+
+  it('a handoff whose every confirmation is invalid fails — it is never "rejected"', async () => {
+    await Promise.all(['w1', 'w2', 'w3'].map((w) => worker(w, scriptedLlm(20, 99))));
+    const h = (await board.roQuery<{ status: string }>('MATCH (h:Handoff) RETURN h.status AS status')).data!;
+    expect(h).toEqual([{ status: 'failed' }]);
+  });
+
   it('recovers from a worker that crashes holding a claim: its section is taken over after expiry', async () => {
     const llm = scriptedLlm();
     const crashed = worker('crashy', llm, { crashAfterClaims: 0, ttlMs: 300 });
@@ -244,7 +258,10 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     // The team runs again: only the changed entry and the reopened handoff are worked; evidence is current again.
     const calls = llm.calls.length;
     await Promise.all(['w1', 'w2'].map((w) => worker(w, llm)));
-    expect(llm.calls.slice(calls).sort()).toEqual(['extraction:d-old', 'handoff_verdict:handoff']);
+    // The scripted confirmation quotes text the edit removed: invalid each time, so retried up to the
+    // limit and then failed — never recorded as a rejection.
+    expect(llm.calls.slice(calls).sort()).toEqual(['extraction:d-old', 'handoff_verdict:handoff', 'handoff_verdict:handoff', 'handoff_verdict:handoff']);
+    expect((await board.roQuery<{ s: string }>('MATCH (h:Handoff) RETURN h.status AS s')).data).toEqual([{ s: 'failed' }]);
     const after = await integrate(board, brain);
     expect(after.stale).toEqual({ findings: 0, handoffs: 0 });
   });

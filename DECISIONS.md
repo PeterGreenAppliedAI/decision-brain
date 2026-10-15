@@ -4,6 +4,20 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## A Mis-copied Quote Is Not a Rejection (October 15 2026)
+
+The demo dry run after a reset lost the supersession the run before had found. The second agent
+*confirmed* "the new decision supersedes the September one", but its supporting quote was not verbatim
+in the September entry — and the board recorded that as **rejected**, the same state as an agent
+judging the relation false. One bad sample erased a correct relation for good, and the review then
+listed the September decision as standing. A confirmation that fails the quote check is now
+`invalid`: the handoff goes back to the pool for another attempt, and after the last attempt it is
+`failed`, never `rejected`. Tests: a first confirmation with a paraphrased quote, then a good one, ends
+confirmed after 2 attempts; all-invalid ends failed. The edit-invalidation test's expectation changed
+accordingly (its scripted confirmation quotes text the edit removed: 3 attempts, then failed).
+In the same run one Ask answer was flagged unsupported-number: a figure in a paragraph headed "(same
+decision)" with no citation — the placement habit the prompt already forbids; two re-asks were clean.
+
 ## Ask Is Capped; Deployment Options Written Down (October 15 2026)
 
 Any public option puts this machine's model time behind a URL, so Ask now runs at most

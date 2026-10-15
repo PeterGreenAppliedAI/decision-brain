@@ -71,6 +71,7 @@ export async function runWorker(o: WorkerOptions): Promise<WorkerStats> {
           user: handoffUser({ relation: h.relation, quote: h.quote, raiser: { id: h.source, title: titles.get(h.source) ?? h.source }, other: target }),
         }));
         const verdict = verifyHandoff(res.value, target.body);
+        if (verdict.invalid) throw new Error(verdict.reason);   // retried, not recorded as a rejection
         if (await resolveHandoff(o.board, o.name, h.key, verdict, Date.now(), target.hash)) stats.handoffs++; else stats.lost++;
         log(`${o.name}: handoff ${h.key} → ${verdict.confirmed ? 'confirmed' : 'rejected'} (${res.ms} ms)`);
       } catch (err) {
