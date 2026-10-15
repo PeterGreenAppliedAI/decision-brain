@@ -70,6 +70,17 @@ describe.skipIf(!reachable)('graph tools', () => {
     expect(b.history.map((d) => d.id)).toEqual(['old']);
   });
 
+  it('what_breaks: an entry whose own text still says active is history once a later entry replaced it', async () => {
+    await g.query("MATCH (d:Decision {id: 'old'}) SET d.status = 'active'");
+    try {
+      const b = await whatBreaks(g, 'prompt.ts');
+      expect(b.recheck.map((d) => d.id)).toEqual(['new']);
+      expect(b.history.map((d) => [d.id, d.replacedBy])).toEqual([['old', [{ id: 'new', title: 'The wrong router rule was load-bearing', relation: 'supersedes' }]]]);
+    } finally {
+      await g.query("MATCH (d:Decision {id: 'old'}) SET d.status = 'superseded'");
+    }
+  });
+
   it('disproven: experiments that failed and decisions that were dropped, around a concept', async () => {
     const d = await disproven(g, 'router prompt');
     expect(d.experiments.map((e) => [e.id, e.decision.id])).toEqual([['e1', 'old']]);

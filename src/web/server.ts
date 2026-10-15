@@ -12,6 +12,7 @@ import { boardName } from '../board/board.js';
 import { connect, type Graph } from '../graph/db.js';
 import { ask } from '../agent/agent.js';
 import { buildPath } from '../agent/path.js';
+import { origin, whatBreaks, whatIs, why } from '../tools/graph-tools.js';
 import { trace } from '../tools/trace.js';
 
 const ROOT = resolve(import.meta.dirname, '../../web');
@@ -113,6 +114,20 @@ const server = createServer(async (req, res) => {
       if (parts[1] === 'trace' && parts[3]) {
         const t = await trace(graph(name), parts[3]);
         return t ? send(res, 200, t) : send(res, 404, { error: 'no such decision' });
+      }
+      // A decision's extracted evidence: measurements and experiments, each with its quote.
+      if (parts[1] === 'evidence' && parts[3]) {
+        const d = (await why(graph(name), parts[3])).decisions.find((x) => x.id === parts[3]);
+        return d ? send(res, 200, { measurements: d.measurements, experiments: d.experiments }) : send(res, 404, { error: 'no such decision' });
+      }
+      // A file-summary tile: what the file or directory does now; for a file, also the decisions that
+      // rest on it (with their evidence) and the commit that created it.
+      if (parts[1] === 'file' && parts[3]) {
+        const g = graph(name);
+        if (parts[3].startsWith('dir:')) return send(res, 200, { now: await whatIs(g, parts[3].slice(4)) });
+        const path = parts[3].replace(/^file:/, '');
+        const [now, breaks, o] = await Promise.all([whatIs(g, path), whatBreaks(g, path), origin(g, path)]);
+        return send(res, 200, { now, recheck: breaks.recheck, history: breaks.history, birth: o.birth, bornWith: o.recordedIntent?.decisions ?? [] });
       }
       return send(res, 404, { error: 'not found' });
     }

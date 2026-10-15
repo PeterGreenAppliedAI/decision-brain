@@ -232,7 +232,7 @@ npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Brows
 
 npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph
 npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
-npm run web                                            # board view http://127.0.0.1:4100, Ask view /ask.html
+npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html (run where the model is reachable)
 
 npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
 npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit
@@ -254,18 +254,26 @@ workers.
 `RATIONALE_EXCLUDE`, `CONCEPT_MAX_SHARE`, `CLAIM_TTL_MS`, `INSTRUCTION_FILES`, `FILE_EXTENSIONS`,
 `FILE_EXCLUDE` and a few more — nothing is hardcoded.
 
-`npm test` runs 62 tests, most against a real FalkorDB (fixture repos and graphs built per test);
+`npm test` runs 116 tests, most against a real FalkorDB (fixture repos and graphs built per test);
 CI runs them on every push against the same pinned FalkorDB version.
 
 ## Status
 
 Built: ingest (decision logs, ADRs, agent-instruction files with their history), the extraction team
 and board (with task dependencies), the integrator, the rationale graph, file → directory → repo
-summaries, twelve tools, the MCP server, the agent with its code checks, `review`, and the Board and
-Ask views. In progress: invalidating evidence when an entry is edited, a labelled evaluation set
-against a plain-search baseline, rebuilding the decision log as of a reviewed commit, question memory,
-deployment. The full record of what was decided, what failed and what was corrected is
-[DECISIONS.md](DECISIONS.md).
+summaries, twelve tools, the MCP server, the agent with its code checks, `review` (rebuilt from the log
+at the commit), `sync`, evaluation v1 and v2 (eval/), and two web views:
+
+- **Board** — the agents working live: one tile per decision entry or per file/directory, colour =
+  status, handoffs as arcs. Click a tile: a decision shows its measurements, experiments, relations and
+  commits; a file shows its summary, the decisions resting on it with their evidence, and the commit
+  that created it; a directory shows its parts, each clickable. Every panel links to Ask.
+- **Ask** — a question, the agent's tool calls as they happen, the answer with its citations and
+  figures checked, and the path behind it (decisions at the centre, then commits and files, then
+  evidence). Click a citation or a node for its source.
+
+Next: question memory, deployment. The full record of what was decided, what failed and what was
+corrected is [DECISIONS.md](DECISIONS.md).
 
 ## The event's rules, and how this repo meets them
 

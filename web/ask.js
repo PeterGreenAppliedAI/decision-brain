@@ -8,8 +8,14 @@ const EXAMPLES = {
   invarail: [
     "Why does the router prompt keep a rule that's factually wrong about memory?",
     'Why was the handoff tool removed the same night it was built?',
+    'If I change src/router/prompt.ts, what should I re-check?',
     'If I change src/memory/fact-store.ts, what decisions should I re-check?',
     'What has been tried and disproven about memory?',
+  ],
+  log4brains: [
+    'Why does log4brains identify an ADR by its slug instead of a number?',
+    'What branching strategy does the project use, and why did it change?',
+    'Why did the team choose Kubernetes?',
   ],
   'content-publisher': [
     'Why can content now be deleted when the database used to restrict deletion?',
@@ -32,13 +38,14 @@ const cy = cytoscape({
     ...Object.entries(KIND).map(([k, v]) => ({ selector: `node.${k}`, style: {
       shape: v.shape, width: v.w, height: v.h, 'background-color': css(v.color) } })),
     { selector: 'node', style: { label: 'data(short)', color: css('--text'), 'font-size': 9, 'font-family': 'monospace',
-      'text-wrap': 'wrap', 'text-max-width': 150, 'text-valign': 'bottom', 'text-margin-y': 4 } },
+      'text-wrap': 'wrap', 'text-max-width': 110, 'text-valign': 'bottom', 'text-margin-y': 4, 'min-zoomed-font-size': 8 } },
+    { selector: 'node.decision', style: { 'font-size': 11, 'text-max-width': 170, 'min-zoomed-font-size': 0 } },
     { selector: 'node.cited', style: { 'border-width': 2, 'border-color': '#ffffff' } },
     { selector: 'node.hi', style: { 'border-width': 4, 'border-color': css('--claimed') } },
     { selector: 'edge', style: { width: 1.5, 'line-color': '#3b4556', 'curve-style': 'bezier', 'target-arrow-shape': 'triangle',
-      'target-arrow-color': '#3b4556', label: 'data(type)', 'font-size': 7, color: css('--dim'), 'font-family': 'monospace',
+      'target-arrow-color': '#3b4556', 'font-size': 7, color: css('--dim'), 'font-family': 'monospace',
       'text-background-color': '#0b0e14', 'text-background-opacity': 1, 'text-rotation': 'autorotate' } },
-    { selector: 'edge.rel', style: { 'line-color': css('--handoff'), 'target-arrow-color': css('--handoff'), width: 2.5, color: css('--handoff') } },
+    { selector: 'edge.rel', style: { label: 'data(type)', 'font-size': 9, 'line-color': css('--handoff'), 'target-arrow-color': css('--handoff'), width: 2.5, color: css('--handoff') } },
   ],
 });
 
@@ -54,8 +61,10 @@ function drawPath(path) {
   cy.add(path.nodes.map((n) => ({ group: 'nodes', data: { id: n.id, short: short(n), node: n }, classes: `${n.kind} ${n.cited ? 'cited' : ''}` })));
   cy.add(path.edges.map((e, i) => ({ group: 'edges', data: { id: `e${i}`, source: e.source, target: e.target, type: e.type.toLowerCase() },
     classes: ['SUPERSEDES', 'REVISES', 'DISPROVES'].includes(e.type) ? 'rel' : '' })));
-  const roots = cy.nodes('.decision');
-  cy.layout(roots.length ? { name: 'breadthfirst', roots, directed: false, spacingFactor: 1.25, padding: 30 } : { name: 'grid' }).run();
+  // Rings: decisions at the centre, then the commits and files they rest on, then their evidence.
+  const RING = { decision: 3, commit: 2, file: 2, measurement: 1, experiment: 1 };
+  cy.layout({ name: 'concentric', concentric: (n) => RING[n.data('node').kind] ?? 1, levelWidth: () => 1,
+    minNodeSpacing: 34, spacingFactor: 1.1, padding: 30, startAngle: -Math.PI / 2 }).run();
   cy.fit(undefined, 40);
 }
 
@@ -79,11 +88,16 @@ function renderAnswer(text, grounding) {
 
 async function showDetail(n) {
   if (n.kind === 'decision') {
-    const t = await fetch(`/api/trace/${encodeURIComponent(graphName)}/${encodeURIComponent(n.id)}`).then((r) => r.ok ? r.json() : null);
+    const [t, ev] = await Promise.all([
+      fetch(`/api/trace/${encodeURIComponent(graphName)}/${encodeURIComponent(n.id)}`).then((r) => r.ok ? r.json() : null),
+      fetch(`/api/evidence/${encodeURIComponent(graphName)}/${encodeURIComponent(n.id)}`).then((r) => r.ok ? r.json() : { measurements: [], experiments: [] }),
+    ]);
     if (!t) return;
+    const evidence = (ev.measurements.length ? `<div class="ev"><b>measured</b>${ev.measurements.slice(0, 8).map((m) => `<div title="${esc(m.quote)}">${esc(m.metric)} <span class="val">${esc(m.value)}</span></div>`).join('')}</div>` : '') +
+      (ev.experiments.length ? `<div class="ev"><b>tried</b>${ev.experiments.map((x) => `<div title="${esc(x.quote)}">"${esc(x.hypothesis)}" — <span class="verdict ${esc(x.verdict)}">${esc(x.verdict)}</span></div>`).join('')}</div>` : '');
     $('detail').innerHTML = `<button class="close" onclick="this.parentElement.hidden=true">✕</button>
       <h3>${esc(t.decision.title)}</h3><div class="src">${esc(t.decision.date ?? 'undated')} · ${esc(t.decision.status)} · ${esc(t.decision.source)}</div>
-      ${t.related.map((r) => `<div class="rel-line"><b>${esc(r.relation.replace('_', ' '))}</b> ${esc(r.title)}${r.quote ? `<br><span class="src">“${esc(r.quote.slice(0, 160))}”</span>` : ''}</div>`).join('')}
+      ${evidence}${t.related.map((r) => `<div class="rel-line"><b>${esc(r.relation.replace('_', ' '))}</b> ${esc(r.title)}${r.quote ? `<br><span class="src">“${esc(r.quote.slice(0, 160))}”</span>` : ''}</div>`).join('')}
       <pre class="body">${esc(t.text)}</pre>`;
   } else {
     $('detail').innerHTML = `<button class="close" onclick="this.parentElement.hidden=true">✕</button>
@@ -92,6 +106,8 @@ async function showDetail(n) {
   $('detail').hidden = false;
 }
 cy.on('tap', 'node', (e) => showDetail(e.target.data('node')));
+cy.on('mouseover', 'node', (e) => { const n = e.target.data('node'); $('hover').textContent = `${n.kind}: ${n.label}${n.detail ? ` — ${n.detail}` : ''}`; });
+cy.on('mouseout', 'node', () => { $('hover').textContent = ''; });
 
 function highlight(c) {
   cy.nodes().removeClass('hi');
@@ -135,7 +151,7 @@ $('form').addEventListener('submit', (e) => { e.preventDefault(); const q = $('q
 $('q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); } });
 
 function showExamples() {
-  $('examples').innerHTML = (EXAMPLES[graphName] ?? []).map((q) => `<button class="ex">${esc(q)}</button>`).join('');
+  $('examples').innerHTML = (EXAMPLES[graphName] ?? EXAMPLES[graphName.replace(/-demo$/, '')] ?? []).map((q) => `<button class="ex">${esc(q)}</button>`).join('');
   $('examples').querySelectorAll('.ex').forEach((b) => b.addEventListener('click', () => { $('q').value = b.textContent; askQuestion(b.textContent); }));
 }
 
@@ -144,7 +160,13 @@ function showExamples() {
   $('graph').innerHTML = graphs.map((g) => `<option>${esc(g.name)}</option>`).join('');
   graphName ??= graphs[0]?.name;
   $('graph').value = graphName;
-  $('graph').onchange = () => { graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`); showExamples(); };
+  $('graph').onchange = () => {
+    graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`);
+    // Nothing from the previous graph stays on screen.
+    source?.close(); $('answer').hidden = true; $('steps').innerHTML = ''; $('detail').hidden = true; cy.elements().remove(); $('empty').hidden = false;
+    $('go').disabled = false; $('status').className = 'live'; $('status').textContent = 'ready';
+    showExamples();
+  };
   showExamples();
   const q = new URLSearchParams(location.search).get('q');
   if (q) { $('q').value = q; askQuestion(q); }

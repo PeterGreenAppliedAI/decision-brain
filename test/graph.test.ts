@@ -78,6 +78,17 @@ describe.skipIf(!reachable)('ingest + trace on a real FalkorDB', () => {
   it('returns null for an unknown decision', async () => {
     expect(await trace(graph, 'no-such-decision')).toBeNull();
   });
+
+  it('lists a link stored twice (parser and board) once, keeping its quote and both sources', async () => {
+    await graph.query(`MATCH (d:Decision {id: '2026-09-30-the-wrong-rule-was-load-bearing'})
+      CREATE (x:Decision {id: 'tmp-later', title: 'Later'}), (x)-[:REVISES]->(d), (x)-[:REVISES {via: 'board', quote: 'later revises it'}]->(d)`);
+    try {
+      const t = await trace(graph, '2026-09-30-the-wrong-rule-was-load-bearing');
+      expect(t!.related).toEqual([{ id: 'tmp-later', title: 'Later', relation: 'revises_by', quote: null, otherQuote: 'later revises it', via: 'board' }]);
+    } finally {
+      await graph.query("MATCH (x:Decision {id: 'tmp-later'}) DETACH DELETE x");
+    }
+  });
 });
 
 describe.skipIf(!reachable)('re-ingest converges on the repo as it is now', () => {

@@ -118,13 +118,18 @@ export async function why(g: Graph, text: string): Promise<{ target: Target; dec
 const SETTLED = ['superseded', 'failed'];
 
 /** If this file changes, which standing decisions should be re-checked — and on what evidence. */
-export async function whatBreaks(g: Graph, file: string): Promise<{ target: Target; recheck: WhyItem[]; history: WhyItem[] }> {
+export async function whatBreaks(g: Graph, file: string): Promise<{ target: Target; recheck: WhyItem[]; history: Array<WhyItem & { replacedBy: Array<{ id: string; title: string; relation: string }> }> }> {
   const w = await why(g, file);
-  return {
-    target: w.target,
-    recheck: w.decisions.filter((d) => !SETTLED.includes(d.status)),
-    history: w.decisions.filter((d) => SETTLED.includes(d.status)),
-  };
+  // Settled by its own status, or by a later entry that replaced it — an entry's text rarely says it
+  // was superseded; the superseding entry does. The same rule review uses. Each history item says
+  // what replaced it, so its own status ("active", as written) is not read as standing.
+  const by = await rows<{ id: string; n: { id: string; title: string; relation: string } }>(g,
+    `MATCH (n:Decision)-[r:SUPERSEDES|REVISES|DISPROVES]->(d:Decision) WHERE d.id IN $ids
+     RETURN DISTINCT d.id AS id, {id: n.id, title: n.title, relation: toLower(type(r))} AS n ORDER BY id, n.id`, { ids: w.decisions.map((d) => d.id) });
+  const replacedBy = (id: string) => by.filter((r) => r.id === id).map((r) => r.n);
+  const settled = (d: WhyItem) => SETTLED.includes(d.status) || replacedBy(d.id).length > 0;
+  return { target: w.target, recheck: w.decisions.filter((d) => !settled(d)),
+    history: w.decisions.filter(settled).map((d) => ({ ...d, replacedBy: replacedBy(d.id) })) };
 }
 
 /** What was tried and rejected around a file or concept — so nobody tries it again. */

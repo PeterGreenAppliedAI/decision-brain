@@ -4,6 +4,26 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Board Was a Progress Monitor; Now It Can Be Read (October 15 2026)
+
+Peter: once a board finished, the page had nothing more to say — file-summary tiles did nothing when
+clicked (the handler skipped them), and decision panels left out the extracted evidence. "If we show it,
+it needs to work." Clicked through every view on every graph and fixed what didn't:
+- file and directory tiles open their summary, the decisions resting on a file with their measurements
+  and experiments, its birth commit, and clickable parts; decision panels show their evidence; every
+  panel links to Ask; handoff cards open their entry; hovering a tile names it;
+- tile labels appear only when zoomed in (at fit they overlapped into noise);
+- Ask: examples for log4brains and the demo copy; switching graphs clears the previous answer; the
+  path is laid out in rings instead of one overlapping row; decision panels show evidence;
+- **a relation stored twice** (found by the parser, confirmed by the board) was listed twice — `trace`
+  now merges it, keeping the quote and both sources; this also reaches the agent;
+- **`what_breaks` called a superseded decision standing.** It went by the entry's own status line —
+  "active" in the September entry, which never says it was replaced — while `review` also checks for a
+  superseding entry. Asked "if I change prompt.ts, what should I re-check?" on the demo copy, the agent
+  told the user to re-check both. `what_breaks` now applies review's rule and says what replaced each
+  history item; the same question now gets one decision to re-check and the September one as history.
+  Tests for both fail without the fix. The v1/v2 evaluation numbers were measured before this change.
+
 ## The Re-run Verified the Demo, and One Label Contradicted Itself (October 15 2026)
 
 The whole demo, from a fresh setup, with the new scripted update: sync 4 model calls / 59.5 s; the

@@ -55,7 +55,7 @@ server.registerTool('trace', {
 }, run((g, a: { decision_id: string }) => trace(g, a.decision_id)));
 
 server.registerTool('what_breaks', {
-  description: 'If this file changes, which standing decisions rest on it and should be re-checked — with their evidence. Settled (superseded or failed) decisions are listed apart as history.',
+  description: 'If this file changes, which standing decisions rest on it and should be re-checked — with their evidence. Settled decisions — superseded, failed, or replaced by a later entry (replacedBy) even if their own status still reads active — are listed apart as history: not standing, do not tell anyone to re-check them.',
   inputSchema: { file: z.string(), ...graphArg },
 }, run((g, a: { file: string }) => whatBreaks(g, a.file)));
 

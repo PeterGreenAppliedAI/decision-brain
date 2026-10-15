@@ -63,7 +63,13 @@ export async function trace(graph: Graph, id: string): Promise<TraceResult | nul
   return {
     decision: head[0].decision,
     text: body.length > TEXT_CAP ? `${body.slice(0, TEXT_CAP)} …[${body.length - TEXT_CAP} more chars]` : body,
-    related: related.sort((a, b) => a.relation.localeCompare(b.relation) || a.id.localeCompare(b.id)),
+    // One line per relation and decision: the same link can be stored twice — found by the parser
+    // and confirmed by the board — so the two are merged into one, keeping any quote and every via.
+    related: [...related.reduce((m, r) => {
+      const k = `${r.relation}|${r.id}`, had = m.get(k);
+      m.set(k, had ? { ...had, quote: had.quote ?? r.quote, otherQuote: had.otherQuote ?? r.otherQuote, via: [had.via, r.via].filter(Boolean).sort().join('+') || null } : r);
+      return m;
+    }, new Map<string, Related>()).values()].sort((a, b) => a.relation.localeCompare(b.relation) || a.id.localeCompare(b.id)),
     recordedIn: recordedIn.map(tidy), cites: cites.map(tidy),
     mentions: mentions.map((m) => m.path), supersedes, supersededBy,
   };

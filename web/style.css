@@ -126,3 +126,19 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .checks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .checks .badge { margin-bottom: 0; }
 .badge.neutral { background: #8b949e1a; color: var(--dim); border: 1px solid #8b949e44; }
+.detail p { margin: 6px 0 10px; }
+.detail .ev { margin: 10px 0; }
+.detail .ev > b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); font-weight: 500; margin-bottom: 4px; }
+.detail .ev > div { margin: 3px 0; }
+.detail .val { color: var(--done); }
+.detail .verdict.disproven { color: var(--failed); } .detail .verdict.confirmed { color: var(--done); }
+.detail .dec { margin: 6px 0 10px; padding-left: 8px; border-left: 2px solid var(--handoff); }
+.detail .dec .ev { margin: 4px 0; }
+.detail a { color: var(--agent); text-decoration: none; } .detail a:hover { text-decoration: underline; }
+.detail a.ask { display: block; margin-top: 12px; }
+.detail .stale { color: var(--claimed); }
+.detail .part { margin: 3px 0; }
+.detail .rel { color: var(--handoff); }
+.hover { position: absolute; left: 14px; top: 12px; max-width: 60%; color: var(--text); background: var(--panel); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+.hover:empty { display: none; }
+.handoff[data-source] { cursor: pointer; }

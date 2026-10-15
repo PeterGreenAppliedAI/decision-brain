@@ -12,7 +12,7 @@ const cy = cytoscape({
   boxSelectionEnabled: false,
   style: [
     { selector: 'node.section', style: { shape: 'round-rectangle', width: 26, height: 26, 'background-color': css('--pending'),
-      label: 'data(short)', 'font-size': 7, color: '#8b95a7', 'text-valign': 'bottom', 'text-margin-y': 3, 'font-family': 'monospace' } },
+      label: 'data(short)', 'font-size': 7, 'min-zoomed-font-size': 9, color: '#8b95a7', 'text-valign': 'bottom', 'text-margin-y': 3, 'font-family': 'monospace' } },
     { selector: 'node.section.claimed', style: { 'background-color': css('--claimed') } },
     { selector: 'node.section.done', style: { 'background-color': css('--done') } },
     { selector: 'node.section.failed', style: { 'background-color': css('--failed') } },
@@ -97,7 +97,7 @@ function render(snap) {
       <div class="meta">${esc(a.model)} · ${doneBy(a.name)} sections · ${a.findings} findings</div></div>`;
   }).join('') : '<div class="empty">no agents yet</div>';
 
-  $('handoffs').innerHTML = snap.handoffs.length ? snap.handoffs.map((h) => `<div class="handoff ${h.status}">
+  $('handoffs').innerHTML = snap.handoffs.length ? snap.handoffs.map((h) => `<div class="handoff ${h.status}" data-source="${esc(h.source)}">
       <div><span class="rel">${esc(h.relation)}</span> · ${esc(h.status)}</div>
       <div class="ids">${esc(h.source)} → ${esc(h.target)}</div>
       <div class="who">raised by ${esc(h.raisedBy)}${h.resolvedBy ? ` · ${h.status} by ${esc(h.resolvedBy)}` : ''}</div>
@@ -114,21 +114,68 @@ function render(snap) {
   fresh.forEach((id) => seenEvents.add(id));
 }
 
+const panel = (html) => { $('detail').innerHTML = `<button class="close" onclick="this.parentElement.hidden=true">✕</button>${html}`; $('detail').hidden = false; $('detail').scrollTop = 0; };
+const askLink = (q) => `<a class="ask" href="/ask.html?graph=${encodeURIComponent(graphName)}&q=${encodeURIComponent(q)}">Ask: ${esc(q)} →</a>`;
+const evidence = (ms, es, n = 6) =>
+  (ms.length ? `<div class="ev"><b>measured</b>${ms.slice(0, n).map((m) => `<div title="${esc(m.quote)}">${esc(m.metric)} <span class="val">${esc(m.value)}</span></div>`).join('')}${ms.length > n ? `<div class="src">+${ms.length - n} more</div>` : ''}</div>` : '') +
+  (es.length ? `<div class="ev"><b>tried</b>${es.map((e) => `<div title="${esc(e.quote)}">"${esc(e.hypothesis)}" — <span class="verdict ${esc(e.verdict)}">${esc(e.verdict)}</span></div>`).join('')}</div>` : '');
+const focus = (id) => { const n = cy.getElementById(id); if (n.nonempty()) { cy.$(':selected').unselect(); n.select(); cy.animate({ center: { eles: n } }, { duration: 250 }); } };
+
+// A decision tile: the entry, the commits behind it, and the evidence the agents extracted from it.
 async function showDetail(id) {
-  const t = await fetch(`/api/trace/${encodeURIComponent(graphName)}/${encodeURIComponent(id)}`).then((r) => r.ok ? r.json() : null);
+  const [t, ev] = await Promise.all([
+    fetch(`/api/trace/${encodeURIComponent(graphName)}/${encodeURIComponent(id)}`).then((r) => r.ok ? r.json() : null),
+    fetch(`/api/evidence/${encodeURIComponent(graphName)}/${encodeURIComponent(id)}`).then((r) => r.ok ? r.json() : { measurements: [], experiments: [] }),
+  ]);
   if (!t) return;
   const d = t.decision;
   const commit = (label, c) => `<div class="commit"><span class="sha">${esc(c.short)}</span> ${esc(label)} · ${esc(c.date.slice(0, 10))}<br>${esc(c.message.slice(0, 160))}<br>
     <span class="src">${esc(c.authors.join(', '))} · ${c.files.length} files</span></div>`;
-  $('detail').innerHTML = `<button class="close" onclick="this.parentElement.hidden=true">✕</button>
-    <h3>${esc(d.title)}</h3><div class="src">${esc(d.date ?? 'undated')} · ${esc(d.status)} · ${esc(d.source)}</div>
+  panel(`<h3>${esc(d.title)}</h3><div class="src">${esc(d.date ?? 'undated')} · ${esc(d.status)} · ${esc(d.source)}</div>
+    ${evidence(ev.measurements, ev.experiments)}
+    ${t.related.map((r) => `<div class="rel-line"><span class="rel">${esc(r.relation.replace('_', ' '))}</span> <a href="#" data-dec="${esc(r.id)}">${esc(r.title)}</a></div>`).join('')}
     ${t.recordedIn.map((c) => commit('recorded in', c)).join('')}${t.cites.map((c) => commit('cited', c)).join('')}
-    ${t.mentions.length ? `<div class="src">mentions ${esc(t.mentions.join(', '))}</div>` : ''}
-    ${t.supersedes.length ? `<div>supersedes ${t.supersedes.map((x) => esc(x.title)).join(', ')}</div>` : ''}
-    ${t.supersededBy.length ? `<div>superseded by ${t.supersededBy.map((x) => esc(x.title)).join(', ')}</div>` : ''}`;
-  $('detail').hidden = false;
+    ${t.mentions.length ? `<div class="src">names ${t.mentions.map(esc).join(', ')}</div>` : ''}
+    ${askLink(`Why: ${d.title}`)}`);
 }
-cy.on('tap', 'node.section', (e) => { if (job !== 'files') showDetail(e.target.id()); });
+
+// A file-summary tile: what it does now (model-written, from the code); for a file, the decisions that
+// rest on it and where it came from; for a directory, its parts, each clickable.
+async function showFile(id) {
+  const r = await fetch(`/api/file/${encodeURIComponent(graphName)}/${encodeURIComponent(id)}`).then((x) => x.ok ? x.json() : null);
+  if (!r) return;
+  const now = r.now;
+  const head = (path) => `<h3>${esc(path)}</h3>`;
+  if (!now.purpose) return panel(`${head(id.replace(/^(file|dir):/, ''))}<div class="src">not summarized yet</div>`);
+  const note = `<div class="src">summary of the code (model-written)${now.describesCommit ? ` at ${esc(now.describesCommit.slice(0, 7))}` : ''}${now.stale ? ` · <span class="stale">changed ${now.changedSince}× since — run sync</span>` : ''}</div>`;
+  if (now.kind === 'directory') {
+    const child = (p) => cy.getElementById(`dir:${p}`).nonempty() ? `dir:${p}` : `file:${p}`;
+    const role = new Map((now.parts ?? []).map((x) => [x.name, x.role]));
+    const items = now.contains.map((p) => { const nm = p.split('/').pop(); const cid = child(p);
+      return `<div class="part"><a href="#" data-id="${esc(cid)}">${esc(nm)}${cid.startsWith('dir:') ? '/' : ''}</a> ${esc(role.get(nm) ?? role.get(nm + '/') ?? '')}</div>`; }).join('');
+    panel(`${head(now.path === '.' ? '(repository root)' : now.path + '/')}${note}<p>${esc(now.purpose)}</p><div class="ev"><b>parts</b>${items}</div>`);
+  } else {
+    const dec = (d) => `<div class="dec"><a href="#" data-dec="${esc(d.id)}">${esc(d.title)}</a> <span class="src">${esc(d.date ?? 'undated')} · ${esc(d.status)} · via ${esc((d.via ?? []).join(', '))}</span>${evidence(d.measurements ?? [], d.experiments ?? [], 3)}</div>`;
+    panel(`${head(now.path)}${note}<p>${esc(now.purpose)}</p>
+      ${(now.responsibilities ?? []).length ? `<div class="ev"><b>does</b>${now.responsibilities.map((x) => `<div>${esc(x.text)}</div>`).join('')}</div>` : ''}
+      <div class="ev"><b>decisions resting on it</b>${r.recheck.length ? r.recheck.map(dec).join('') : '<div class="src">none recorded</div>'}</div>
+      ${r.history.length ? `<div class="ev"><b>settled history</b>${r.history.map(dec).join('')}</div>` : ''}
+      ${r.birth ? `<div class="ev"><b>born</b><div class="commit"><span class="sha">${esc(r.birth.short)}</span> ${esc(r.birth.date.slice(0, 10))} · ${esc(r.birth.authors.join(', '))}<br>${esc(r.birth.message.slice(0, 160))}</div>${r.bornWith.length ? `<div class="src">recorded with it: ${r.bornWith.map((d) => esc(d.title)).join(', ')}</div>` : ''}</div>` : ''}
+      ${askLink(`Why is ${now.path} the way it is?`)}`);
+  }
+}
+$('detail').addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-id], a[data-dec]');
+  if (!a) return;
+  e.preventDefault();
+  if (a.dataset.id) { focus(a.dataset.id); showFile(a.dataset.id); }
+  else showDetail(a.dataset.dec);   // its tile is on the decisions board; the panel works from either
+});
+cy.on('tap', 'node.section', (e) => (job === 'files' ? showFile : showDetail)(e.target.id()));
+cy.on('mouseover', 'node.section', (e) => { $('hover').textContent = e.target.data('title') ?? ''; });
+cy.on('mouseout', 'node.section', () => { $('hover').textContent = ''; });
+// A handoff card opens the entry that raised it.
+$('handoffs').addEventListener('click', (e) => { const h = e.target.closest('.handoff[data-source]'); if (h) { focus(h.dataset.source); showDetail(h.dataset.source); } });
 
 const STATIC = new URLSearchParams(location.search).has('static');   // one snapshot, no stream (screenshots)
 
