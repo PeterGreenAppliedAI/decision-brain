@@ -64,8 +64,11 @@ const server = createServer(async (req, res) => {
     if (parts[0] === 'api') {
       if (parts[1] === 'graphs') {
         const all = await db.list();
-        return send(res, 200, all.filter((g) => !/__(board|files)$/.test(g) && !g.startsWith('test-'))
-          .map((g) => ({ name: g, board: all.includes(boardName(g)), files: all.includes(`${g}__files`) })));
+        const names = all.filter((g) => !/__(board|files)$/.test(g) && !g.startsWith('test-'));
+        // A demo copy (scripts/demo/setup.ts marks it) holds scripted changes; pages list it only on request.
+        const demo = await Promise.all(names.map(async (g) =>
+          ((await graph(g).roQuery<{ n: number }>('MATCH (m:DemoCopy) RETURN count(m) AS n')).data?.[0]?.n ?? 0) > 0));
+        return send(res, 200, names.map((g, i) => ({ name: g, board: all.includes(boardName(g)), files: all.includes(`${g}__files`), demo: demo[i] })));
       }
       const name = safeName(parts[2] ?? '');
       if (!name) return send(res, 400, { error: 'bad graph name' });

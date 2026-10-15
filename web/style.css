@@ -19,7 +19,8 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 .live { margin-left: auto; color: var(--dim); }
 .live.on::before { content: "● "; color: var(--done); }
 
-main { display: grid; grid-template-columns: 280px 1fr 340px; height: calc(100% - 49px); min-height: 0; }
+body { display: flex; flex-direction: column; }
+main { display: grid; grid-template-columns: 280px 1fr 340px; flex: 1; min-height: 0; }
 main > section { min-height: 0; overflow: auto; }
 .agents, .feed { padding: 12px 14px; background: var(--panel); }
 .agents { border-right: 1px solid var(--line); }
@@ -144,3 +145,4 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .handoff[data-source] { cursor: pointer; }
 .sw.rejected { background: var(--pending); outline: 2px solid var(--failed); outline-offset: -2px; }
 .detail h3 { overflow-wrap: anywhere; padding-right: 18px; }
+.demo-banner { background: #3a2a00; color: var(--claimed); padding: 6px 16px; border-bottom: 1px solid var(--claimed); }

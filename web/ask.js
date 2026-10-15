@@ -156,9 +156,14 @@ function showExamples() {
 }
 
 (async () => {
-  const graphs = await fetch('/api/graphs').then((r) => r.json());
-  $('graph').innerHTML = graphs.map((g) => `<option>${esc(g.name)}</option>`).join('');
-  graphName ??= graphs[0]?.name;
+  const all = await fetch('/api/graphs').then((r) => r.json());
+  // Demo copies only when the URL names one.
+  const graphs = all.filter((g) => !g.demo || g.name === graphName);
+  $('graph').innerHTML = graphs.map((g) => `<option value="${esc(g.name)}">${esc(g.name)}${g.demo ? ' (demo copy)' : ''}</option>`).join('');
+  if (!graphs.some((g) => g.name === graphName)) graphName = graphs[0]?.name;
+  const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; };
+  demoBanner();
+  $('graph').addEventListener('change', demoBanner);
   $('graph').value = graphName;
   $('graph').onchange = () => {
     graphName = $('graph').value; history.replaceState(null, '', `?graph=${graphName}`);

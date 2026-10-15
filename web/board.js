@@ -198,16 +198,20 @@ function connectStream() {
 }
 
 (async () => {
-  const graphs = await fetch('/api/graphs').then((r) => r.json());
+  const all = await fetch('/api/graphs').then((r) => r.json());
+  const graphs = all.filter((g) => !g.demo || g.name === graphName);   // demo copies only when the URL names one
   // One entry per board: the decision-extraction board and the file-summary board of each graph.
   const opts = graphs.flatMap((g) => [
-    ...(g.board ? [{ v: `${g.name}|board`, label: `${g.name} · decisions` }] : []),
-    ...(g.files ? [{ v: `${g.name}|files`, label: `${g.name} · file summaries` }] : []),
+    ...(g.board ? [{ v: `${g.name}|board`, label: `${g.name}${g.demo ? ' (demo copy)' : ''} · decisions` }] : []),
+    ...(g.files ? [{ v: `${g.name}|files`, label: `${g.name}${g.demo ? ' (demo copy)' : ''} · file summaries` }] : []),
   ]);
   $('graph').innerHTML = opts.map((o) => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join('');
   if (!graphName) [graphName, job] = (opts[0]?.v ?? '|board').split('|');
   if (!graphName) { $('live').textContent = 'no boards yet — run npm run team or npm run summarize'; return; }
   $('graph').value = `${graphName}|${job}`;
+  const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; };
+  demoBanner();
+  $('graph').addEventListener('change', demoBanner);
   $('graph').onchange = () => { [graphName, job] = $('graph').value.split('|'); history.replaceState(null, '', `?graph=${graphName}${job === 'files' ? '&job=files' : ''}`); connectStream(); };
   connectStream();
 })();

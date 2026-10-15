@@ -47,7 +47,8 @@ show that line. The review takes ~2 s. The review packet:
 evidence before it merges.
 
 ## 4 · Open the evidence (Track 03) — ~20 s
-Ask view, graph `invarail-demo`: *"If I change src/router/prompt.ts, what should I re-check?"* — the
+Ask view on the demo copy — open `http://127.0.0.1:4100/ask.html?graph=invarail-demo` (demo copies are
+listed only when the link names one, under a "Demo copy" banner): *"If I change src/router/prompt.ts, what should I re-check?"* — the
 tool calls stream in, the answer cites the decision and quotes 0/20 vs 16/20, the code checks show
 citations and figures matched, and the path draws prompt.ts → the revert commit → the decision → the
 disproven experiment and its measurements. Click the decision to read its source lines.
