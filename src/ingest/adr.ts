@@ -12,7 +12,8 @@ import { join } from 'node:path';
 import { config } from '../config.js';
 import { extractRefs, type DecisionEntry } from './decisions.js';
 
-const ADR_FILE = /^(\d{3,5})-.+\.(md|markdown)$/;
+// "0013-title.md" (adr-tools, Nygard) or "20200926-title.md" (log4brains: the date is the prefix).
+const ADR_FILE = /^(\d{3,8})-.+\.(md|markdown)$/;
 
 export function findAdrDir(repo: string, candidates = config.adrDirs): string | null {
   return candidates.find((d) => existsSync(join(repo, d)) && readdirSync(join(repo, d)).some((f) => ADR_FILE.test(f))) ?? null;
@@ -61,7 +62,7 @@ export function parseAdr(file: string, text: string, idOf: (n: number) => string
   for (const l of statusLines) {
     const relation = /superseded\b|superseded:/i.test(l) ? 'superseded_by' : /\bsupersedes\b/i.test(l) ? 'supersedes' : null;
     if (!relation) continue;
-    for (const m of l.matchAll(/\]\(([^)]*?)(\d{3,5})-[^)]*\)/g)) {
+    for (const m of l.matchAll(/\]\(([^)]*?)(\d{3,8})-[^)]*\)/g)) {
       const target = idOf(Number(m[2]));
       if (target) links.push({ target, relation });
     }
@@ -77,11 +78,22 @@ export function parseAdr(file: string, text: string, idOf: (n: number) => string
   };
 }
 
-/** ADR files (name + text) → entries; ids are "adr-" + the file's number as written ("adr-0013"). */
+/** A date-shaped prefix (log4brains: "20200926") — used when the record has no Date line. */
+function dateFromPrefix(prefix: string): string | null {
+  const m = /^(20\d{2}|19\d{2})(\d{2})(\d{2})$/.exec(prefix);
+  return m && Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1 && Number(m[3]) <= 31 ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+/** ADR files (name + text) → entries; ids are "adr-" + the file's prefix as written ("adr-0013", "adr-20200926"). */
 export function parseAdrFiles(dir: string, files: Array<{ name: string; text: string }>): DecisionEntry[] {
   const adrs = files.filter((f) => ADR_FILE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
   const byNumber = new Map(adrs.map((f) => [Number(ADR_FILE.exec(f.name)![1]), `adr-${ADR_FILE.exec(f.name)![1]}`]));
-  return adrs.map((f) => ({ ...parseAdr(f.name, f.text, (n) => byNumber.get(n)), id: `adr-${ADR_FILE.exec(f.name)![1]}`, file: `${dir}/${f.name}` }));
+  return adrs.map((f) => {
+    const prefix = ADR_FILE.exec(f.name)![1];
+    const e = parseAdr(f.name, f.text, (n) => byNumber.get(n));
+    const date = e.date ?? dateFromPrefix(prefix);
+    return { ...e, date, datePrecision: date ? 'day' as const : null, id: `adr-${prefix}`, file: `${dir}/${f.name}` };
+  });
 }
 
 /** Every ADR in a directory of the working tree. */

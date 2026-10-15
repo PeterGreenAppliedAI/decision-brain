@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adrStatus, parseAdr } from '../src/ingest/adr.js';
+import { adrStatus, parseAdr, parseAdrFiles } from '../src/ingest/adr.js';
 
 const ids = (n: number) => ({ 2: 'adr-0002', 6: 'adr-0006', 14: 'adr-0014' } as Record<number, string>)[n];
 
@@ -37,5 +37,19 @@ describe('adrStatus', () => {
     expect(adrStatus('Proposed')).toBe('proposed');
     expect(adrStatus('Rejected')).toBe('failed');
     expect(adrStatus(null)).toBe('active');
+  });
+});
+
+describe('log4brains-style records (found by the judge-path check)', () => {
+  it('reads date-prefixed file names, MADR bullet status/date lines and supersession links', () => {
+    const es = parseAdrFiles('docs/adr', [
+      { name: '20200926-use-the-adr-number.md', text: '# Use the ADR number\n\n- Status: superseded by [20201016-use-the-slug](20201016-use-the-slug.md)\n- Date: 2020-09-26\n\n## Context\n\nx\n' },
+      { name: '20201016-use-the-slug.md', text: '# Use the slug\n\n- Status: accepted\n- Supersedes [20200926-use-the-adr-number](20200926-use-the-adr-number.md)\n\n## Context\n\ny\n' },
+      { name: 'template.md', text: '# Template' }, { name: 'index.md', text: '# Index' },
+    ]);
+    expect(es.map((e) => [e.id, e.date, e.status, e.links])).toEqual([
+      ['adr-20200926', '2020-09-26', 'superseded', [{ target: 'adr-20201016', relation: 'superseded_by' }]],
+      ['adr-20201016', '2020-10-16', 'active', [{ target: 'adr-20200926', relation: 'supersedes' }]],   // date from the file name
+    ]);
   });
 });
