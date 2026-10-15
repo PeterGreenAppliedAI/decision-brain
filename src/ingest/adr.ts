@@ -29,7 +29,7 @@ export function adrStatus(text: string | null): string {
   return 'active';
 }
 
-export function parseAdr(file: string, text: string, idOf: (n: number) => string | undefined): DecisionEntry {
+export function parseAdr(file: string, text: string, idOf: (n: number, fileName?: string) => string | undefined): DecisionEntry {
   const lines = text.split(/\r?\n/);
   let start = 0;
   const fm: Record<string, string> = {};
@@ -62,8 +62,8 @@ export function parseAdr(file: string, text: string, idOf: (n: number) => string
   for (const l of statusLines) {
     const relation = /superseded\b|superseded:/i.test(l) ? 'superseded_by' : /\bsupersedes\b/i.test(l) ? 'supersedes' : null;
     if (!relation) continue;
-    for (const m of l.matchAll(/\]\(([^)]*?)(\d{3,8})-[^)]*\)/g)) {
-      const target = idOf(Number(m[2]));
+    for (const m of l.matchAll(/\]\((?:[^)]*\/)?((\d{3,8})-[^)/]*)\)/g)) {
+      const target = idOf(Number(m[2]), m[1]);
       if (target) links.push({ target, relation });
     }
   }
@@ -84,19 +84,20 @@ function dateFromPrefix(prefix: string): string | null {
   return m && Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1 && Number(m[3]) <= 31 ? `${m[1]}-${m[2]}-${m[3]}` : null;
 }
 
-/** ADR files (name + text) → entries; ids are "adr-" + the file's prefix as written ("adr-0013", "adr-20200926"). */
+/**
+ * ADR files (name + text) → entries. Ids are "adr-" + the file's prefix as written ("adr-0013",
+ * "adr-20200926") — unless two files share a prefix (date-named records written the same day), then
+ * "adr-" + the whole file name, so neither silently replaces the other. Links resolve by file name.
+ */
 export function parseAdrFiles(dir: string, files: Array<{ name: string; text: string }>): DecisionEntry[] {
   const adrs = files.filter((f) => ADR_FILE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
-  const byNumber = new Map(adrs.map((f) => [Number(ADR_FILE.exec(f.name)![1]), `adr-${ADR_FILE.exec(f.name)![1]}`]));
+  const prefixOf = (n: string) => ADR_FILE.exec(n)![1];
+  const shared = new Set(adrs.map((f) => prefixOf(f.name)).filter((p, i, all) => all.indexOf(p) !== i));
+  const idOfFile = new Map(adrs.map((f) => [f.name, shared.has(prefixOf(f.name)) ? `adr-${f.name.replace(/\.(md|markdown)$/, '')}` : `adr-${prefixOf(f.name)}`]));
+  const byNumber = new Map(adrs.filter((f) => !shared.has(prefixOf(f.name))).map((f) => [Number(prefixOf(f.name)), idOfFile.get(f.name)!]));
   return adrs.map((f) => {
-    const prefix = ADR_FILE.exec(f.name)![1];
-    const e = parseAdr(f.name, f.text, (n) => byNumber.get(n));
-    const date = e.date ?? dateFromPrefix(prefix);
-    return { ...e, date, datePrecision: date ? 'day' as const : null, id: `adr-${prefix}`, file: `${dir}/${f.name}` };
+    const e = parseAdr(f.name, f.text, (n, fileName) => (fileName && idOfFile.get(fileName)) || byNumber.get(n));
+    const date = e.date ?? dateFromPrefix(prefixOf(f.name));
+    return { ...e, date, datePrecision: date ? 'day' as const : null, id: idOfFile.get(f.name)!, file: `${dir}/${f.name}` };
   });
-}
-
-/** Every ADR in a directory of the working tree. */
-export function parseAdrDir(repo: string, dir: string): DecisionEntry[] {
-  return parseAdrFiles(dir, readdirSync(join(repo, dir)).map((name) => ({ name, text: ADR_FILE.test(name) ? readFileSync(join(repo, dir, name), 'utf8') : '' })));
 }

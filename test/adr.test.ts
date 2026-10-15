@@ -41,6 +41,19 @@ describe('adrStatus', () => {
 });
 
 describe('log4brains-style records (found by the judge-path check)', () => {
+  it('two records written the same day keep distinct ids; links resolve by file name', () => {
+    const es = parseAdrFiles('docs/adr', [
+      { name: '20200925-monorepo.md', text: '# Monorepo\n\n- Status: accepted\n' },
+      { name: '20200925-code-style.md', text: '# Code style\n\n- Status: superseded by [x](20200926-new-style.md)\n' },
+      { name: '20200926-new-style.md', text: '# New style\n\n- Supersedes [x](20200925-code-style.md)\n' },
+    ]);
+    expect(es.map((e) => [e.id, e.links])).toEqual([
+      ['adr-20200925-code-style', [{ target: 'adr-20200926', relation: 'superseded_by' }]],
+      ['adr-20200925-monorepo', []],
+      ['adr-20200926', [{ target: 'adr-20200925-code-style', relation: 'supersedes' }]],
+    ]);
+  });
+
   it('reads date-prefixed file names, MADR bullet status/date lines and supersession links', () => {
     const es = parseAdrFiles('docs/adr', [
       { name: '20200926-use-the-adr-number.md', text: '# Use the ADR number\n\n- Status: superseded by [20201016-use-the-slug](20201016-use-the-slug.md)\n- Date: 2020-09-26\n\n## Context\n\nx\n' },
