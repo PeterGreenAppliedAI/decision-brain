@@ -108,10 +108,11 @@ describe.skipIf(!reachable)('graph tools', () => {
     expect(p.asOf).toBe('2026-09-30');
     expect(p.items.map((i) => [i.id, i.kind, i.decision?.id ?? i.reviewer?.name])).toEqual([
       ['C1', 'records', 'new'],
-      ['D1', 'disproven', 'old'],
       ['S1', 'superseded', 'old'],
       ['P1', 'reviewer', 'Cy'],                             // Ada and Bo wrote this change — not suggested
     ]);
+    // the superseded decision's disproven experiment is history under it, not a live "do not retry"
+    expect(p.items.find((i) => i.kind === 'superseded')!.triedThen!.map((e) => e.id)).toEqual(['e1']);
     expect(p.items.find((i) => i.kind === 'superseded')!.supersededBy).toEqual([{ id: 'new', title: 'The wrong router rule was load-bearing' }]);
     // Reviewing the July commit: only what was known in July. The decision it records is not yet
     // superseded (that happened in September), and Bo's only commit on the file is from September.

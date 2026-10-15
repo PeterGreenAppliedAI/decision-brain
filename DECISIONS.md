@@ -4,6 +4,21 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Demo, Run for Real — and the Flaw It Exposed (October 15 2026)
+
+The code-review story the reviewer suggested, run end to end on a copy of Invarail (repo cloned, graphs
+copied server-side): a contributor "fixes" the router prompt's factually wrong memory rule; `sync`
+redoes 1 file and 3 directories; `review` flags the September decision (0/20 vs 16/20) and its
+disproven experiment. Then a scripted re-measurement is recorded as a new decision that supersedes
+it; `sync` extracts only that entry, one agent raises the supersession and another confirms it; the
+resubmitted change's review leads with the new decision and lists the old one as superseded.
+**The flaw:** the resubmitted review still told the contributor "tried before and disproven — do not
+retry" about correcting the rule — from reasoning the same packet called superseded, contradicting its
+own first item. A disproven experiment is a live warning only while its decision stands; once the
+decision is superseded, the experiment is history filed under it. Test updated to that rule.
+Also: `npm test` started running Invarail's own suite from the demo clone under data/ (vitest ignores
+.gitignore) — tests are now limited to test/.
+
 ## Sync, Scoped to One Acceptance Test; a Clean Run (October 15 2026)
 
 **Clean re-run first** (the reviewer's order): the final commit, `7f5270c`, from a new empty directory

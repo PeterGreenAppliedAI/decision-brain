@@ -22,7 +22,7 @@ and **shows the path** behind every answer.
 | Fresh evaluation v2 (frozen, blind) | done — agent 17/20 correct vs 11/20 same-model-on-keyword; 2.6x latency |
 | **Deadline: Sunday Oct 18, 2:29 PM EDT** (internal finish line: Saturday) | — |
 | Clean re-run of the final commit, uninterrupted | done — every step exit 0 (7f5270c) |
-| Demo (code-review story) — script + verified run; Peter records | next |
+| Demo (code-review story) — DEMO.md, every step run and verified | done — Peter records |
 | `sync`, scoped to one acceptance test | done — 3 tests, mutation-checked; real repos: 0 model calls when current |
 | Agent cites ids, never "[same decision]"; lists keep their citation (checker stays strict) | done (prompt) — not re-measured |
 | Section-aware reading of long entries; question memory | if time remains |

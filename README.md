@@ -25,6 +25,9 @@ ADRs ─────┘ └─────────────────�
 > 1 tool call; code checked the citation and both figures against the cited evidence — the wording
 > itself is the model's)*
 
+A five-minute walkthrough of the code-review story, every step verified on real data, is in
+[DEMO.md](DEMO.md).
+
 ## How it works
 
 1. **Ingest — code, no model.** Git history becomes commits, files and people (humans and AI

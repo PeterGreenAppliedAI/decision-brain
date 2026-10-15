@@ -29,6 +29,8 @@ export interface ReviewItem {
   experiments?: Tried[];
   experiment?: Tried;
   supersededBy?: Array<{ id: string; title: string }>;
+  /** On a superseded decision: what it had tried and found disproven — history, not a live warning. */
+  triedThen?: Tried[];
   reviewer?: { name: string; commits: number; files: string[] };
 }
 
@@ -128,18 +130,24 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
       const { measurements, experiments: _e, ...decision } = d;
       items.push({ kind: 'recheck', file, decision: withThen(decision), measurements: evidenceOk(d.id) ? measurements : [] });
     }
+    // A disproven experiment is a live "do not retry" only while its decision stands. Once that
+    // decision is superseded, the experiment is history: it goes under the superseded item, not as a
+    // warning that may contradict what replaced it.
+    const settledIds = new Set(settled.map((x) => x.d.id));
     const dis = await disproven(g, file);
+    const triedBy = new Map<string, Tried[]>();
     for (const e of dis.experiments.filter((x) => existed(x.decision) && evidenceOk(x.decision.id) && !recordedHere.has(x.decision.id))) {
+      const { decision, ...experiment } = e;
+      if (settledIds.has(decision.id)) { triedBy.set(decision.id, [...(triedBy.get(decision.id) ?? []), experiment]); continue; }
       if (seen.has(`disproven|${e.id}`)) continue;
       seen.add(`disproven|${e.id}`);
-      const { decision, ...experiment } = e;
       items.push({ kind: 'disproven', file, decision: withThen(decision), experiment });
     }
     for (const { d, by } of settled.filter((x) => !recordedHere.has(x.d.id))) {
       if (seen.has(`superseded|${d.id}`)) continue;
       seen.add(`superseded|${d.id}`);
       const { measurements: _m, experiments: _x, ...decision } = d;
-      items.push({ kind: 'superseded', file, decision: withThen(decision), supersededBy: by });
+      items.push({ kind: 'superseded', file, decision: withThen(decision), supersededBy: by, triedThen: triedBy.get(d.id) ?? [] });
     }
   }
 
@@ -194,7 +202,8 @@ export function renderPacket(p: ReviewPacket, perDecision = 3): string {
   section('disproven', 'Tried before and disproven — do not retry', (i) =>
     `\`${i.file}\` → "${i.experiment!.hypothesis}" — ${dec(i.decision!)}`);
   section('superseded', 'Superseded reasoning — do not cite', (i) =>
-    `\`${i.file}\` → ${dec(i.decision!)}${i.supersededBy?.length ? `; replaced by ${i.supersededBy.map((s) => s.title).join(', ')}` : ''}`);
+    `\`${i.file}\` → ${dec(i.decision!)}${i.supersededBy?.length ? `; replaced by ${i.supersededBy.map((s) => s.title).join(', ')}` : ''}` +
+    (i.triedThen?.length ? `\n  it had found disproven (history, not a current warning): ${few(i.triedThen, (e) => `"${e.hypothesis}"`)}` : ''));
   section('reviewer', 'Who knows these files', (i) =>
     `${i.reviewer!.name} — ${i.reviewer!.commits} commits on ${i.reviewer!.files.join(', ')}`);
   if (p.items.length === 0) out.push('_The graph holds no decisions about these files._');
