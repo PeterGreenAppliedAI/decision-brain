@@ -20,7 +20,16 @@ not yet a repeatable installation: **before recording the demo, the final commit
 another empty directory and volume, start to finish, with no fixes pulled midway.** Ollama and a cold
 machine remain unverified.
 
-## Commands and timings
+## Clean re-run — uninterrupted (2026-10-15)
+
+The final commit at the time, `7f5270c`, run once from a new empty directory and a new Docker volume,
+README steps only, **no fixes pulled midway**: clone · `npm install` · `cp .env.example .env` (set
+`LLM_URL`) · `npm run graph:up` · clone log4brains · ingest (11 ADRs, 1 s) · team (11/11, 37 s) · ask
+(slug question: supported, 23 s; Kubernetes: abstained, 14 s) · review (2 s) · trace · `npm test`
+(111 passed) · `docker compose down` + `graph:up` + trace (persisted). **Every step exited 0.** Still a
+warm machine (npm cache and FalkorDB image present); Ollama still unverified.
+
+## Commands and timings (the first, debugging run)
 
 Run from an empty directory; the clone was named `decision-brain-judge` so Docker Compose would create
 a new, empty data volume (a clone named `decision-brain` on a machine that already ran the project
