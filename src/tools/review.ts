@@ -187,8 +187,10 @@ export function renderPacket(p: ReviewPacket, perDecision = 3): string {
     p.basis.method === 'log-at-commit'
       ? `_Decision log rebuilt as it stood at this commit (${p.basis.entriesThen} entries${p.basis.editedSince ? `; ${p.basis.editedSince} edited since — their extracted evidence omitted` : ''}) · graph ${p.basis.fingerprint}_`
       : `_Approximate: decisions filtered by date, not rebuilt from the log at this commit (pass --repo to rebuild) · graph ${p.basis.fingerprint}_`, ''];
-  const dec = (d: DecisionRef & { statusThen?: string; evidence?: string }) =>
-    `**${d.title}** (${d.date ?? 'undated'}, ${d.statusThen && d.statusThen !== d.status ? `${d.statusThen} then, ${d.status} now` : d.status}) — \`${d.source}\`` +
+  // Under "superseded", an entry whose own text still says active was superseded by a later entry:
+  // say so rather than print "active" under a superseded heading.
+  const dec = (d: DecisionRef & { statusThen?: string; evidence?: string }, replaced = false) =>
+    `**${d.title}** (${d.date ?? 'undated'}, ${replaced && d.status !== 'superseded' ? `superseded by a later entry; its own text says ${d.status}` : d.statusThen && d.statusThen !== d.status ? `${d.statusThen} then, ${d.status} now` : d.status}) — \`${d.source}\`` +
     (d.evidence && d.evidence !== 'current' ? ` — _${d.evidence}_` : '');
   const section = (kind: ReviewItem['kind'], title: string, line: (i: ReviewItem) => string) => {
     const list = p.items.filter((i) => i.kind === kind);
@@ -202,7 +204,7 @@ export function renderPacket(p: ReviewPacket, perDecision = 3): string {
   section('disproven', 'Tried before and disproven — do not retry', (i) =>
     `\`${i.file}\` → "${i.experiment!.hypothesis}" — ${dec(i.decision!)}`);
   section('superseded', 'Superseded reasoning — do not cite', (i) =>
-    `\`${i.file}\` → ${dec(i.decision!)}${i.supersededBy?.length ? `; replaced by ${i.supersededBy.map((s) => s.title).join(', ')}` : ''}` +
+    `\`${i.file}\` → ${dec(i.decision!, (i.supersededBy?.length ?? 0) > 0)}${i.supersededBy?.length ? `; replaced by ${i.supersededBy.map((s) => s.title).join(', ')}` : ''}` +
     (i.triedThen?.length ? `\n  it had found disproven (history, not a current warning): ${few(i.triedThen, (e) => `"${e.hypothesis}"`)}` : ''));
   section('reviewer', 'Who knows these files', (i) =>
     `${i.reviewer!.name} — ${i.reviewer!.commits} commits on ${i.reviewer!.files.join(', ')}`);

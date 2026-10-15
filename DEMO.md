@@ -1,7 +1,8 @@
 # Demo — "before you merge this, here's why it is the way it is"
 
 A code-review story on real data (Invarail's decision log and history), run on a disposable copy so
-the demo can commit freely. Timings are from the verified run (glm-5.3-flash on vLLM, M4 Mac mini).
+the demo can commit freely. Every step was run end to end on 2026-10-15 with these scripts
+(after the change that made this run's one fix); timings are from that run (glm-5.3-flash on vLLM, M4 Mac mini).
 
 **Honesty note for the recording:** the proposed change in step 2 is a realistic cleanup, written for
 the demo. The decision update in step 5 is **simulated — not an actual benchmark**; keep that caption on
@@ -36,8 +37,8 @@ npx tsx scripts/demo/step.ts $D propose        # prints the commit
 npm run sync   -- --graph invarail-demo --repo $D
 npm run review -- --graph invarail-demo --repo $D <commit>
 ```
-`sync` re-summarizes exactly 1 file and its 3 directories (4 model calls). Cut the wait but show the
-elapsed time it prints. The review packet:
+`sync` re-summarizes exactly 1 file and its 3 directories — `model calls: 4 · 59.5 s`. Cut the wait but
+show that line. The review takes ~2 s. The review packet:
 - **R1** *The Router Prompt's "Wrong" Rule Was Load-Bearing* — qwen2.5:7b, measured **0/20 vs 16/20**
 - **D1** *"Corrected router prompt text would fix the 7B's memory routing"* — **tried and disproven**
 - **P1** Peter Green — 8 commits on the file
@@ -61,15 +62,17 @@ npx tsx scripts/demo/step.ts $D resubmit        # prints the new commit
 npm run sync   -- --graph invarail-demo --repo $D
 npm run review -- --graph invarail-demo --repo $D <new commit>
 ```
-`sync` extracts only the new entry; one agent raises "supersedes", another confirms it. Show the elapsed
-time. The packet now shows:
-- **R1** the new decision — qwen3.5:9b, **20/20 vs 19/20**, scoped to the supported configuration
-- **S1** the September decision — **superseded**, with what it had disproven filed under it as history,
-  not as a live warning
+`sync` extracts only the new entry; one agent raises "supersedes", another confirms it —
+`model calls: 6 · 88.4 s`; show that line. The packet now shows:
+- **R1** the new decision — qwen3.5:9b **20/20 vs 19/20**, and the 7B's **0/20** carried with it
+- **D1** "the corrected rule works for qwen2.5:7b as well" — **tried and disproven, do not retry**: the 7B
+  constraint is still a live warning, now under the decision that scoped it
+- **S1** the September decision — **superseded by a later entry** (its own text still says active), with
+  what it had disproven filed under it as history
 
 **Say:** the system did not take the newer measurement as automatically better — the old rule went
-because the model it was measured on is no longer supported. Had the deployment kept the 7B, its warning
-would still apply.
+because the model it was measured on is no longer supported. D1 is that distinction on screen: put the 7B
+back and the warning applies.
 
 ## 6 · Close on the proof — ~20 s
 1. The resubmitted change gets the updated guidance (end of step 5, on screen).

@@ -114,6 +114,10 @@ describe.skipIf(!reachable)('graph tools', () => {
     // the superseded decision's disproven experiment is history under it, not a live "do not retry"
     expect(p.items.find((i) => i.kind === 'superseded')!.triedThen!.map((e) => e.id)).toEqual(['e1']);
     expect(p.items.find((i) => i.kind === 'superseded')!.supersededBy).toEqual([{ id: 'new', title: 'The wrong router rule was load-bearing' }]);
+    // An entry whose own text still says active, superseded by a later one: never "active" under that heading.
+    expect(renderPacket(p)).toContain('**Correct the router rule** (2026-07-01, superseded)');
+    const stillActive = { ...p, items: p.items.map((i) => i.kind === 'superseded' ? { ...i, decision: { ...i.decision!, status: 'active' } } : i) };
+    expect(renderPacket(stillActive)).toContain('**Correct the router rule** (2026-07-01, superseded by a later entry; its own text says active)');
     // Reviewing the July commit: only what was known in July. The decision it records is not yet
     // superseded (that happened in September), and Bo's only commit on the file is from September.
     const july = await review(g, 'c1c1c1c');

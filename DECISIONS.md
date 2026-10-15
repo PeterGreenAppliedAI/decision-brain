@@ -4,6 +4,18 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Re-run Verified the Demo, and One Label Contradicted Itself (October 15 2026)
+
+The whole demo, from a fresh setup, with the new scripted update: sync 4 model calls / 59.5 s; the
+proposal flagged (0/20 vs 16/20, three disproven experiments); sync 6 calls / 88.4 s (1 entry extracted,
+supersession confirmed); the resubmission led by the new decision; the original proposal still reviewed
+against the September record; a further sync 0 calls. Better than scripted: the extractor recorded "the
+corrected rule works for qwen2.5:7b as well" as disproven under the new decision, so the 7B constraint
+stays a live warning, scoped. **The flaw:** the superseded item read "(2026-09-30, active)" under
+"Superseded reasoning" — true of the entry's own text (it never says it was replaced; the later entry
+says so), but a contradiction on screen. It now reads "superseded by a later entry; its own text says
+active". Test added; it fails without the fix.
+
 ## The Simulated Update Changes the Deployment, Not Just the Measurement (October 15 2026)
 
 A reviewer caught a real flaw in the demo's step 5: the September result is about qwen2.5:7b, and a
