@@ -6,7 +6,7 @@ Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/J
 |---|---|---|---|
 | Required evidence cited / retrieved | 100% (20/20) | 75% (15/20) | 75% (15/20) (in top 5) |
 | Supporting evidence cited / retrieved | 50% (2/4) | 25% (1/4) | 25% (1/4) |
-| Correct answers (all key facts, nothing wrong) | 85% (17/20) | 55% (11/20) | n/a |
+| Answers passing the rubric (all listed key facts, no listed wrong claim) | 85% (17/20) | 55% (11/20) | n/a |
 | False premises corrected | 100% (4/4) | 50% (2/4) | n/a |
 | Correct abstentions | 100% (4/4) | 100% (4/4) | n/a |
 | Answers with a figure flagged by the checker | 5/24 | 2/24 | n/a |
@@ -42,6 +42,10 @@ Frozen set: eval/v2/set.json · spec: eval/v2/SPEC.md · judged blind (eval/v2/J
 
 ## Reading these numbers
 
+- **The defensible claim:** on this frozen set, Decision Brain answered more questions correctly than
+  the same model given keyword-search results (17/20 vs 11/20; 7 questions only the agent got right,
+  1 only the baseline), at roughly 2.6x the latency. It measures the complete workflow, not the graph
+  in isolation; "correct" means passing the rubric, not an exhaustive check of every assertion.
 - **What the graph adds, here:** when keyword retrieval misses the entry an answer must rest on
   (v2-inv-03, inv-08, cp-01, cp-04, cp-06), the same model given keyword-retrieved entries has nothing to
   answer from and says "I don't know"; the agent's tools find it. Required evidence: 20/20 vs 15/20.

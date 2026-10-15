@@ -20,7 +20,11 @@ and **shows the path** behind every answer.
 | Trust fixes from an outside review: honest grounding labels; content-hash invalidation | done |
 | Labelled evaluation set vs plain-search baseline | done — recall tied (52%/52%); precision, abstention, ownership better; owner spot-check pending |
 | Fresh evaluation v2 (frozen, blind) | done — agent 17/20 correct vs 11/20 same-model-on-keyword; 2.6x latency |
-| Next agent work (measured on a further fresh set): cite with ids not "[same decision]"; keep lists with their citation; read long entries by section (cp-05 failed for both systems at the 2,500-char cap) | next |
+| **Deadline: Sunday Oct 18, 2:29 PM EDT** (internal finish line: Saturday) | — |
+| Clean re-run of the final commit, uninterrupted; record the demo (code-review story) | next |
+| `sync`, scoped to one acceptance test: change one source file + one decision → sync → only affected summaries/evidence regenerate, the rest untouched → a second sync changes nothing | after the clean run |
+| Agent cites ids, never "[same decision]"; lists keep their citation (checker stays strict) | small fix, with sync |
+| Section-aware reading of long entries; question memory | if time remains |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
 | Question memory | after that |
 | **Judge path**: done — eval/JUDGE-PATH.md; 4 defects found and fixed; Ollama still unverified (Peter chose GLM only). Original finish line: fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |

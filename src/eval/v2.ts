@@ -116,7 +116,7 @@ if (mode === 'run') {
     '| | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |', '|---|---|---|---|',
     `| Required evidence cited / retrieved | ${pct(sys.agent.req)} | ${pct(sys.rag.req)} | ${pct(sys.keyword.req)} (in top 5) |`,
     `| Supporting evidence cited / retrieved | ${pct(sys.agent.sup)} | ${pct(sys.rag.sup)} | ${pct(sys.keyword.sup)} |`,
-    `| Correct answers (all key facts, nothing wrong) | ${pct(sys.agent.correct)} | ${pct(sys.rag.correct)} | n/a |`,
+    `| Answers passing the rubric (all listed key facts, no listed wrong claim) | ${pct(sys.agent.correct)} | ${pct(sys.rag.correct)} | n/a |`,
     `| False premises corrected | ${pct(sys.agent.premise)} | ${pct(sys.rag.premise)} | n/a |`,
     `| Correct abstentions | ${pct(sys.agent.abstain)} | ${pct(sys.rag.abstain)} | n/a |`,
     `| Answers with a figure flagged by the checker | ${sys.agent.flagged}/${rows.length} | ${sys.rag.flagged}/${rows.length} | n/a |`,

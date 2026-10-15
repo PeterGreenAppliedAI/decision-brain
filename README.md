@@ -89,13 +89,17 @@ repositories, frozen (questions, labels, key facts, revisions, model settings, s
 | | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |
 |---|---|---|---|
 | Required evidence cited / retrieved | 20/20 | 15/20 | 15/20 (top 5) |
-| Correct answers (every key fact, nothing wrong) | 17/20 | 11/20 | — |
+| Answers passing the rubric (every listed key fact, no listed wrong claim) | 17/20 | 11/20 | — |
 | False premises corrected | 4/4 | 2/4 | — |
 | Correct abstentions | 4/4 | 4/4 | — |
 | Median latency | 20.6 s (3 tool calls) | 7.9 s | — |
 
-Where keyword retrieval misses the entry an answer rests on, the same model without the graph has
-nothing to answer from; the agent's tools find it. The cost is about 2.6x the latency. Five agent
+**The claim this supports:** on a frozen 24-question evaluation across three repositories, Decision
+Brain answered more questions correctly than the same model given keyword-search results, at roughly
+2.6x the latency (7 questions only the agent got right, 1 only the baseline). It measures the whole
+workflow — several searches, specialised tools and graph relationships all differ from the one-call
+baseline — and does not isolate which part contributed how much. "Correct" means passing the rubric
+(listed key facts, listed wrong claims), not that nothing else in the answer was checked. Five agent
 answers had figures flagged by the checker — all 47 of those figures are in the source; the agent put
 them where no valid citation covered them ("[same decision]", or a list cut off from its citation). One
 question failed for both systems because the answer sat beyond the 2,500 characters of a long entry
