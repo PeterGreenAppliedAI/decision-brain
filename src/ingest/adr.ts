@@ -101,3 +101,8 @@ export function parseAdrFiles(dir: string, files: Array<{ name: string; text: st
     return { ...e, date, datePrecision: date ? 'day' as const : null, id: idOfFile.get(f.name)!, file: `${dir}/${f.name}` };
   });
 }
+
+/** Every ADR in a directory of the working tree. */
+export function parseAdrDir(repo: string, dir: string): DecisionEntry[] {
+  return parseAdrFiles(dir, readdirSync(join(repo, dir)).map((name) => ({ name, text: ADR_FILE.test(name) ? readFileSync(join(repo, dir, name), 'utf8') : '' })));
+}

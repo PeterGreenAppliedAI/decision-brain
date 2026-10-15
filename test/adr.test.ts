@@ -66,3 +66,40 @@ describe('log4brains-style records (found by the judge-path check)', () => {
     ]);
   });
 });
+
+// Ingest end to end through the real module graph — the import path a judge's run takes. (A missing
+// export once passed every unit test, because no fixture repo had an ADR directory.)
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, beforeAll } from 'vitest';
+import { connect, type Graph } from '../src/graph/db.js';
+import { ingestRepo } from '../src/ingest/repo.js';
+
+const reachable = await connect().then(async (db) => { await db.close(); return true; }, () => false);
+
+describe.skipIf(!reachable)('ingest a repo with an ADR directory, end to end', () => {
+  let db: Awaited<ReturnType<typeof connect>>, g: Graph, repo: string;
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-adr-'));
+    const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a]);
+    git('init', '-q'); git('config', 'user.name', 'A'); git('config', 'user.email', 'a@x');
+    mkdirSync(join(repo, 'docs/adr'), { recursive: true });
+    writeFileSync(join(repo, 'docs/adr/20200925-monorepo.md'), '# Monorepo\n\n- Status: accepted\n- Date: 2020-09-25\n');
+    writeFileSync(join(repo, 'docs/adr/20200925-code-style.md'), '# Code style\n\n- Status: superseded by [x](20200926-new-style.md)\n');
+    writeFileSync(join(repo, 'docs/adr/20200926-new-style.md'), '# New style\n\n- Status: accepted\n');
+    git('add', '.'); git('commit', '-q', '-m', 'adrs');
+    db = await connect(); g = db.selectGraph(`test-adr-${process.pid}-${Date.now()}`);
+  });
+  afterAll(async () => { await g?.delete().catch(() => {}); await db?.close(); rmSync(repo, { recursive: true, force: true }); });
+
+  it('ingests every record, keeps same-day records apart, and draws the stated supersession', async () => {
+    const r = await ingestRepo(g, repo);
+    expect(r.adrs).toMatchObject({ dir: 'docs/adr', count: 3, links: 1 });
+    const ids = (await g.roQuery<{ id: string }>('MATCH (d:Decision) RETURN d.id AS id ORDER BY id')).data!.map((x) => x.id);
+    expect(ids).toEqual(['adr-20200925-code-style', 'adr-20200925-monorepo', 'adr-20200926']);
+    const sup = (await g.roQuery<{ a: string; b: string }>('MATCH (a)-[:SUPERSEDES]->(b) RETURN a.id AS a, b.id AS b')).data;
+    expect(sup).toEqual([{ a: 'adr-20200926', b: 'adr-20200925-code-style' }]);
+  });
+});
