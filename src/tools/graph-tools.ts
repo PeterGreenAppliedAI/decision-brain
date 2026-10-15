@@ -258,7 +258,7 @@ export async function told(g: Graph, ref: string, limit = 6) {
      OPTIONAL MATCH (c)-[:TOUCHED]->(f:File)
      WITH c, collect(DISTINCT f.path) AS files
      OPTIONAL MATCH (p:Person)-[:AUTHORED]->(c)
-     RETURN c.sha AS sha, c.short AS short, c.date AS date, c.message AS message, files,
+     RETURN c.sha AS sha, c.short AS short, coalesce(c.committedAt, c.date) AS date, c.message AS message, files,
             [x IN collect(DISTINCT p) WHERE x.kind = 'agent' | x.name] AS agents,
             [x IN collect(DISTINCT p) WHERE x.kind = 'human' | x.name] AS humans LIMIT 2`, { ref }));
   if (c.length !== 1) return { commit: null, error: c.length ? 'ambiguous commit prefix' : 'no such commit in the graph' };

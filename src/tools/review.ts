@@ -33,7 +33,8 @@ export interface ReviewItem {
 }
 
 export interface ReviewPacket {
-  change: { ref: string; sha: string | null; date: string | null; authors: string[]; message: string | null; files: string[]; unknownFiles: string[] };
+  change: { ref: string; sha: string | null; date: string | null; committedAt: string | null; authors: string[]; message: string | null; files: string[]; unknownFiles: string[] };
+  /** The day the change entered the history (committer date) — not when it was written. */
   asOf: string | null;
   /** How "as of the change" was established, and which graph state the packet was built from. */
   basis: { method: 'log-at-commit' | 'by-date'; entriesThen: number | null; editedSince: number | null; fingerprint: string };
@@ -59,23 +60,23 @@ const rows = async <T>(g: Graph, cypher: string, params: Record<string, unknown>
 
 /** A commit already in the graph (sha or unique prefix), or — with a repo path — any git range or ref. */
 export async function changeOf(g: Graph, ref: string, repo?: string): Promise<ReviewPacket['change']> {
-  const hits = await rows<{ sha: string; date: string; message: string; files: string[]; authors: string[] }>(g,
+  const hits = await rows<{ sha: string; date: string; committedAt: string | null; message: string; files: string[]; authors: string[] }>(g,
     `MATCH (c:Commit) WHERE c.sha STARTS WITH $ref
-     RETURN c.sha AS sha, c.date AS date, c.message AS message,
+     RETURN c.sha AS sha, c.date AS date, c.committedAt AS committedAt, c.message AS message,
             [(c)-[:TOUCHED]->(f:File) | f.path] AS files, [(p:Person)-[:AUTHORED]->(c) | p.name] AS authors LIMIT 2`, { ref });
   if (/^[0-9a-f]{4,40}$/.test(ref) && hits.length === 1) {
     const c = hits[0];
-    return { ref, sha: c.sha, date: c.date, authors: c.authors.sort(), message: c.message, files: c.files.sort(), unknownFiles: [] };
+    return { ref, sha: c.sha, date: c.date, committedAt: c.committedAt ?? c.date, authors: c.authors.sort(), message: c.message, files: c.files.sort(), unknownFiles: [] };
   }
   if (!repo) throw new Error(`"${ref}" is not a single commit in the graph — pass --repo to review a range or ref with git`);
   const files = execFileSync('git', ['-C', repo, '-c', 'core.quotePath=false', 'diff', '--name-only', ref.includes('..') ? ref : `${ref}^!`],
     { encoding: 'utf8' }).split('\n').filter(Boolean).sort();
-  return { ref, sha: null, date: null, authors: [], message: null, files, unknownFiles: [] };
+  return { ref, sha: null, date: null, committedAt: null, authors: [], message: null, files, unknownFiles: [] };
 }
 
 export async function review(g: Graph, ref: string, opts: { repo?: string; reviewers?: number } = {}): Promise<ReviewPacket> {
   const change = await changeOf(g, ref, opts.repo);
-  const asOf = change.date?.slice(0, 10) ?? null;
+  const asOf = change.committedAt?.slice(0, 10) ?? null;
   const known = new Set((await rows<{ p: string }>(g, 'MATCH (f:File) WHERE f.path IN $files RETURN f.path AS p', { files: change.files })).map((r) => r.p));
   change.unknownFiles = change.files.filter((f) => !known.has(f));
 
@@ -144,10 +145,10 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
   // Reviewers: humans with the most commits on the changed files before the change, excluding its authors.
   const people = await rows<{ name: string; commits: number; files: string[] }>(g,
     `MATCH (p:Person {kind: 'human'})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)
-     WHERE f.path IN $files AND NOT p.name IN $authors AND ($at IS NULL OR c.date <= $at)
+     WHERE f.path IN $files AND NOT p.name IN $authors AND ($at IS NULL OR coalesce(c.committedAt, c.date) <= $at)
      WITH p, count(DISTINCT c) AS commits, collect(DISTINCT f.path) AS files
      RETURN p.name AS name, commits, files ORDER BY commits DESC, name LIMIT $n`,
-    { files: change.files, authors: change.authors, at: change.date, n: opts.reviewers ?? 3 });
+    { files: change.files, authors: change.authors, at: change.committedAt, n: opts.reviewers ?? 3 });
   for (const p of people) items.push({ kind: 'reviewer', reviewer: { ...p, files: p.files.sort() } });
 
   // Fixed order, then ids: the same change on the same graph always yields the same ids.

@@ -80,7 +80,8 @@ export async function ingestInstructions(graph: Graph, repo: string, knownFiles:
   const paths = [...knownFiles];
   const resolve = (ref: string) => knownFiles.has(ref) ? ref : (paths.filter((f) => f.endsWith('/' + ref)).length === 1 ? paths.find((f) => f.endsWith('/' + ref))! : null);
   for (const path of files) {
-    const log = git(repo, ['log', '--format=%H|%aI', '--', path]).split('\n').filter(Boolean).reverse();
+    // committer dates: a version is in force from when it entered the history, like commits are compared
+    const log = git(repo, ['log', '--format=%H|%cI', '--', path]).split('\n').filter(Boolean).reverse();
     const versions = log.map((l) => {
       const [sha, local] = l.split('|');
       const date = new Date(local).toISOString();   // UTC, comparable with commit dates

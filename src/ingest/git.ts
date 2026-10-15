@@ -11,14 +11,18 @@ export interface GitCommit {
   sha: string;
   short: string;
   author: string;
+  /** When it was written (author date) — what people see. */
   date: string;
+  /** When it entered the history (committer date) — what "as of this commit" means. They differ after
+   *  a rebase or squash: log4brains' "initial features" was written 2020-09-25, committed 2020-12-10. */
+  committedAt: string;
   subject: string;
   coauthors: string[];
   files: string[];
 }
 
 const RS = '\x1e', FS = '\x1f', TS = '\x1d';
-const FORMAT = `${RS}%H${FS}%h${FS}%an${FS}%aI${FS}%s${FS}%(trailers:key=Co-authored-by,valueonly,separator=${TS})`;
+const FORMAT = `${RS}%H${FS}%h${FS}%an${FS}%aI${FS}%s${FS}%(trailers:key=Co-authored-by,valueonly,separator=${TS})${FS}%cI`;
 
 export class GitError extends Error {}
 
@@ -60,10 +64,10 @@ export function firstCommitOf(repo: string, path: string): string | null {
 export function parseGitLog(raw: string): GitCommit[] {
   return raw.split(RS).filter((r) => r.trim()).map((record) => {
     const [header, ...rest] = record.split('\n');
-    const [sha, short, author, date, subject, trailers = ''] = header.split(FS);
+    const [sha, short, author, date, subject, trailers = '', committed = date] = header.split(FS);
     return {
       // UTC: git gives each author's local offset, and dates are compared as strings throughout
-      sha, short, author, date: new Date(date).toISOString(), subject,
+      sha, short, author, date: new Date(date).toISOString(), committedAt: new Date(committed || date).toISOString(), subject,
       // "Name <email>" → "Name": emails stay out of the graph
       coauthors: trailers.split(TS).map((t) => t.replace(/<[^>]*>/, '').trim()).filter(Boolean),
       files: rest.map((l) => l.trim()).filter(Boolean),
@@ -78,8 +82,8 @@ export async function ingestGit(graph: Graph, commits: GitCommit[]): Promise<voi
   await writeRows(graph,
     `UNWIND $rows AS c
      MERGE (x:Commit {sha: c.sha})
-     SET x.short = c.short, x.date = c.date, x.message = c.subject`,
-    commits.map(({ sha, short, date, subject }) => ({ sha, short, date, subject })));
+     SET x.short = c.short, x.date = c.date, x.committedAt = c.committedAt, x.message = c.subject`,
+    commits.map(({ sha, short, date, committedAt, subject }) => ({ sha, short, date, committedAt, subject })));
 
   // A rewritten history leaves commits that no longer exist: remove them.
   await graph.query('MATCH (c:Commit) WHERE NOT c.sha IN $shas DETACH DELETE c',

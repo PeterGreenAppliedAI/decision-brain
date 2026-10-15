@@ -69,3 +69,30 @@ describe.skipIf(!reachable)('review as of a past commit', () => {
     expect(await review(g, reviewed.slice(0, 8), { repo })).toEqual(await review(g, reviewed.slice(0, 8), { repo }));
   });
 });
+
+describe.skipIf(!reachable)('as of when a change entered the history, not when it was written', () => {
+  let db: Awaited<ReturnType<typeof connect>>, g: Graph, repo: string, squashed: string;
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
+  beforeAll(async () => {
+    repo = mkdtempSync(join(tmpdir(), 'db-squash-'));
+    git('init', '-q'); git('config', 'user.name', 'A'); git('config', 'user.email', 'a@x');
+    mkdirSync(join(repo, 'src'));
+    writeFileSync(join(repo, 'src/a.ts'), 'export const a = 1;\n');
+    writeFileSync(join(repo, 'DECISIONS.md'), '# D\n\n## Use A (November 3 2020)\n\nKeep `src/a.ts` small.\n');
+    git('add', '.');
+    // written in September, squashed into the history in December (log4brains' "initial features")
+    execFileSync('git', ['-C', repo, 'commit', '-q', '-m', 'feat: initial features'],
+      { env: { ...process.env, GIT_AUTHOR_DATE: '2020-09-25T10:00:00Z', GIT_COMMITTER_DATE: '2020-12-10T10:00:00Z' } });
+    squashed = git('rev-parse', 'HEAD');
+    db = await connect(); g = db.selectGraph(`test-squash-${process.pid}-${Date.now()}`);
+    await ingestRepo(g, repo);
+  });
+  afterAll(async () => { await g?.delete().catch(() => {}); await db?.close(); rmSync(repo, { recursive: true, force: true }); });
+
+  it('a squashed commit is reviewed as of its commit date, and still shows when it was written', async () => {
+    const p = await review(g, squashed.slice(0, 8));          // by-date path: the date is what matters here
+    expect(p.asOf).toBe('2020-12-10');
+    expect(p.change.date).toBe('2020-09-25T10:00:00.000Z');
+    expect(p.items.map((i) => i.decision?.id)).toContain('2020-11-03-use-a');
+  });
+});
