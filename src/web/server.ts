@@ -127,7 +127,13 @@ const server = createServer(async (req, res) => {
         if (parts[3].startsWith('dir:')) return send(res, 200, { now: await whatIs(g, parts[3].slice(4)) });
         const path = parts[3].replace(/^file:/, '');
         const [now, breaks, o] = await Promise.all([whatIs(g, path), whatBreaks(g, path), origin(g, path)]);
-        return send(res, 200, { now, recheck: breaks.recheck, history: breaks.history, birth: o.birth, bornWith: o.recordedIntent?.decisions ?? [] });
+        // No summary in the brain: say whether one was written and rejected by the code check, and why.
+        const rejected = 'purpose' in now && now.purpose === null && (await db.list()).includes(`${name}__files`)
+          ? ((await graph(`${name}__files`).roQuery<{ reason: string }>(
+              `MATCH (f:Finding {kind: 'summary'})-[:ABOUT]->(:Section {id: $id}) WHERE NOT f.verified
+               RETURN f.reason AS reason ORDER BY f.at DESC LIMIT 1`, { params: { id: `file:${path}` } })).data?.[0]?.reason ?? null)
+          : null;
+        return send(res, 200, { now, rejected, recheck: breaks.recheck, history: breaks.history, birth: o.birth, bornWith: o.recordedIntent?.decisions ?? [] });
       }
       return send(res, 404, { error: 'not found' });
     }

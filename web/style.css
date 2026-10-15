@@ -142,3 +142,5 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .hover { position: absolute; left: 14px; top: 12px; max-width: 60%; color: var(--text); background: var(--panel); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
 .hover:empty { display: none; }
 .handoff[data-source] { cursor: pointer; }
+.sw.rejected { background: var(--pending); outline: 2px solid var(--failed); outline-offset: -2px; }
+.detail h3 { overflow-wrap: anywhere; padding-right: 18px; }

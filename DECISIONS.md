@@ -4,6 +4,16 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## File Summaries on All Three Repositories (October 15 2026)
+
+log4brains (200 files, 83 directories) in 17 min and content-publisher (431 files, 108 directories) in
+38 min, four agents each, 0 failures — faster than estimated from Invarail. 9 of the 631 file summaries
+(2 and 7) were rejected by the code check: each named functions or classes the file does not contain
+(e.g. 2 of 6 names found), so it was never written to the graph. The page did not say so: the tile was
+green like any finished one and its panel read "not summarized yet". Now such a tile is outlined in
+red, the header counts it as "rejected", and its panel gives the check's reason. Rejected summaries are
+not retried automatically; a later `sync` redoes a file only if it changed.
+
 ## The Board Was a Progress Monitor; Now It Can Be Read (October 15 2026)
 
 Peter: once a board finished, the page had nothing more to say — file-summary tiles did nothing when

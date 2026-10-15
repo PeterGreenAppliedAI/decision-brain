@@ -16,6 +16,7 @@ const cy = cytoscape({
     { selector: 'node.section.claimed', style: { 'background-color': css('--claimed') } },
     { selector: 'node.section.done', style: { 'background-color': css('--done') } },
     { selector: 'node.section.failed', style: { 'background-color': css('--failed') } },
+    { selector: 'node.section.rejected', style: { 'background-color': css('--pending'), 'border-width': 2, 'border-color': css('--failed') } },
     { selector: 'node.section:selected', style: { 'border-width': 2, 'border-color': '#fff' } },
     { selector: 'node.agent', style: { shape: 'ellipse', width: 38, height: 38, 'background-color': css('--agent'),
       label: 'data(id)', color: css('--text'), 'font-size': 10, 'text-valign': 'top', 'text-margin-y': -4, 'font-family': 'monospace' } },
@@ -54,9 +55,11 @@ function render(snap) {
   const pos = layout(snap);
   const key = snap.sections.map((s) => s.id).join() + '|' + snap.agents.map((a) => a.name).join();
   const want = new Map();
+  // Done, but nothing it found passed the code check (e.g. a summary naming code the file lacks).
+  const rejected = new Set(snap.findings.filter((f) => f.total > 0 && f.verified === 0).map((f) => f.section));
   for (const s of snap.sections) {
     const label = job === 'files' ? (s.id.startsWith('dir:') ? s.id.slice(4).split('/').pop() + '/' : s.id.split('/').pop()) : (s.date ?? '').slice(5) || '—';
-    want.set(s.id, { group: 'nodes', data: { id: s.id, short: label, title: s.title }, classes: `section ${s.status}`, position: pos[s.id] });
+    want.set(s.id, { group: 'nodes', data: { id: s.id, short: label, title: s.title }, classes: `section ${s.status}${s.status === 'done' && rejected.has(s.id) ? ' rejected' : ''}`, position: pos[s.id] });
   }
   for (const a of snap.agents) {
     const silent = !a.leftAt && snap.now - a.lastSeen > SILENT_MS;
@@ -85,6 +88,7 @@ function render(snap) {
   const count = (st) => snap.sections.filter((s) => s.status === st).length;
   const open = snap.handoffs.filter((h) => h.status === 'open' || h.status === 'claimed').length;
   $('counts').innerHTML = ['pending', 'claimed', 'done', 'failed'].map((st) => `<span class="${st}"><b>${count(st)}</b> ${st}</span>`).join('') +
+    (rejected.size ? `<span class="failed" title="done, but nothing it produced passed the code check"><b>${rejected.size}</b> rejected</span>` : '') +
     `<span class="ho"><b>${snap.handoffs.filter((h) => h.status === 'confirmed').length}</b>/${snap.handoffs.length} handoffs confirmed${open ? ` · ${open} open` : ''}</span>`;
 
   const doneBy = (name) => snap.sections.filter((s) => s.status === 'done' && s.claimedBy === name).length;
@@ -146,7 +150,9 @@ async function showFile(id) {
   if (!r) return;
   const now = r.now;
   const head = (path) => `<h3>${esc(path)}</h3>`;
-  if (!now.purpose) return panel(`${head(id.replace(/^(file|dir):/, ''))}<div class="src">not summarized yet</div>`);
+  if (!now.purpose) return panel(`${head(id.replace(/^(file|dir):/, ''))}<div class="src">${r.rejected
+    ? `no summary: the one written was rejected by the code check (${esc(r.rejected)}) — a summary that names code the file does not contain is not kept`
+    : 'not summarized yet'}</div>${r.recheck?.length ? `<div class="ev"><b>decisions resting on it</b>${r.recheck.map((d) => `<div><a href="#" data-dec="${esc(d.id)}">${esc(d.title)}</a></div>`).join('')}</div>` : ''}`);
   const note = `<div class="src">summary of the code (model-written)${now.describesCommit ? ` at ${esc(now.describesCommit.slice(0, 7))}` : ''}${now.stale ? ` · <span class="stale">changed ${now.changedSince}× since — run sync</span>` : ''}</div>`;
   if (now.kind === 'directory') {
     const child = (p) => cy.getElementById(`dir:${p}`).nonempty() ? `dir:${p}` : `file:${p}`;
