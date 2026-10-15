@@ -131,8 +131,9 @@ adversarial probes kept as tests so the refinement could not loosen them.
   passes (see inv-02 in the evaluation). Prose claims are model-written.
 - **Labels distinguish relevant from irrelevant, not required from supporting.** A good answer may
   rest on fewer entries than were labelled (e.g. inv-06), which lowers measured recall.
-- **Tested on two repositories and one model server** (glm-5.3-flash on vLLM). Other OpenAI-compatible
-  servers (e.g. Ollama) are expected to work but are not yet verified.
+- **Tested on three repositories and one model server** (glm-5.3-flash on vLLM): Invarail
+  (DECISIONS.md), content-publisher (Nygard ADRs), log4brains (date-named MADR ADRs, run from a fresh
+  clone — see eval/JUDGE-PATH.md). Other OpenAI-compatible servers (e.g. Ollama) are not yet verified.
 
 ## The graph data model
 
@@ -204,8 +205,14 @@ tools in `src/tools/graph-tools.ts`, `trace.ts` and `review.ts`.
 
 ## Run it
 
-Requires Node ≥ 22, Docker, and an OpenAI-compatible model server for the agents (we use
-`glm-5.3-flash` on vLLM; nothing calls a paid API).
+Requires Node ≥ 22, Docker, and — for the extraction team, summaries and the agent — an
+OpenAI-compatible model server **with tool calling and JSON-schema structured output**. Verified with
+`glm-5.3-flash` on vLLM (set `LLM_REASONING_EFFORT=low` for GLM); other servers such as Ollama are
+expected to work but are not verified. Nothing calls a paid API. Ingest, trace, review and the MCP
+tools need no model at all. First runs download the FalkorDB image and npm packages.
+
+A fresh-clone run on a repository we had never seen — with every command, timing and the four
+defects it found — is in [eval/JUDGE-PATH.md](eval/JUDGE-PATH.md).
 
 ```sh
 npm install
@@ -217,7 +224,7 @@ npm run team -- --graph <name> --workers 4 --reset     # the extraction team →
 npm run web                                            # board view http://127.0.0.1:4100, Ask view /ask.html
 
 npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
-npm run review -- --graph <name> <commit>                 # the review packet for a commit
+npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit
 npm run trace -- --graph <name> --find "router"           # find a decision; then trace <decision-id>
 npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting

@@ -22,7 +22,7 @@ and **shows the path** behind every answer.
 | Freeze a FRESH evaluation set, then: cite everything the tools returned; explore beyond one search + one trace | after the judge path |
 | Review rebuilt from the decision log as it stood at the commit | done — basis + graph fingerprint on every packet |
 | Question memory | after that |
-| **Judge path** (next): fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |
+| **Judge path**: done — eval/JUDGE-PATH.md; 4 defects found and fixed; Ollama still unverified (Peter chose GLM only). Original finish line: fresh environment, README-only setup, named Ollama model + hardware; a third repo with decision records — ingest, extract, ask, review end to end; edit a decision → re-ingest → stale evidence gone → re-extract; restart everything → persistence; publish exact commands, timings, failures, corrected setup | next |
 | "Record the reason" at review time (a change touching load-bearing files with no decision drafts one for approval) | Day 3 |
 | Drift (`still_true`) — secondary action | later |
 | Deployment, demo video, blog post | Day 4 |

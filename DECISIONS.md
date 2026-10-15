@@ -4,6 +4,24 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Judge Path: a Fresh Clone, an Unseen Repository, Four Defects (October 15 2026)
+
+The outside review's finish line, followed step by step (eval/JUDGE-PATH.md): fresh clone,
+README-only setup, `thomvaill/log4brains` (11 ADRs, new to us), ingest → extract → ask → review, edit
+a decision → stale evidence gone → re-extract, restart → persistence. Peter chose GLM only (Ollama
+stays unverified) and stopping our own FalkorDB during the run. Everything passes now — after four
+defects this run found within minutes, which two hand-picked corpora had hidden:
+1. date-named ADRs (`20200924-title.md`) were not recognised at all — ingest found no decisions;
+2. two ADRs written the same day got the same id and one silently replaced the other;
+3. my fix for (2) deleted a function ingest imports; all unit tests passed (vitest does not enforce
+   named exports; no fixture had an ADR directory) and I had not run the typecheck. The fresh clone
+   crashed on it. An end-to-end ADR test now guards it, and typecheck-before-commit is a rule;
+4. "as of the change" used the date a commit was *written*; log4brains' initial commit was written in
+   September and squashed in on December 10 — commits now carry their commit date for all as-of logic.
+The parts the run was built to check held: the team re-extracted exactly the one edited entry in 10 s,
+with evidence from the new text; counts were identical after a full restart. One trap noted for our
+own testing only: a clone directory named like an existing one reuses its Docker volume.
+
 ## The Third Review: Two Regressions, and Words That Claimed Too Much (October 15 2026)
 
 The third review re-ran the earlier probes (all now rejected), recalculated the scores independently
