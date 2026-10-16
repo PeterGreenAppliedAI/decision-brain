@@ -2,7 +2,7 @@
   "name": "decision-brain",
   "version": "0.0.0",
   "private": true,
-  "description": "Graph Hacks 2026 entry (pre-event scaffold): an agent that answers why a codebase is the way it is, with the path behind every answer.",
+  "description": "Graph Hacks 2026 entry: an agent that answers why a codebase is the way it is, with the path behind every answer.",
   "type": "module",
   "license": "MIT",
   "engines": {

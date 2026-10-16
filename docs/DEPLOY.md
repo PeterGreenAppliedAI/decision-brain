@@ -2,7 +2,7 @@
 
 The event prefers a deployment; otherwise setup instructions plus a video. Decision Brain's model runs
 on a local GPU box, so any live deployment is this machine's web server reached through a tunnel.
-**Choosing one is Peter's call** — it exposes this machine's web server and model time to the internet.
+**Choosing one is the owner's call** — it exposes this machine's web server and model time to the internet.
 
 | Option | What judges get | Cost / risk |
 |---|---|---|
@@ -18,8 +18,8 @@ the machine is down; B lets judges click through the real thing.
 - [ ] `WEB_ALLOW_INGEST` unset (the Add repository button must not exist publicly) — check `GET /api/add` says `enabled: false`
 - [ ] demo copies deleted or left hidden (`invarail-demo` is listed only when the link names it)
 - [ ] `ASK_MAX_CONCURRENT` set (2 is the default) — a third question gets "busy"
-- [ ] the web server runs in the `lab` tmux session (the only place that reaches the model host)
+- [ ] the web server runs where it can reach the model host
 - [ ] `WEB_HOST` stays `127.0.0.1`; only the tunnel reaches it
 - [ ] nothing personal in the served graphs: Invarail's graph holds commit messages, author names and
-      DECISIONS.md text — Peter's own repository; confirm he is fine with it being browsable
+      DECISIONS.md text — the owner's own public repository; confirm it may be browsable
 - [ ] after judging: stop the tunnel

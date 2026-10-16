@@ -9,11 +9,9 @@ and answers questions from it **with the path behind every answer**. Everything 
 graph in FalkorDB, the agents on a local model.
 
 ```
-            ┌──────────── extraction team (Track 02) ────────────┐
-git log ──┐ │  4 local agents ⇄ board graph (claims, findings,   │
-DECISIONS ├─┤  handoffs) → code verifies every quote → integrator │──► brain graph ──► MCP tools ──► agent ──► answer
-ADRs ─────┘ └────────────────────────────────────────────────────┘    (one per repo)  (Track 01)   + cited path
-                                                                        (Track 03)                     + review packet
+git history ─┐                                                       ┌─► Ask: answer + checked citations + path
+decision log ├─► ingest ─► 4 local agents ⇄ board graph ─► brain graph ┤
+ADRs ────────┘   (code)    (claim, extract, verify, handoff)  (FalkorDB) └─► review <commit>: what this change threatens
 ```
 
 > *"Why does the router prompt keep a rule that's factually wrong about memory?"*
@@ -25,8 +23,88 @@ ADRs ─────┘ └─────────────────�
 > 1 tool call; code checked the citation and both figures against the cited evidence — the wording
 > itself is the model's)*
 
-A five-minute walkthrough of the code-review story, every step verified on real data, is in
-[DEMO.md](DEMO.md).
+**Demo video:** TODO · **Walkthrough:** [DEMO.md](DEMO.md) — the code-review story, every step verified on
+real data.
+
+## Tracks
+
+| Track | What to look at |
+|---|---|
+| **03 Company Brain** (primary) | One FalkorDB graph per repository: decisions → measurements and experiments → commits → files → people (humans and AI co-authors). Answers cite and are code-checked; `who_knows`, `origin`, `told` (what an AI agent's instruction files said at a commit); file and directory summaries; `sync` keeps it current. |
+| **01 Agents on Connected Data** | Twelve MCP tools over Cypher, full-text search and FalkorDB algorithms (`algo.pageRank`, `algo.SPpaths`), chosen by a local tool-calling agent; the action is `review <commit>` — the decisions a change threatens, as of that commit. |
+| **02 Memory & Coordination** | The agents coordinate only through a FalkorDB board graph: atomic claims, expiry and takeover, dependency-ordered tasks, and handoffs a *second* agent must confirm with a verbatim quote. The shared memory stays honest: content hashes invalidate evidence when an entry changes; `sync` redoes only what changed. *Not built: memory of past questions.* |
+
+## Judge quick path
+
+| Needs a model server? | What |
+|---|---|
+| **No** — Docker + Node only | `ingest` a repo, then `trace`, `review`, all twelve MCP tools, the Board view of a finished board |
+| **Yes** — OpenAI-compatible, tool calling + JSON-schema output | the extraction team, summaries, `ask` and the Ask view, `sync` when something changed |
+
+Fastest look without a model: ingest any repo with a `DECISIONS.md` or ADR folder and run `trace` and
+`review` on it (seconds). A fresh-clone run on a repository we had never seen — every command, timing and
+the four defects it found — is in [eval/JUDGE-PATH.md](eval/JUDGE-PATH.md).
+
+## Run it
+
+Requires Node ≥ 22.9 (scripts use `--env-file-if-exists`), Docker, and — for the model-backed parts — an
+OpenAI-compatible model server **with tool calling and JSON-schema structured output**. Verified with
+`glm-5.3-flash` on vLLM (set `LLM_REASONING_EFFORT=low` for GLM); others such as Ollama are expected to
+work but not verified. Nothing calls a paid API. First runs download the FalkorDB image and npm packages.
+
+```sh
+npm install
+cp .env.example .env                   # then set LLM_URL to your model server
+npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Browser on :3030
+
+npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph (no model)
+npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
+npm run summarize -- --graph <name> --repo <path>      # file → directory → repo summaries (board <name>__files)
+npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html (run where the model is reachable)
+WEB_ALLOW_INGEST=1 npm run web                         # local only: adds "Add repository" (public GitHub URL → ingest → team)
+
+npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
+npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit (no model)
+npm run trace -- --graph <name> --find "router"           # find a decision; then trace <decision-id> (no model)
+npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
+npm run sync -- --graph <name> --repo <path>              # after a pull: redo only what changed; again → nothing
+npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
+
+npm run eval:v2 -- run | score | sensitivity              # evaluation v2 (frozen set; needs the three graphs below)
+npm run eval:run                                          # v1 regression set (graphs invarail, content-publisher)
+```
+
+**MCP client** (e.g. Claude Desktop or Cursor) — run from the repository directory:
+```json
+{ "mcpServers": { "decision-brain": { "command": "npm", "args": ["run", "-s", "mcp", "--", "--graph", "<name>"], "cwd": "/path/to/decision-brain" } } }
+```
+
+Corpora used, all public: [Invarail](https://github.com/PeterGreenAppliedAI/Invarail) (DECISIONS.md, 151
+entries, 780 commits), [alphagov/content-publisher](https://github.com/alphagov/content-publisher) (16 Nygard
+ADRs, 8,342 commits) and [thomvaill/log4brains](https://github.com/thomvaill/log4brains) (11 date-named
+ADRs); [npryce/adr-tools](https://github.com/npryce/adr-tools) was added from the page. Timings on four local
+workers: Invarail extraction 31 min, summaries 52 min; log4brains extraction 37 s, summaries 17 min.
+
+**Settings** come from the environment (see [.env.example](.env.example)) — nothing is hardcoded.
+`npm test` runs 124 tests, most against a real FalkorDB (fixture repos and graphs built per test); CI runs
+them on every push against the same pinned FalkorDB version.
+
+## Tools (MCP and CLI) — twelve
+
+| Tool | Answers | Graph work |
+|---|---|---|
+| `search(query)` | Which decisions are about this? | full-text index; all-words matches first |
+| `why(target)` | Which decisions shaped this file / topic? | rationale + concept edges, newest first, with evidence |
+| `trace(decision_id)` | What does this decision say, and what is it connected to? | text, commits, files, people, relations with quotes |
+| `what_breaks(file)` | If I change this, what should I re-check? | standing vs settled decisions resting on the file |
+| `disproven(target)` | What was already tried and rejected here? | disproven experiments, failed/superseded decisions |
+| `who_knows(target)` | Who knows this code or topic? | authorship, humans and agents apart |
+| `connect(a, b)` | How are these two things related? | `algo.SPpaths`, undirected, never through a person or hub |
+| `load_bearing()` | Which files carry the most reasoning? | `algo.pageRank` over the rationale graph |
+| `review(commit)` | What does this change touch, as of when it was made? | the deterministic review packet |
+| `what_is(target)` | What does this file or directory do now? | its summary — describes code at a commit, never intent; flags staleness |
+| `origin(file)` | What was it meant to do, and how did that change? | birth commit + decision recorded there, then every later decision on it |
+| `told(commit)` | What was the AI agent told when it wrote this? | instruction-file guidance in force at the commit, about its files; changed since? |
 
 ## How it works
 
@@ -44,7 +122,7 @@ A five-minute walkthrough of the code-review story, every step verified on real 
    quote-matching proves provenance, not meaning. A relation one agent finds ("this entry revises
    ADR 8") becomes a **handoff**: a *different* agent reads the other entry and must confirm it with a
    quote from that side. Only quote-matched findings and confirmed handoffs reach the brain.
-3. **Answer — graph tools over MCP.** Nine read-only tools (below), deterministic in their ordering.
+3. **Answer — graph tools over MCP.** Twelve read-only tools (above), deterministic in their ordering.
    The agent — a local model — chooses among them over MCP and must cite the ids they returned. Code
    then reports three separate checks: **citations** (each names something a tool returned),
    **figures** (each number appears in the evidence its citation brought — invented or altered
@@ -85,49 +163,28 @@ and their directories — and a second sync does nothing.
 
 ## Evaluation
 
-Two sets, both scored against labels and against baselines that use no graph.
+**v2** ([eval/v2/RESULTS.md](eval/v2/RESULTS.md)): 24 questions across the three repositories, frozen
+before any system saw them ([eval/v2/SPEC.md](eval/v2/SPEC.md)), answered by Decision Brain and by the same
+model given keyword-search results, judged blind against key facts. Two runs; run 2 judged by a fresh
+agent that saw only the anonymized sheet.
 
-**v2 — the comparison** ([eval/v2/RESULTS.md](eval/v2/RESULTS.md)): 24 questions over all three
-repositories, frozen (questions, labels, key facts, revisions, model settings, scoring —
-[eval/v2/SPEC.md](eval/v2/SPEC.md)) before any system saw them; answers judged blind against key facts.
+| | Decision Brain | Same model + keyword search |
+|---|---|---|
+| Required evidence cited | 20/20 · 20/20 | 15/20 · 15/20 |
+| Answers passing the rubric | 17/20 · 16/20 | 11/20 · 10/20 |
+| False premises corrected | 4/4 · 4/4 | 2/4 · 2/4 |
+| Correct abstentions | 4/4 · 4/4 | 4/4 · 4/4 |
+| Median latency | 20.6 s · 22.9 s | 7.9 s · 7.8 s |
 
-Run twice: run 1 judged by the session that built the system, run 2 (after the latest fixes) judged by
-a fresh subagent that saw only the blind sheet.
-
-| | Decision Brain (agent) | Same model, keyword-retrieved entries | Keyword retrieval only |
-|---|---|---|---|
-| Required evidence cited / retrieved | 20/20 · 20/20 | 15/20 · 15/20 | 15/20 (top 5) |
-| Answers passing the rubric (every listed key fact, no listed wrong claim) | 17/20 · 16/20 | 11/20 · 10/20 | — |
-| False premises corrected | 4/4 · 4/4 | 2/4 · 2/4 | — |
-| Correct abstentions | 4/4 · 4/4 | 4/4 · 4/4 | — |
-| Median latency | 20.6 s · 22.9 s (3 tool calls) | 7.9 s · 7.8 s | — |
-
-**The claim this supports:** on a frozen 24-question evaluation across three repositories, Decision
-Brain answered more questions correctly than the same model given keyword-search results, at roughly
-2.6–2.9x the latency (in each run 7 questions only the agent got right, 1 only the baseline). With every
-borderline judging call of run 2 decided against the agent it still leads, 14/20 vs 12/20 (`npm run eval:v2 -- sensitivity`
-reproduces it from the saved sheet) — but the
-false-premise result (4/4 vs 2/4) does not survive that, so it is not claimed as robust. It measures the whole
-workflow — several searches, specialised tools and graph relationships all differ from the one-call
-baseline — and does not isolate which part contributed how much. "Correct" means passing the rubric
-(listed key facts, listed wrong claims), not that nothing else in the answer was checked. Figures flagged by
-the checker were checked by hand: in run 1 all were in the source, misplaced relative to their citation;
-in run 2 two were reformatted ("96,000" for `96000`) and one was a merged figure the source does not
-state ("2016/2017") — small, and caught. One
-question failed for both systems because the answer sat beyond the 2,500 characters of a long entry
-each reads. **Limits:** 24 questions, two runs, one model; questions and key facts written by Claude,
-which built the system. Run 1 was judged by that same session, blind to which system answered but only
-partly (its progress log named each system's check status); run 2 by a fresh subagent that saw only the
-anonymized sheet. Owner spot-check pending. The borderline range is a sensitivity check on this set,
-not a guarantee of broader performance.
-
-**v1 — the regression set** ([eval/RESULTS.md](eval/RESULTS.md)): the first 25 questions, used while
-developing — so not a fair comparison any more. On them, recall of relevant decisions tied with
-keyword search (52%/52%); they stay as regression cases. Labels: model-drafted, reviewed by Claude,
-described in the file.
-
-The code checks match figures, not their meaning: "zero figures flagged" never means the numbers were
-used correctly — v1's inv-02 copied the right numbers and reversed what they measure, and passed.
+**The claim:** on this frozen set, Decision Brain passed more answer rubrics than the same model with
+keyword search, at roughly 2.6–2.9x the latency — because its tools find entries keyword search misses.
+With every borderline judging call decided against it, it still leads 14/20 vs 12/20
+(`npm run eval:v2 -- sensitivity` reproduces this from the saved sheet); the premise result does not
+survive that and is not claimed as robust. It measures the whole workflow, not the graph alone.
+**Limits:** 24 questions, one model; questions and key facts written by Claude, which built the system;
+run 1 judged by that same session (partly blind); owner spot-check pending. Details, every miss and the
+hand check of flagged figures are in RESULTS.md. The **v1** set ([eval/RESULTS.md](eval/RESULTS.md)) was
+used while developing and is kept as a regression set only.
 
 ## Limitations (known, not yet fixed)
 
@@ -206,84 +263,15 @@ The Cypher lives with the code that runs it: ingest in `src/ingest/`, the board 
 promotion in `src/board/integrate.ts`, the derived rationale graph in `src/graph/rationale.ts`, the
 tools in `src/tools/graph-tools.ts`, `trace.ts` and `review.ts`.
 
-## Tools (MCP and CLI) — twelve
-
-| Tool | Answers | Graph work |
-|---|---|---|
-| `search(query)` | Which decisions are about this? | full-text index; all-words matches first |
-| `why(target)` | Which decisions shaped this file / topic? | rationale + concept edges, newest first, with evidence |
-| `trace(decision_id)` | What does this decision say, and what is it connected to? | text, commits, files, people, relations with quotes |
-| `what_breaks(file)` | If I change this, what should I re-check? | standing vs settled decisions resting on the file |
-| `disproven(target)` | What was already tried and rejected here? | disproven experiments, failed/superseded decisions |
-| `who_knows(target)` | Who knows this code or topic? | authorship, humans and agents apart |
-| `connect(a, b)` | How are these two things related? | `algo.SPpaths`, undirected, never through a person or hub |
-| `load_bearing()` | Which files carry the most reasoning? | `algo.pageRank` over the rationale graph |
-| `review(commit)` | What does this change touch, as of when it was made? | the deterministic review packet |
-| `what_is(target)` | What does this file or directory do now? | its summary — describes code at a commit, never intent; flags staleness |
-| `origin(file)` | What was it meant to do, and how did that change? | birth commit + decision recorded there, then every later decision on it |
-| `told(commit)` | What was the AI agent told when it wrote this? | instruction-file guidance in force at the commit, about its files; changed since? |
-
-## Run it
-
-Requires Node ≥ 22, Docker, and — for the extraction team, summaries and the agent — an
-OpenAI-compatible model server **with tool calling and JSON-schema structured output**. Verified with
-`glm-5.3-flash` on vLLM (set `LLM_REASONING_EFFORT=low` for GLM); other servers such as Ollama are
-expected to work but are not verified. Nothing calls a paid API. Ingest, trace, review and the MCP
-tools need no model at all. First runs download the FalkorDB image and npm packages.
-
-A fresh-clone run on a repository we had never seen — with every command, timing and the four
-defects it found — is in [eval/JUDGE-PATH.md](eval/JUDGE-PATH.md).
-
-```sh
-npm install
-cp .env.example .env                   # then set LLM_URL to your model server
-npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Browser on :3030
-
-npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph
-npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
-npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html (run where the model is reachable)
-WEB_ALLOW_INGEST=1 npm run web                         # local only: adds an "Add repository" button (public GitHub URL → ingest → team)
-
-npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
-npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit
-npm run trace -- --graph <name> --find "router"           # find a decision; then trace <decision-id>
-npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
-npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
-npm run eval:candidates && npm run eval:run              # labelled evaluation vs a keyword-search baseline
-npm run summarize -- --graph <name> --repo <path>         # file → directory → repo summaries (board <name>__files)
-npm run sync -- --graph <name> --repo <path>              # after a pull: redo only what changed; again → nothing
-```
-
-Corpora used: [Invarail](https://github.com/PeterGreenAppliedAI/Invarail) (151 decision-log entries,
-780 commits) and [alphagov/content-publisher](https://github.com/alphagov/content-publisher) (16 ADRs,
-8,342 commits, 68 contributors). Extraction: 151 entries in 31 min and 16 ADRs in 81 s on four local
-workers.
-
-**Settings** come from the environment (see [.env.example](.env.example)): `FALKORDB_URL`, `LLM_URL`,
-`LLM_MODEL`, `LLM_REASONING_EFFORT`, `PERSON_ALIASES`, `AGENT_AUTHOR_PATTERN`, `ADR_DIRS`,
-`RATIONALE_EXCLUDE`, `CONCEPT_MAX_SHARE`, `CLAIM_TTL_MS`, `INSTRUCTION_FILES`, `FILE_EXTENSIONS`,
-`FILE_EXCLUDE` and a few more — nothing is hardcoded.
-
-`npm test` runs 116 tests, most against a real FalkorDB (fixture repos and graphs built per test);
-CI runs them on every push against the same pinned FalkorDB version.
-
 ## Status
 
-Built: ingest (decision logs, ADRs, agent-instruction files with their history), the extraction team
-and board (with task dependencies), the integrator, the rationale graph, file → directory → repo
-summaries, twelve tools, the MCP server, the agent with its code checks, `review` (rebuilt from the log
-at the commit), `sync`, evaluation v1 and v2 (eval/), and two web views:
-
-- **Board** — the agents working live: one tile per decision entry or per file/directory, colour =
-  status, handoffs as arcs. Click a tile: a decision shows its measurements, experiments, relations and
-  commits; a file shows its summary, the decisions resting on it with their evidence, and the commit
-  that created it; a directory shows its parts, each clickable. Every panel links to Ask.
-- **Ask** — a question, the agent's tool calls as they happen, the answer with its citations and
-  figures checked, and the path behind it (decisions at the centre, then commits and files, then
-  evidence). Click a citation or a node for its source.
-
-Next: question memory, deployment. The full record of what was decided, what failed and what was
-corrected is [DECISIONS.md](DECISIONS.md).
+Built: everything above — ingest (decision logs, ADRs, agent-instruction files with their history), the
+extraction and summary teams on board graphs, the integrator, the rationale graph, twelve tools, the MCP
+server, the agent with its code checks, `review`, `sync`, the evaluations, and two web views: **Board**
+(the agents working live; every tile opens what it produced — a decision's evidence, a file's summary
+and the decisions resting on it, a directory's parts) and **Ask** (tool calls as they happen, the answer
+with its checks, and the path behind it). Next: question memory. The full record of what was decided,
+what failed and what was corrected is [DECISIONS.md](DECISIONS.md).
 
 ## The event's rules, and how this repo meets them
 
@@ -296,4 +284,6 @@ corrected is [DECISIONS.md](DECISIONS.md).
   assisted commit carries a Co-Authored-By trailer. The product's own agents run on a local model.
   The architecture, its decisions and their reasons — including the wrong turns — are in
   [DECISIONS.md](DECISIONS.md).
-- **Data:** both corpora are public repositories.
+- **Commit titles "Day 1", "Day 2"** name the plan's milestones ([PLAN.md](PLAN.md)), not calendar days;
+  the first graph commit is Oct 14 3:56 PM EDT, after the start.
+- **Data:** every corpus is a public repository.

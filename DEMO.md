@@ -11,6 +11,10 @@ its revert is Invarail's real record.
 
 ## Setup (before recording — ~5 s, safe to repeat)
 
+**Prerequisite, once (~85 min of model time):** Invarail's graphs built — clone
+[Invarail](https://github.com/PeterGreenAppliedAI/Invarail), then `npm run ingest -- <path> --graph invarail`,
+`npm run team -- --graph invarail --workers 4`, `npm run summarize -- --graph invarail --repo <path>`.
+
 ```sh
 D=data/corpora/invarail-demo
 npx tsx --env-file=.env scripts/demo/setup.ts <path-to-invarail> invarail $D invarail-demo
@@ -85,5 +89,5 @@ back and the warning applies.
    September decision and the 7B evidence: a change is judged by the record as it stood at that commit.
 
 Then one line: tested on three repositories using the documented GLM/vLLM setup (`eval/JUDGE-PATH.md`);
-on 24 frozen questions, more answers correct than the same model given keyword-search results
-(17/20 vs 11/20), at about 2.6x the latency (`eval/v2/RESULTS.md`).
+on 24 frozen questions, more answer rubrics passed than the same model given keyword-search results
+(16/20 vs 10/20 in the blind-judged second run), at about 2.6–2.9x the latency (`eval/v2/RESULTS.md`).
