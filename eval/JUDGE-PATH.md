@@ -78,8 +78,9 @@ would reuse that volume — not a concern on a judge's machine).
 
 ## What this run did not verify
 
-- **Ollama or any other model server.** Only `glm-5.3-flash` on vLLM was used; whether another
-  OpenAI-compatible server handles the structured-output and tool-calling requests is unverified.
+- **Ollama or any other model server.** Only `glm-5.3-flash` on vLLM was used here. (Later, 2026-10-16:
+  `qwen3.8:27B` via Ollama ran the full demo — extraction, sync, review, Ask — on a warm machine; see
+  DECISIONS.)
 - **A cold machine.** npm's cache and the FalkorDB image were already present.
 - **Repositories without decision records**, or decision records in other layouts than Nygard,
   MADR, log4brains and a single DECISIONS.md.

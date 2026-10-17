@@ -7,7 +7,7 @@
  * Runs where the model host is reachable (the lab tmux session on this Mac).
  */
 import { parseArgs } from 'node:util';
-import { boardName, counts, registerAgent, seedBoard } from '../board/board.js';
+import { boardName, counts, registerAgent, seedBoard, workerNames } from '../board/board.js';
 import { integrate } from '../board/integrate.js';
 import { config } from '../config.js';
 import { connect, GraphConnectError } from '../graph/db.js';
@@ -44,7 +44,7 @@ try {
   if (seed.removed) console.log(`[team] removed ${seed.removed} board node(s) for entries that no longer exist`);
 
   const llm = createJsonClient();
-  const names = Array.from({ length: Number(values.workers) }, (_, i) => `glm-${i + 1}`);
+  const names = workerNames(llm.model, Number(values.workers));
   console.log(`[team] ${names.length} workers on ${llm.model}, ${seeded} sections, board ${boardName(values.graph)}`);
   const started = Date.now();
   const stats = await Promise.all(names.map(async (name) => {

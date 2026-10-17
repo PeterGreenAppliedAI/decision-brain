@@ -4,6 +4,18 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Qwen on the A5000 Works; GLM Stays (October 16 2026)
+
+Peter asked to try qwen3.8:27B on the A5000 (Ollama) instead of GLM. No code change was needed —
+Ollama's OpenAI-compatible endpoint takes our tool calls and JSON-schema output. A probe extraction
+(13.8 s, the supersession found) and an Ask (correct, supported, 21.8 s) passed, and the full demo ran:
+sync 45 s and 106 s, supersession confirmed by a second Qwen agent, all three reviews right. But its
+Ask answers left figures outside any citation ("Bottom line: … 16/20 → 0/20") more often: fully supported
+in 2 of 6 runs of the demo question, against 6 of 7 for GLM over the same days. The checker is right to
+flag those, and red badges would muddy the demo, so GLM stays (Peter: "keep it to GLM if it's better").
+Found on the way: worker names were hard-coded `glm-1…n`, so Qwen workers would have shown as GLM on the
+Board; names now come from the configured model (`workerNames`, tested). Ollama is no longer "unverified".
+
 ## The Sensitivity Check Is a Command (October 15 2026)
 
 From the same review: a memory rule helps the coder, executable scoring lets anyone check. `npm run

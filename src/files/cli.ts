@@ -9,7 +9,7 @@
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { counts, registerAgent } from '../board/board.js';
+import { counts, registerAgent, workerNames } from '../board/board.js';
 import { config } from '../config.js';
 import { connect, GraphConnectError } from '../graph/db.js';
 import { createJsonClient } from '../llm/openai.js';
@@ -42,7 +42,7 @@ try {
   await seedFileBoard(board, tasks, sha, blobsAt(repo, sha));
   if (values['retry-rejected']) console.log(`[summarize] retrying rejected: ${JSON.stringify(await requeueRejected(board))}`);
   const llm = createJsonClient();
-  const names = Array.from({ length: Number(values.workers) }, (_, i) => `glm-${i + 1}`);
+  const names = workerNames(llm.model, Number(values.workers));
   console.log(`[summarize] ${chosen.length} files, ${tasks.length - chosen.length} directories at ${sha.slice(0, 7)} · ${names.length} workers · board ${boardName}`);
   const t0 = Date.now();
   const stats = await Promise.all(names.map(async (name) => {

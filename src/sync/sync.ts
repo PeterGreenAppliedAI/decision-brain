@@ -13,7 +13,7 @@
  * A second sync with nothing changed in the repo does no model work and changes nothing.
  */
 import { execFileSync } from 'node:child_process';
-import { boardName, counts, ensureBoardSchema, event, registerAgent, seedBoard } from '../board/board.js';
+import { boardName, counts, ensureBoardSchema, event, registerAgent, seedBoard, workerNames } from '../board/board.js';
 import { integrate } from '../board/integrate.js';
 import { config } from '../config.js';
 import { connect, type Graph } from '../graph/db.js';
@@ -144,7 +144,7 @@ export async function sync(db: Db, graphName: string, repo: string, opts: { llm:
     let extracted = 0;
     if (c.pending + c.handoffsOpen > 0) {
       const index = (await brain.roQuery<IndexEntry>('MATCH (d:Decision) RETURN d.id AS id, d.date AS date, d.title AS title ORDER BY d.id')).data ?? [];
-      const names = Array.from({ length: workers }, (_, i) => `glm-${i + 1}`);
+      const names = workerNames(llm.model, workers);
       const stats = await Promise.all(names.map(async (name) => {
         await registerAgent(board, name, llm.model);
         return runWorker({ name, board, brain, llm, index, ttlMs: config.claimTtlMs, maxAttempts: config.maxAttempts, idlePollMs: config.idlePollMs, log });
@@ -162,7 +162,7 @@ export async function sync(db: Db, graphName: string, repo: string, opts: { llm:
     const r = await refreshFileBoard(board, repo);
     let summarized = 0;
     if ((await counts(board)).pending > 0) {
-      const names = Array.from({ length: workers }, (_, i) => `glm-${i + 1}`);
+      const names = workerNames(llm.model, workers);
       const stats = await Promise.all(names.map(async (name) => {
         await registerAgent(board, name, llm.model);
         return runSummaryWorker({ name, board, llm, repo, sha: r.sha, ttlMs: config.claimTtlMs, maxAttempts: config.maxAttempts, idlePollMs: config.idlePollMs, log });

@@ -49,8 +49,10 @@ the four defects it found — is in [eval/JUDGE-PATH.md](eval/JUDGE-PATH.md).
 
 Requires Node ≥ 22.9 (scripts use `--env-file-if-exists`), Docker, and — for the model-backed parts — an
 OpenAI-compatible model server **with tool calling and JSON-schema structured output**. Verified with
-`glm-5.3-flash` on vLLM (set `LLM_REASONING_EFFORT=low` for GLM); others such as Ollama are expected to
-work but not verified. Nothing calls a paid API. First runs download the FalkorDB image and npm packages.
+`glm-5.3-flash` on vLLM (set `LLM_REASONING_EFFORT=low` for GLM), which the published results use. Also
+run on `qwen3.8:27B` via Ollama's OpenAI-compatible endpoint: extraction, sync, review and Ask all work, but
+its answers left figures uncited more often (fully supported in 2 of 6 runs of one question vs 6 of 7 for
+GLM). Nothing calls a paid API. First runs download the FalkorDB image and npm packages.
 
 ```sh
 npm install
@@ -210,7 +212,7 @@ used while developing and is kept as a regression set only.
   rest on fewer entries than were labelled (e.g. inv-06), which lowers measured recall.
 - **Tested on three repositories and one model server** (glm-5.3-flash on vLLM): Invarail
   (DECISIONS.md), content-publisher (Nygard ADRs), log4brains (date-named MADR ADRs, run from a fresh
-  clone — see eval/JUDGE-PATH.md). Other OpenAI-compatible servers (e.g. Ollama) are not yet verified.
+  clone — see eval/JUDGE-PATH.md). Also run on qwen3.8:27B via Ollama (see Run it).
 
 ## The graph data model
 

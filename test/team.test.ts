@@ -284,3 +284,11 @@ describe.skipIf(!reachable)('the team on a real board', () => {
     expect(llm.calls.filter((c) => c.startsWith('handoff'))).toEqual([]);
   });
 });
+
+describe('worker names', () => {
+  it('say which model is working', async () => {
+    const { workerNames } = await import('../src/board/board.js');
+    expect(workerNames('glm-5.3-flash', 2)).toEqual(['glm-1', 'glm-2']);
+    expect(workerNames('qwen3.8:27B', 2)).toEqual(['qwen3.8-1', 'qwen3.8-2']);
+  });
+});

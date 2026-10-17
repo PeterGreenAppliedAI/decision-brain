@@ -303,3 +303,9 @@ export async function leave(board: Graph, agent: string, summary: string, now = 
   await board.query('MATCH (a:Agent {name: $agent}) SET a.leftAt = $now, a.lastSeen = $now', { params: { agent, now } });
   await event(board, 'leave', agent, null, summary);
 }
+
+/** Worker names that say which model is working: glm-5.3-flash → glm-1…n, qwen3.8:27B → qwen3.8-1…n. */
+export function workerNames(model: string, n: number): string[] {
+  const prefix = model.toLowerCase().split(/[:/_-]/)[0] || 'agent';
+  return Array.from({ length: n }, (_, i) => `${prefix}-${i + 1}`);
+}
