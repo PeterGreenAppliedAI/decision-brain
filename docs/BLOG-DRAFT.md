@@ -1,26 +1,34 @@
 <!-- DRAFT for Peter to edit into his own voice before posting. Every figure below is from eval/,
      DECISIONS.md or DEMO.md in this repo; links marked TODO need the final URLs. -->
 
-# The rule that was wrong on purpose: building a "why" graph for codebases with FalkorDB
+# Decision Brain: giving AI the *why* behind the work, with FalkorDB
 
-My router prompt has a line in it that is factually wrong. It says the memory specialist "can only
-READ". Memory can save facts. Any reasonable reviewer — or any coding agent — would fix it.
+I built Decision Brain around one problem: giving AI real memory of *why* things are the way they are.
 
-We did fix it, once. On September 30 we measured the corrected text against the old one on the
-smallest model in the rotation, qwen2.5:7b: **corrected text, 0 of 20 "remember this…" requests routed
-to memory; old text, 16 of 20.** The wrong rule was load-bearing. We reverted it and wrote the result
-down in `DECISIONS.md`.
+Imagine taking every change in the documents a business runs on — Word files, spreadsheets, policies,
+code — and mapping them into one memory layer in a graph, where every change is connected to the
+decision behind it, the evidence, and the people who know it. For this hackathon (Graph Hacks, FalkorDB ×
+WeMakeDevs) I started where that information is richest: code repositories. Every change is already
+recorded, and good teams write their decisions down.
 
-That entry is the whole reason this project exists. The knowledge that keeps that line in place lives in
-one paragraph of a 1,900-line decision log, a revert commit, and my memory. The next person to open
-`src/router/prompt.ts` sees none of it. Neither does the next agent.
+And code has a real problem. **Code shows *what* a program does, but not *why*.** When someone changes
+code without knowing why it's that way, they can undo something that was decided on purpose. The why
+usually lives where nobody looks while editing: a decision log, an old commit, someone's memory. AI
+coding agents make it worse — they change code fast and confidently, with no idea of its history.
 
-**Decision Brain** turns a repository's decision log and git history into a FalkorDB graph and answers
-"why is this code the way it is?" — with the path behind every answer. I built it for Graph Hacks
-(FalkorDB × WeMakeDevs) and entered it in all three tracks. Everything runs locally: FalkorDB in Docker,
-the agents on a local GLM model served by vLLM.
+Here's a real one from my own project. My router prompt has a line that is factually wrong: it says the
+memory specialist "can only READ", and memory can save facts. Any reviewer, or any coding agent, would fix
+it. We did fix it once — and measured: with the corrected text, the smallest model routed "remember
+this…" to memory **0 times out of 20**; with the old, wrong text, **16 out of 20**. So the wrong line
+stays, and the reason lives in one paragraph of a 1,900-line decision log. The next person to open that
+file sees none of it.
 
-> 🎥 Demo video: TODO · Code: TODO (github.com/PeterGreenAppliedAI/decision-brain)
+**Decision Brain** turns a repository's decision records and git history into a FalkorDB graph, so before
+a change merges you see: this was decided on purpose, here's the evidence, and here's who knows about it.
+It answers "why is this code the way it is?" with the path behind every answer, and it reviews changes.
+Everything runs locally: FalkorDB in Docker, the agents on a local model.
+
+> 🎥 Demo video: TODO · Code: https://github.com/PeterGreenAppliedAI/decision-brain
 
 ## What goes into the graph
 
@@ -84,23 +92,24 @@ labels the prose itself "model-written", because code didn't verify the wording.
 
 ## The code-review story
 
-The demo is the use I didn't plan: code review. A contributor "fixes" that wrong router rule. Before it
-merges, `review` rebuilds the decision log **as it stood at that commit** (from git, not today's
-file) and returns:
+The demo is the use I didn't plan: code review — and it runs entirely in the browser, on a Review page.
+A contributor "fixes" that wrong router rule. Before it merges, the review rebuilds the decision log **as
+it stood at that commit** (from git, not today's file) and shows:
 
 - **R1** The Router Prompt's "Wrong" Rule Was Load-Bearing — measured 0/20 vs 16/20
 - **D1** "Corrected router prompt text would fix the 7B's memory routing" — *tried and disproven*
+- **P1** who knows the file
 
 Then, in a disposable copy and clearly labelled as simulated, the team records a new decision: the 7B
-is retired, and on the supported model the corrected rule measures 20/20 vs 19/20. `sync` re-extracts
-only that entry — one agent proposes "supersedes", another confirms it — and re-summarizes only the
-changed file: 10 model calls instead of hours. The resubmitted fix now gets the new decision as
-guidance, the old one listed as superseded… and one more line I didn't script: the extractor recorded
-"the corrected rule works for qwen2.5:7b as well" as *disproven* under the new decision. The 7B
-constraint survives as a live warning, scoped to where it applies. Newer evidence didn't simply win.
+is retired, and on the supported model the corrected rule measures 20/20 vs 19/20. One click on *Sync*
+and Decision Brain picks up only what changed — one agent proposes "supersedes", a second agent confirms
+it — and the resubmitted fix gets the new decision as guidance, the old one listed as superseded… with
+one more line I didn't script: "the corrected rule works for qwen2.5:7b" recorded as *disproven* under the
+new decision. The old constraint survives as a live warning, scoped to where it still applies. Newer
+evidence didn't simply win.
 
 Review the *original* proposal again and it still shows the September evidence: a change is judged by
-the record as it stood.
+what was known when it was made.
 
 ## Does the graph actually help?
 
@@ -142,8 +151,10 @@ Every correction is dated in `DECISIONS.md`. A few that taught me something:
 
 ## What's next
 
-Question memory (answered questions as graph nodes the next agent can reuse), reading very long entries
-section by section, and a GitHub Action that posts the review packet on every pull request.
+The same graph works for any record of decisions, not just code — that's the bigger idea from the top of
+this post: business documents, spreadsheets and policies, each change tied to its reason. Closer in:
+question memory (answered questions the next agent can reuse), reading very long entries section by
+section, and a GitHub Action that posts the review on every pull request.
 
 *Built with FalkorDB 6.0.2, the `falkordb` Node client, MCP, and glm-5.3-flash on vLLM — no paid API.
 Written with an AI coding assistant, as the event's rules allow; every claim above is checked against
