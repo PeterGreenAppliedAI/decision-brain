@@ -29,7 +29,7 @@ $('commits').addEventListener('click', (e) => { const li = e.target.closest('li[
 
 async function select(sha) {
   selected = sha; setUrl();
-  document.querySelectorAll('#commits li').forEach((li) => li.classList.toggle('on', li.dataset.sha === sha));
+  document.querySelectorAll('#commits li').forEach((li) => li.classList.toggle('on', li.dataset.sha.startsWith(sha)));   // a job reports a short sha
   $('packet').innerHTML = '<div class="thinking">reviewing…</div>';
   $('detail').hidden = true;
   const [p, d] = await Promise.all([api(`/api/review/${encodeURIComponent(graphName)}/${sha}`), api(`/api/diff/${encodeURIComponent(graphName)}/${sha}`)]);
