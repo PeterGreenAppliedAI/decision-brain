@@ -32,9 +32,10 @@ and **shows the path** behind every answer.
 | Drift (`still_true`) — secondary action | later |
 | Reviewer cut-off and `told` by ancestry (with the repo) | done |
 | Add repository from the Board (local only, `WEB_ALLOW_INGEST=1`) | done — npryce/adr-tools added end to end in 25 s; Ask answered from it |
-| Blog post | draft in docs/BLOG-DRAFT.md — Peter edits |
-| Deployment | options in docs/DEPLOY.md — Peter decides; Ask capped (`ASK_MAX_CONCURRENT`) |
-| Demo video | dry run passed after a fix (invalid confirmations retried); demo copy reset — Peter records |
+| Blog post | published on DEV |
+| Deployment | live at decision-brain.devmesh.tech (Cloudflare tunnel, read-only server) |
+| Demo video | recorded in the browser (Review page) and published |
+| **Submitted** | Oct 17 2026, 6:15 PM EDT |
 | Re-run eval v2 after the `what_breaks` fix | done — 16/20 vs 10/20, judged blind by a fresh subagent; borderline range 14–12 to 19–9 |
 
 ## The rules boundary (read first)

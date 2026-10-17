@@ -7,19 +7,15 @@ in git history.
 
 ## Where things stand
 
-Updated 2026-10-15 (Day 2, evening). Built, tested (120 tests, CI green) and evaluated: ingest, the
-extraction and file-summary teams (all three repos summarized), the graph tools, MCP server, the
-grounded agent, `review` (log at the commit; reviewers and `told` by ancestry with the repo), `sync`,
-and the Board/Ask views — every tile and node now opens what it produced. Demo copies are hidden unless
-linked and carry a banner. "Add repository" exists for local use only (`WEB_ALLOW_INGEST=1`).
+**Submitted to Graph Hacks on Oct 17 2026, 6:15 PM EDT** — all three tracks. Links: repository (public),
+video https://www.youtube.com/watch?v=4OxUIsg-GYE, blog https://dev.to/peter_green_fb83c862e8fc7/decision-brain-giving-ai-the-why-behind-the-work-with-falkordb-od5, live deployment
+https://decision-brain.devmesh.tech (read-only).
 
-**Done with GLM (Oct 15 afternoon):** demo dry run passed after the handoff fix — demo copy reset, ready to
-record; Add repository verified (npryce/adr-tools, graph `adr-tools`); 13 of 14 rejected summaries
-redone after fixing the check; eval v2 run 2 scored (16/20 vs 10/20).
-**Waiting on Peter:** recording; edit docs/BLOG-DRAFT.md; choose deployment (docs/DEPLOY.md); public
-repo; label spot-check. **If time remains:** long-entry reading, question memory.
-The repo is private at github.com/PeterGreenAppliedAI/decision-brain. Graphs `invarail-demo*` and
-`data/corpora/invarail-demo` are the disposable demo copy (marked `DemoCopy`).
+**Through judging, keep running** (tmux session `lab`): `public` (web server on 4200, read-only),
+`tunnel` (Cloudflare tunnel `decision-brain`, config ~/.cloudflared/decision-brain.yml), `awake`
+(caffeinate); plus FalkorDB and the GLM server. `web` (4100, local actions) is local only.
+**After judging:** `cloudflared tunnel delete decision-brain`, remove the CNAME in Cloudflare's DNS.
+Not built: question memory; long-entry reading section by section.
 
 ## Running things
 

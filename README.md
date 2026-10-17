@@ -23,7 +23,7 @@ ADRs ────────┘   (code)    (claim, extract, verify, handoff)  
 > 1 tool call; code checked the citation and both figures against the cited evidence — the wording
 > itself is the model's)*
 
-**Live:** [decision-brain.devmesh.tech](https://decision-brain.devmesh.tech) — Board, Ask and Review on the real graphs, read-only (runs on the author's machine through the judging window; Ask uses a local model, two questions at a time) · **Demo video:** [youtube.com/watch?v=4OxUIsg-GYE](https://www.youtube.com/watch?v=4OxUIsg-GYE) · **Walkthrough:** [DEMO.md](DEMO.md) — the code-review story, every step verified on
+**Live:** [decision-brain.devmesh.tech](https://decision-brain.devmesh.tech) — Board, Ask and Review on the real graphs, read-only (runs on the author's machine through the judging window; Ask uses a local model, two questions at a time) · **Demo video:** [youtube.com/watch?v=4OxUIsg-GYE](https://www.youtube.com/watch?v=4OxUIsg-GYE) · **Blog:** [on DEV](https://dev.to/peter_green_fb83c862e8fc7/decision-brain-giving-ai-the-why-behind-the-work-with-falkordb-od5) · **Walkthrough:** [DEMO.md](DEMO.md) — the code-review story, every step verified on
 real data.
 
 ## Tracks
