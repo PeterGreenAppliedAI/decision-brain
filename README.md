@@ -23,7 +23,7 @@ ADRs ────────┘   (code)    (claim, extract, verify, handoff)  
 > 1 tool call; code checked the citation and both figures against the cited evidence — the wording
 > itself is the model's)*
 
-**Demo video:** TODO · **Walkthrough:** [DEMO.md](DEMO.md) — the code-review story, every step verified on
+**Demo video:** [youtube.com/watch?v=4OxUIsg-GYE](https://www.youtube.com/watch?v=4OxUIsg-GYE) · **Walkthrough:** [DEMO.md](DEMO.md) — the code-review story, every step verified on
 real data.
 
 ## Tracks
