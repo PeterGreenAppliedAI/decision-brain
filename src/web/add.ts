@@ -9,8 +9,10 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { acquire, busyWith, release } from './lock.js';
 
-export const addEnabled = process.env.WEB_ALLOW_INGEST === '1';
+// Local actions (add a repository, sync, demo steps) — WEB_LOCAL_ACTIONS=1; WEB_ALLOW_INGEST=1 is the older name.
+export const addEnabled = process.env.WEB_LOCAL_ACTIONS === '1' || process.env.WEB_ALLOW_INGEST === '1';
 const MAX_KB = Number(process.env.ADD_MAX_KB ?? 200_000);        // GitHub's size figure for the repository
 const ROOT = resolve(import.meta.dirname, '../..');
 export const corpusDir = (name: string) => resolve(ROOT, 'data/corpora', name);
@@ -44,7 +46,7 @@ function run(cmd: string, args: string[], into: AddJob): Promise<void> {
 /** Validates, then starts the job in the background; returns it, or a reason it was refused. */
 export async function startAdd(url: string, summaries: boolean, existing: string[]): Promise<{ job: AddJob } | { error: string }> {
   if (!addEnabled) return { error: 'adding repositories is off (WEB_ALLOW_INGEST=1 enables it, for local use)' };
-  if (job?.state === 'running') return { error: `already adding ${job.name} — one at a time` };
+  if (busyWith()) return { error: `busy: ${busyWith()} — one job at a time` };
   const gh = parseGithubUrl(url);
   if (!gh) return { error: 'expected a public GitHub URL: https://github.com/<owner>/<repo>' };
   const name = graphNameFor(gh.repo);
@@ -57,6 +59,7 @@ export async function startAdd(url: string, summaries: boolean, existing: string
   if (info.private) return { error: 'private repositories are not added from the page' };
   if (info.size > MAX_KB) return { error: `${Math.round(info.size / 1000)} MB is over the ${Math.round(MAX_KB / 1000)} MB limit (ADD_MAX_KB)` };
 
+  if (!acquire(`adding ${name}`)) return { error: `busy: ${busyWith()} — one job at a time` };
   const j: AddJob = { url: `https://github.com/${gh.owner}/${gh.repo}`, name, summaries, state: 'running', step: 'clone', startedAt: Date.now(), endedAt: null, log: [], error: null };
   job = j;
   (async () => {
@@ -72,6 +75,7 @@ export async function startAdd(url: string, summaries: boolean, existing: string
       j.state = 'failed'; j.error = (err as Error).message;
     } finally {
       j.endedAt = Date.now();
+      release();
     }
   })();
   return { job: j };

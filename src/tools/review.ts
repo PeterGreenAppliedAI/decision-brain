@@ -14,6 +14,8 @@
  * Every packet records its basis and a fingerprint of the graph state it was built from.
  */
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { config } from '../config.js';
 import type { Graph } from '../graph/db.js';
@@ -54,9 +56,12 @@ async function fingerprint(g: Graph): Promise<string> {
   return createHash('sha1').update(JSON.stringify([ds, n])).digest('hex').slice(0, 12);
 }
 
-/** Where a graph's repo lives, from REPO_PATHS ("graph=/path;…" in .env) — so MCP and the web can rebuild too. */
+/** Where a graph's repo lives: --repo, else REPO_PATHS ("graph=/path;…" in .env), else data/corpora/<graph>. */
 export function repoFor(graph: string, explicit?: string): string | undefined {
-  return explicit ?? config.repoPaths[graph];
+  if (explicit ?? config.repoPaths[graph]) return explicit ?? config.repoPaths[graph];
+  // A repository cloned here (the demo copy, or one added from the page) lives in data/corpora/<graph>.
+  const local = resolve(import.meta.dirname, '../../data/corpora', graph);
+  return /^[A-Za-z0-9_.-]+$/.test(graph) && existsSync(join(local, '.git')) ? local : undefined;
 }
 
 const rows = async <T>(g: Graph, cypher: string, params: Record<string, unknown> = {}) =>

@@ -31,7 +31,7 @@ real data.
 | Track | What to look at |
 |---|---|
 | **03 Company Brain** (primary) | One FalkorDB graph per repository: decisions → measurements and experiments → commits → files → people (humans and AI co-authors). Answers cite and are code-checked; `who_knows`, `origin`, `told` (what an AI agent's instruction files said at a commit); file and directory summaries; `sync` keeps it current. |
-| **01 Agents on Connected Data** | Twelve MCP tools over Cypher, full-text search and FalkorDB algorithms (`algo.pageRank`, `algo.SPpaths`), chosen by a local tool-calling agent; the action is `review <commit>` — the decisions a change threatens, as of that commit. |
+| **01 Agents on Connected Data** | Twelve MCP tools over Cypher, full-text search and FalkorDB algorithms (`algo.pageRank`, `algo.SPpaths`), chosen by a local tool-calling agent; the action is `review <commit>` — the decisions a change threatens, as of that commit — in the CLI, over MCP, and on the Review page. |
 | **02 Memory & Coordination** | The agents coordinate only through a FalkorDB board graph: atomic claims, expiry and takeover, dependency-ordered tasks, and handoffs a *second* agent must confirm with a verbatim quote. The shared memory stays honest: content hashes invalidate evidence when an entry changes; `sync` redoes only what changed. *Not built: memory of past questions.* |
 
 ## Judge quick path
@@ -62,8 +62,8 @@ npm run graph:up                       # FalkorDB 6.0.2 on 127.0.0.1:6380, Brows
 npm run ingest -- <path-to-repo> --graph <name>        # git + DECISIONS.md and/or ADRs → the brain graph (no model)
 npm run team -- --graph <name> --workers 4 --reset     # the extraction team → board → integrate
 npm run summarize -- --graph <name> --repo <path>      # file → directory → repo summaries (board <name>__files)
-npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html (run where the model is reachable)
-WEB_ALLOW_INGEST=1 npm run web                         # local only: adds "Add repository" (public GitHub URL → ingest → team)
+npm run web                                            # Board http://127.0.0.1:4100, Ask /ask.html, Review /review.html
+WEB_LOCAL_ACTIONS=1 npm run web                        # local only: adds Sync, the demo steps and "Add repository"
 
 npm run ask -- --graph <name> "Why is X the way it is?"   # the agent, with its path and grounding check
 npm run review -- --graph <name> <commit> --repo <path>   # the review packet; --repo rebuilds the log as of the commit (no model)
@@ -271,8 +271,9 @@ Built: everything above — ingest (decision logs, ADRs, agent-instruction files
 extraction and summary teams on board graphs, the integrator, the rationale graph, twelve tools, the MCP
 server, the agent with its code checks, `review`, `sync`, the evaluations, and two web views: **Board**
 (the agents working live; every tile opens what it produced — a decision's evidence, a file's summary
-and the decisions resting on it, a directory's parts) and **Ask** (tool calls as they happen, the answer
-with its checks, and the path behind it). Next: question memory. The full record of what was decided,
+and the decisions resting on it, a directory's parts) **Ask** (tool calls as they happen, the answer
+with its checks, and the path behind it) and **Review** (a repository's commits, each one's diff and review
+packet; locally, Sync and the demo's steps). Next: question memory. The full record of what was decided,
 what failed and what was corrected is [DECISIONS.md](DECISIONS.md).
 
 ## The event's rules, and how this repo meets them

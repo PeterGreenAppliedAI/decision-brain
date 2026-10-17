@@ -15,7 +15,7 @@ the machine is down; B lets judges click through the real thing.
 
 ## Checklist before opening a tunnel
 
-- [ ] `WEB_ALLOW_INGEST` unset (the Add repository button must not exist publicly) — check `GET /api/add` says `enabled: false`
+- [ ] `WEB_LOCAL_ACTIONS` and `WEB_ALLOW_INGEST` unset (no Sync, demo steps or Add repository publicly) — check `GET /api/action` says `enabled: false`
 - [ ] demo copies deleted or left hidden (`invarail-demo` is listed only when the link names it)
 - [ ] `ASK_MAX_CONCURRENT` set (2 is the default) — a third question gets "busy"
 - [ ] the web server runs where it can reach the model host

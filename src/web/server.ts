@@ -16,6 +16,8 @@ import { buildPath } from '../agent/path.js';
 import { origin, whatBreaks, whatIs, why } from '../tools/graph-tools.js';
 import { trace } from '../tools/trace.js';
 import { addEnabled, currentJob, startAdd } from './add.js';
+import { commits, currentAction, demoInfo, diff, startDemoStep, startSync } from './actions.js';
+import { repoFor, review } from '../tools/review.js';
 
 const ROOT = resolve(import.meta.dirname, '../../web');
 const VENDOR: Record<string, string> = {
@@ -65,14 +67,17 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${host}`);
     const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
 
+    // Writes come only as JSON from this page: a browser cannot send that cross-site without asking.
+    const sameOriginJson = () => /^application\/json\b/.test(req.headers['content-type'] ?? '')
+      && (!req.headers.origin || req.headers.origin === `http://${req.headers.host}`);
     if (parts[0] === 'api') {
+      // The Review page: local actions on? which job is running?
+      if (parts[1] === 'action' && !parts[2]) return send(res, 200, { enabled: addEnabled, job: currentAction() });
       // Adding a repository: GET for whether it is on and the job's progress; POST (JSON, same origin) to start.
       if (parts[1] === 'add') {
         if (req.method === 'GET') return send(res, 200, { enabled: addEnabled, job: currentJob() });
         if (req.method !== 'POST') return send(res, 405, { error: 'GET or POST' });
-        const origin = req.headers.origin;
-        if (!/^application\/json\b/.test(req.headers['content-type'] ?? '') || (origin && origin !== `http://${req.headers.host}`))
-          return send(res, 403, { error: 'same-origin JSON only' });
+        if (!sameOriginJson()) return send(res, 403, { error: 'same-origin JSON only' });
         let body = '';
         for await (const chunk of req) { body += chunk; if (body.length > 4096) return send(res, 413, { error: 'too large' }); }
         let input: { url?: unknown; summaries?: unknown };
@@ -139,6 +144,20 @@ const server = createServer(async (req, res) => {
           res.end();
         }
         return;
+      }
+      // Read-only: a repository's latest commits, one commit's diff, the review packet for a commit.
+      if (parts[1] === 'commits') { const c = commits(name); return c ? send(res, 200, c) : send(res, 404, { error: 'no repository for this graph' }); }
+      if (parts[1] === 'diff' && parts[3]) { const d = diff(name, parts[3]); return d ? send(res, 200, d) : send(res, 404, { error: 'no such commit' }); }
+      if (parts[1] === 'review' && parts[3]) {
+        if (!/^[0-9A-Za-z][0-9A-Za-z._~^\/-]{0,79}$/.test(parts[3]) || parts[3].includes('..')) return send(res, 400, { error: 'bad ref' });   // never an option (-x), never a range
+        return send(res, 200, await review(graph(name), parts[3], { repo: repoFor(name) }));
+      }
+      if (parts[1] === 'demo' && !parts[3]) { const d = await demoInfo(db, name); return send(res, 200, { demo: Boolean(d), of: d?.of ?? null }); }
+      // Local actions (WEB_LOCAL_ACTIONS=1): sync, and the demo's scripted steps on a demo copy.
+      if ((parts[1] === 'sync' || parts[1] === 'demo') && req.method === 'POST') {
+        if (!sameOriginJson()) return send(res, 403, { error: 'same-origin JSON only' });
+        const r = parts[1] === 'sync' ? startSync(db, name) : await startDemoStep(db, name, parts[3] ?? '');
+        return 'what' in r ? send(res, 202, { job: r }) : send(res, 400, r);
       }
       if (parts[1] === 'trace' && parts[3]) {
         const t = await trace(graph(name), parts[3]);

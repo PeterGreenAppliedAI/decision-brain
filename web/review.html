@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Brain · Review</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span> Decision Brain</div>
+    <nav><a href="/" id="nav-board">Board</a><a href="/ask.html" id="nav-ask">Ask</a><a href="/review.html" class="on">Review</a></nav>
+    <label class="picker">graph <select id="graph"></select></label>
+    <div class="live" id="status">ready</div>
+  </header>
+  <div class="demo-banner" id="demo" hidden>Demo copy — includes scripted changes and a simulated decision update, not actual benchmarks.</div>
+  <main class="review">
+    <section class="rv-side">
+      <div id="actions" hidden>
+        <h2>Keep it current</h2>
+        <button id="sync" class="act">Sync with the repository</button>
+        <div class="src">Ingests new commits, re-extracts changed decisions, re-summarizes changed files — only what changed.
+          <a id="watch" href="/" target="_blank">Watch the agents on the Board ↗</a></div>
+        <div id="demo-actions" hidden>
+          <h2>Demo steps</h2>
+          <button class="act step" data-step="propose">1 · A contributor proposes a fix</button>
+          <button class="act step" data-step="record">2 · Record the decision update <i>(simulated)</i></button>
+          <button class="act step" data-step="resubmit">3 · The contributor resubmits</button>
+          <button class="act step subtle" data-step="reset">Reset the demo copy</button>
+        </div>
+        <div id="job"></div>
+      </div>
+      <h2>Commits</h2>
+      <ol id="commits" class="commits"></ol>
+    </section>
+    <section class="rv-main">
+      <div id="packet" class="packet"><div class="empty-canvas static">Pick a commit to review it against the decisions it touches.</div></div>
+      <div class="detail" id="detail" hidden></div>
+    </section>
+  </main>
+  <script src="/review.js"></script>
+</body>
+</html>

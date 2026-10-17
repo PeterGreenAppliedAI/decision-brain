@@ -4,6 +4,23 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Demo Runs in the Browser (October 17 2026)
+
+Peter: "I don't want to have to use the terminal — I want all the functionality in the front end for a
+clean demo." A Review page now lists a repository's commits and, for one, shows its diff and its review
+packet as cards (R/D/S/P; every decision opens its evidence). With `WEB_LOCAL_ACTIONS=1` it also runs
+`sync` (in the web server, so the Board shows the agents working) and, on a demo copy only, the scripted
+steps and the reset — the same `step.ts` and `setup.ts`, with the demo's source read from its `DemoCopy`
+marker and its clone's origin, never from the request. One write job at a time, shared with Add
+repository. Read-only parts (commits, diff, review) are safe on a public link; refs that look like git
+options or ranges are refused.
+Verified through the page's own endpoints: reset 3 s, propose, sync (4 calls, 114 s — GLM slower today),
+record, resubmit, sync (7 calls, 238 s: the first supersession confirmation's quote failed the check and
+the retry confirmed it — the handoff fix doing its job). The resubmission's review shows R1 (new), D1 (7B
+still disproven), S1 (September, superseded); the original proposal's still shows R1 and D1–D3.
+Found on the way: `demoInfo` on a graph that does not exist threw (FalkorDB errors on reading a missing
+key) — a 500 instead of a no; fixed, tested. `repoFor` now also finds clones in data/corpora/<graph>.
+
 ## Qwen on the A5000 Works; GLM Stays (October 16 2026)
 
 Peter asked to try qwen3.8:27B on the A5000 (Ollama) instead of GLM. No code change was needed —

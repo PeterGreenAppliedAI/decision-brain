@@ -150,3 +150,46 @@ button#go:disabled { opacity: .5; cursor: wait; }
 .detail form.add { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .detail form.add input[type=text], .detail form.add input:not([type]) { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: inherit; padding: 6px 8px; }
 .detail form.add button { align-self: flex-start; background: var(--agent); color: #0b0e14; border: 0; border-radius: 4px; font: inherit; font-weight: 600; padding: 4px 14px; cursor: pointer; }
+
+/* Review */
+main.review { grid-template-columns: 340px 1fr; }
+.rv-side { padding: 12px 14px; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.rv-main { position: relative; overflow: auto; }
+.packet { padding: 18px 24px 40px; max-width: 980px; }
+.empty-canvas.static { position: static; padding: 60px 0; }
+.act { display: block; width: 100%; text-align: left; margin: 6px 0; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+  border-left: 3px solid var(--agent); border-radius: 4px; font: inherit; padding: 7px 10px; cursor: pointer; }
+.act:hover:not(:disabled) { border-color: var(--agent); }
+.act:disabled { opacity: .45; cursor: default; }
+.act.subtle { border-left-color: var(--dim); color: var(--dim); }
+.rv-side .src a, .packet a { color: var(--agent); text-decoration: none; }
+.rv-side .src a:hover, .packet a:hover { text-decoration: underline; }
+.rv-side .ev, .packet .ev { margin: 8px 0; }
+.rv-side .ev > b, .packet .ev > b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); font-weight: 500; margin-bottom: 4px; }
+.rv-side pre.body { white-space: pre-wrap; font: 11px/1.45 var(--mono); color: var(--dim); max-height: 140px; overflow: auto; margin: 4px 0 0; }
+.rv-side .stale { color: var(--failed); }
+ol.commits { list-style: none; margin: 0; padding: 0; }
+ol.commits li { padding: 7px 8px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+ol.commits li:hover { border-color: var(--line); }
+ol.commits li.on { background: #58a6ff18; border-color: #58a6ff55; }
+ol.commits .sha, .phead .sha { color: var(--agent); }
+.phead h1 { font-size: 17px; margin: 0 0 6px; }
+.phead .src { color: var(--dim); margin: 2px 0; }
+.packet h2 { margin-top: 26px; }
+.packet .hint { margin: -4px 0 8px; color: var(--dim); }
+.packet .src { color: var(--dim); }
+.card { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 6px; padding: 10px 12px 10px 48px; margin: 8px 0; position: relative; }
+.card .tag { position: absolute; left: 10px; top: 10px; font-weight: 600; }
+.card .dtitle { font-weight: 600; }
+.card .file { color: var(--dim); font-size: 12px; margin-bottom: 2px; }
+.card .hyp { font-weight: 600; }
+.card .val { color: var(--done); }
+.card.k-recheck, .card.k-records { border-left-color: var(--agent); } .card.k-recheck .tag, .card.k-records .tag { color: var(--agent); }
+.card.k-disproven { border-left-color: var(--failed); } .card.k-disproven .tag { color: var(--failed); }
+.card.k-superseded { border-left-color: var(--dim); } .card.k-superseded .tag { color: var(--dim); }
+.card.k-reviewer { border-left-color: var(--handoff); } .card.k-reviewer .tag { color: var(--handoff); }
+details.diff { margin: 14px 0 4px; border: 1px solid var(--line); border-radius: 6px; }
+details.diff summary { cursor: pointer; padding: 7px 10px; color: var(--dim); }
+details.diff pre { margin: 0; padding: 8px 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 var(--mono); border-top: 1px solid var(--line); max-height: 320px; }
+details.diff .add { color: var(--done); } details.diff .del { color: var(--failed); }
+@media (max-width: 900px) { main.review { grid-template-columns: 1fr; } }

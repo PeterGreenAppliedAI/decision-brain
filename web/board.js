@@ -204,6 +204,7 @@ const select = (name, which) => {
   $('graph').value = `${graphName}|${job}`;
   history.replaceState(null, '', `?graph=${graphName}${job === 'files' ? '&job=files' : ''}`);
   demoBanner(); connectStream();
+  $('nav-review').href = `/review.html?graph=${encodeURIComponent(graphName)}`;
 };
 
 async function loadGraphs() {

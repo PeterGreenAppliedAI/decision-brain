@@ -161,7 +161,7 @@ function showExamples() {
   const graphs = all.filter((g) => !g.demo || g.name === graphName);
   $('graph').innerHTML = graphs.map((g) => `<option value="${esc(g.name)}">${esc(g.name)}${g.demo ? ' (demo copy)' : ''}</option>`).join('');
   if (!graphs.some((g) => g.name === graphName)) graphName = graphs[0]?.name;
-  const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; };
+  const demoBanner = () => { $('demo').hidden = !all.find((g) => g.name === graphName)?.demo; $('nav-review').href = `/review.html?graph=${encodeURIComponent(graphName)}`; };
   demoBanner();
   $('graph').value = graphName;
   $('graph').onchange = () => {
