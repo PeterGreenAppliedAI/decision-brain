@@ -44,7 +44,7 @@ h2:not(:first-child) { margin-top: 22px; }
 .handoff .ids { overflow-wrap: anywhere; }
 .empty { color: var(--dim); }
 
-.canvas { position: relative; }
+.canvas { position: relative; overflow: hidden; }   /* never scroll: a scrollbar resizes the graph, which removes the scrollbar — a flicker loop */
 #cy { position: absolute; inset: 0; }
 .legend { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 12px; color: var(--dim); background: #0b0e14cc; padding: 4px 8px; border-radius: 4px; flex-wrap: wrap; }
 .legend span { white-space: nowrap; display: inline-flex; align-items: center; }
