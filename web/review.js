@@ -9,7 +9,6 @@ const post = (path) => api(path, { method: 'POST', headers: { 'content-type': 'a
 let graphName = new URLSearchParams(location.search).get('graph');
 let selected = new URLSearchParams(location.search).get('commit');
 let all = [];
-let polling = null;
 
 const setUrl = () => history.replaceState(null, '', `?graph=${encodeURIComponent(graphName)}${selected ? `&commit=${selected}` : ''}`);
 const links = () => {
@@ -27,12 +26,15 @@ async function loadCommits() {
 }
 $('commits').addEventListener('click', (e) => { const li = e.target.closest('li[data-sha]'); if (li) select(li.dataset.sha); });
 
+let showing = 0;   // only the latest selection may render: an older, slower review must not replace it
 async function select(sha) {
+  const mine = ++showing;
   selected = sha; setUrl();
   document.querySelectorAll('#commits li').forEach((li) => li.classList.toggle('on', li.dataset.sha.startsWith(sha)));   // a job reports a short sha
   $('packet').innerHTML = '<div class="thinking">reviewing…</div>';
   $('detail').hidden = true;
   const [p, d] = await Promise.all([api(`/api/review/${encodeURIComponent(graphName)}/${sha}`), api(`/api/diff/${encodeURIComponent(graphName)}/${sha}`)]);
+  if (mine !== showing) return;
   $('packet').innerHTML = p.ok ? render(p.body, d.ok ? d.body : null) : `<span class="badge bad">error</span> ${esc(p.body.error)}`;
 }
 
@@ -83,36 +85,64 @@ async function showDecision(id) {
 async function act(path) {
   const { ok, body } = await post(path);
   if (!ok) { $('job').innerHTML = `<div class="stale">${esc(body.error)}</div>`; return; }
-  follow();
+  onJob(body.job);                                           // a demo step is already done in this reply
+  if (!stream || stream.readyState === 2) connectJobs();   // the stream reports progress and the finish
 }
 $('sync').onclick = () => act(`/api/sync/${encodeURIComponent(graphName)}`);
 document.querySelectorAll('.step').forEach((b) => b.onclick = () => act(`/api/demo/${encodeURIComponent(graphName)}/${b.dataset.step}`));
 
-async function follow() {
-  clearInterval(polling);
-  const tick = async () => {
-    const { body } = await api('/api/action');
-    const j = body.job;
-    if (!j) return false;
-    const secs = (((j.endedAt ?? Date.now()) - j.startedAt) / 1000).toFixed(0);
-    $('job').innerHTML = `<div class="ev"><b>${esc(j.what)} — ${j.state === 'running' ? `running · ${secs} s` : `${esc(j.state)} · ${secs} s`}</b>
-      ${j.error ? `<div class="stale">${esc(j.error)}</div>` : ''}<pre class="body">${esc(j.log.slice(-6).join('\n'))}</pre></div>`;
-    document.querySelectorAll('.act').forEach((b) => b.disabled = j.state === 'running');
-    $('status').className = j.state === 'running' ? 'live on' : 'live';
-    $('status').textContent = j.state === 'running' ? j.what : 'ready';
-    if (j.state !== 'running') {
-      clearInterval(polling); polling = null;
-      if (j.graph === graphName) {
-        await loadCommits();
-        if (j.result?.sha) await select(j.result.sha);                 // a new commit: review it
-        else if (selected && j.state === 'done') await select(selected); // after sync: the review may change
-        if (j.what.startsWith('demo reset')) { selected = null; setUrl(); $('packet').innerHTML = '<div class="empty-canvas static">Demo reset. Pick a commit, or start with step 1.</div>'; }
-      }
-    }
-    return j.state === 'running';
-  };
-  if (await tick()) polling = setInterval(tick, 1500);
+// Job progress arrives as a stream: it keeps flowing while this tab is in the background (timers there
+// are throttled), so the review is up to date the moment you come back.
+let lastJob = null;
+// The demo steps run once each, in order: done ones get a tick, only the next one is enabled.
+let demoSteps = null, running = false;
+async function loadDemoState() {
+  const d = await api(`/api/demo/${encodeURIComponent(graphName)}`).then((r) => r.body);
+  demoSteps = d.state;
+  paintSteps();
 }
+function paintSteps() {
+  const order = ['propose', 'record', 'resubmit'];
+  const next = demoSteps ? order.find((s) => !demoSteps[s]) : null;
+  document.querySelectorAll('.step').forEach((b) => {
+    const s = b.dataset.step;
+    b.classList.toggle('done', Boolean(demoSteps?.[s]));
+    b.classList.toggle('next', s === next);
+    b.disabled = running || (s !== 'reset' && s !== next);
+  });
+  $('sync').disabled = running;
+}
+function onJob(j) {
+  if (!j) return;
+  const secs = (((j.endedAt ?? Date.now()) - j.startedAt) / 1000).toFixed(0);
+  $('job').innerHTML = `<div class="ev"><b>${esc(j.what)} — ${j.state === 'running' ? `running · ${secs} s` : `${esc(j.state)} · ${secs} s`}</b>
+    ${j.error ? `<div class="stale">${esc(j.error)}</div>` : ''}<pre class="body">${esc(j.log.slice(-6).join('\n'))}</pre></div>`;
+  running = j.state === 'running'; paintSteps();
+  $('status').className = j.state === 'running' ? 'live on' : 'live';
+  $('status').textContent = j.state === 'running' ? j.what : 'ready';
+  // A job finished: one we saw running, or a new one that was already over when we heard of it (steps are instant).
+  const finished = j.state !== 'running' && (!lastJob || lastJob.startedAt !== j.startedAt || lastJob.state === 'running');
+  lastJob = j;
+  if (finished && j.graph === graphName) afterJob(j);
+}
+async function afterJob(j) {
+  await Promise.all([loadCommits(), loadDemoState()]);
+  if (j.what.startsWith('demo reset')) {
+    selected = null; setUrl();
+    $('packet').innerHTML = '<div class="empty-canvas static">Demo reset. Start with step 1.</div>';
+  } else if (j.result?.sha) await select(j.result.sha);                 // a new commit: review it
+  else if (selected && j.state === 'done') {                              // after sync: the review may change
+    await select(selected);
+    $('packet').insertAdjacentHTML('afterbegin', `<div class="updated">↻ Review updated after sync — ${esc(j.log.at(-1) ?? '')}</div>`);
+  }
+}
+let stream = null;
+function connectJobs() {
+  stream?.close();
+  stream = new EventSource('/api/action/stream');
+  stream.onmessage = (m) => onJob(JSON.parse(m.data).job);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && (!stream || stream.readyState === 2)) connectJobs(); });
 
 (async () => {
   all = await api('/api/graphs').then((r) => r.body);
@@ -126,9 +156,10 @@ async function follow() {
     const action = await api('/api/action').then((r) => r.body);
     $('actions').hidden = !action.enabled;
     $('demo-actions').hidden = !(action.enabled && g?.demo);
+    if (action.enabled && g?.demo) await loadDemoState();
     links(); await loadCommits();
     if (selected) await select(selected); else $('packet').innerHTML = '<div class="empty-canvas static">Pick a commit to review it against the decisions it touches.</div>';
-    if (action.job?.state === 'running') follow();
+    lastJob = action.job; connectJobs();
   };
   $('graph').onchange = () => { graphName = $('graph').value; selected = null; setUrl(); show(); };
   await show();

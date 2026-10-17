@@ -193,3 +193,7 @@ details.diff summary { cursor: pointer; padding: 7px 10px; color: var(--dim); }
 details.diff pre { margin: 0; padding: 8px 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 var(--mono); border-top: 1px solid var(--line); max-height: 320px; }
 details.diff .add { color: var(--done); } details.diff .del { color: var(--failed); }
 @media (max-width: 900px) { main.review { grid-template-columns: 1fr; } }
+.packet .updated { background: #3fb95018; border: 1px solid #3fb95055; color: var(--done); border-radius: 6px; padding: 6px 10px; margin-bottom: 12px; }
+.act.step.done { color: var(--dim); border-left-color: var(--done); }
+.act.step.done::after { content: " ✓"; color: var(--done); }
+.act.step.next { border-color: var(--agent); background: #58a6ff14; }

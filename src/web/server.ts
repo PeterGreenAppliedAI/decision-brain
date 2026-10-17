@@ -73,6 +73,19 @@ const server = createServer(async (req, res) => {
     if (parts[0] === 'api') {
       // The Review page: local actions on? which job is running?
       if (parts[1] === 'action' && !parts[2]) return send(res, 200, { enabled: addEnabled, job: currentAction() });
+      // The same, pushed whenever the job changes — a background tab's timers are throttled, its streams are not.
+      if (parts[1] === 'action' && parts[2] === 'stream') {
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+        let last = '';
+        const tick = () => {
+          const body = JSON.stringify({ enabled: addEnabled, job: currentAction() });
+          if (body !== last) { last = body; res.write(`data: ${body}\n\n`); } else res.write(': keep-alive\n\n');
+        };
+        tick();
+        const timer = setInterval(tick, 700);
+        req.on('close', () => clearInterval(timer));
+        return;
+      }
       // Adding a repository: GET for whether it is on and the job's progress; POST (JSON, same origin) to start.
       if (parts[1] === 'add') {
         if (req.method === 'GET') return send(res, 200, { enabled: addEnabled, job: currentJob() });
@@ -152,7 +165,7 @@ const server = createServer(async (req, res) => {
         if (!/^[0-9A-Za-z][0-9A-Za-z._~^\/-]{0,79}$/.test(parts[3]) || parts[3].includes('..')) return send(res, 400, { error: 'bad ref' });   // never an option (-x), never a range
         return send(res, 200, await review(graph(name), parts[3], { repo: repoFor(name) }));
       }
-      if (parts[1] === 'demo' && !parts[3]) { const d = await demoInfo(db, name); return send(res, 200, { demo: Boolean(d), of: d?.of ?? null }); }
+      if (parts[1] === 'demo' && !parts[3]) { const d = await demoInfo(db, name); return send(res, 200, { demo: Boolean(d), of: d?.of ?? null, state: d?.state ?? null }); }
       // Local actions (WEB_LOCAL_ACTIONS=1): sync, and the demo's scripted steps on a demo copy.
       if ((parts[1] === 'sync' || parts[1] === 'demo') && req.method === 'POST') {
         if (!sameOriginJson()) return send(res, 403, { error: 'same-origin JSON only' });

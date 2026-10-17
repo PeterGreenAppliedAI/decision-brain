@@ -11,6 +11,7 @@ import { sync, type SyncReport } from '../sync/sync.js';
 import { repoFor } from '../tools/review.js';
 import { addEnabled } from './add.js';
 import { acquire, busyWith, release } from './lock.js';
+import { STEPS as SCRIPTED, StepRefused, demoState, runStep, type Step } from '../../scripts/demo/steps.js';
 
 type Db = Awaited<ReturnType<typeof connect>>;
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -52,7 +53,9 @@ export async function demoInfo(db: Db, graph: string) {
   if (!of || !dir) return null;
   let source: string | null = null;
   try { source = git(dir, ['config', '--get', 'remote.origin.url']).trim(); } catch { /* not a clone */ }
-  return { of, dir, source };
+  let state: Record<Step, boolean> | null = null;
+  try { state = demoState(dir); } catch { /* the clone is not as the demo expects — Reset fixes it */ }
+  return { of, dir, source, state };
 }
 
 function begin(what: string, graph: string): ActionJob | { error: string } {
@@ -85,10 +88,10 @@ export function startSync(db: Db, graph: string): ActionJob | { error: string } 
   return j;
 }
 
-const STEPS = ['propose', 'record', 'resubmit', 'reset'] as const;
+const STEPS = [...SCRIPTED, 'reset'] as const;
 export type DemoStep = (typeof STEPS)[number];
 
-/** The demo's scripted steps (scripts/demo/step.ts) and its reset (scripts/demo/setup.ts), on a demo copy only. */
+/** The demo's scripted steps (scripts/demo/steps.ts — each once, in order) and its reset (setup.ts), on a demo copy only. */
 export async function startDemoStep(db: Db, graph: string, step: string): Promise<ActionJob | { error: string }> {
   if (!STEPS.includes(step as DemoStep)) return { error: 'unknown step' };
   const demo = await demoInfo(db, graph);
@@ -96,19 +99,16 @@ export async function startDemoStep(db: Db, graph: string, step: string): Promis
   if (step === 'reset' && !demo.source) return { error: 'cannot find the source repository of this demo copy' };
   const j = begin(`demo ${step} on ${graph}`, graph);
   if (!('what' in j)) return j;
-  const args = step === 'reset'
-    ? ['tsx', '--env-file-if-exists=.env', 'scripts/demo/setup.ts', demo.source!, demo.of, demo.dir, graph]
-    : ['tsx', 'scripts/demo/step.ts', demo.dir, step];
-  const p = spawn('npx', args, { cwd: ROOT, env: process.env });
-  let out = '';
-  const take = (b: Buffer) => { out += b.toString(); for (const l of b.toString().split('\n')) if (l.trim()) keep(j, l); };
+  if (step !== 'reset') {
+    // A git commit — quick, so in-process; a refusal says why ("already done", "propose comes first").
+    try { const sha = runStep(demo.dir, step as Step); keep(j, sha); j.result = { sha }; finish(j); }
+    catch (err) { finish(j, err instanceof StepRefused ? err : new Error(`${step} failed: ${(err as Error).message.split('\n')[0]}`)); }
+    return j;
+  }
+  const p = spawn('npx', ['tsx', '--env-file-if-exists=.env', 'scripts/demo/setup.ts', demo.source!, demo.of, demo.dir, graph], { cwd: ROOT, env: process.env });
+  const take = (b: Buffer) => { for (const l of b.toString().split('\n')) if (l.trim()) keep(j, l); };
   p.stdout.on('data', take); p.stderr.on('data', take);
   p.on('error', (err) => finish(j, err));
-  p.on('close', (code) => {
-    if (code !== 0) return finish(j, new Error(`${step} exited with ${code}`));
-    const sha = /\b([0-9a-f]{8})\s*$/.exec(out.trim())?.[1];
-    if (step !== 'reset' && sha) j.result = { sha };
-    finish(j);
-  });
+  p.on('close', (code) => finish(j, code === 0 ? undefined : new Error(`reset failed (exit ${code}): ${j.log.filter((l) => !/^\s*at |Node\.js v/.test(l)).at(-1) ?? ''}`)));
   return j;
 }
