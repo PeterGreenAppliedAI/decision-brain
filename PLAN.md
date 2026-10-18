@@ -38,6 +38,34 @@ and **shows the path** behind every answer.
 | **Submitted** | Oct 17 2026, 6:15 PM EDT |
 | Re-run eval v2 after the `what_breaks` fix | done — 16/20 vs 10/20, judged blind by a fresh subagent; borderline range 14–12 to 19–9 |
 
+## Next steps (after judging)
+
+Not being built during judging; ordered by what was learned. Each is a decision in DECISIONS.md when it
+starts.
+
+1. **Explain this change** (Peter, Oct 18). An "Explain" button on the Review page and an `explain`
+   tool: for a commit, *what changed* (read from the diff — reliable), *why, as the code suggests it*
+   (inferred from the diff and commit message, labelled inferred), and *why, as recorded* (the decisions
+   it touches, quoted and checked — what review already shows). Side by side, so the reader sees which
+   reasons are evidence and which are the model's reading. For a repo with no decision log it is the
+   cold start. About a day or two: one model call per commit, plus the label.
+2. **Findings scoped to their quote.** An entry naming several files attaches every finding to every
+   file, so reviews warn on unrelated files (found on FlowMCP). Attach each finding to the files named
+   near its quote.
+3. **Experiment phrasing, measured where it failed.** Test "phrase the idea as it stood before the test"
+   on FlowMCP's entries, where a lesson flipped polarity between extractions; change the prompt only if
+   it measurably helps, and re-run the evaluation if it does.
+4. **What meaning search adds, as a number.** Rephrase the 20 answerable v2 questions away from their
+   entries' words; measure how often search returns the required entry with words alone vs words +
+   meaning. No judge needed.
+5. **Draft decisions from history.** Reverts ("tried and undone"), commit messages and pull-request
+   discussions that state a reason → drafted entries, quoted, confirmed by a second agent, approved by a
+   person before they join the log. Benchmark: content-publisher's history without its 16 ADRs — how many
+   does it rediscover, and how many drafts are wrong?
+6. **Review on every pull request** — a GitHub Action posting the review packet.
+7. **Question memory** — answered questions the next agent can reuse (Track 02's unbuilt half).
+8. **Beyond code** — the same memory layer for documents, spreadsheets and policies.
+
 ## The rules boundary (read first)
 
 > "You may reuse general libraries, templates, and infrastructure. The submission and its main

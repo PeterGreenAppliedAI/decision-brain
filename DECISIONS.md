@@ -4,6 +4,19 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Next: Explain This Change — What From the Diff, Why Labelled by Where It Came From (October 18 2026)
+
+Decision Brain's largest limit is that it only knows *why* where a team wrote it down, and most teams
+don't. Peter's answer: an explanation is an interactive diff — what changed, and why. Agreed on the
+narrow scope (an earlier, broader proposal to mine whole histories into decision logs was set aside as
+too much for a first step). One correction to "both are apparent from the code": *what* always is; *why*
+often is (a new null check says something was null), but the reasons that matter most come from outside
+the code — the revert that restored the router's "wrong" rule shows text going back, and nothing in the
+diff says a measurement broke the small model. A model reading it would say "restores the wording" or
+invent a reason. So the feature shows three things apart: what changed (from the diff), why as the code
+suggests it (inferred, labelled), and why as recorded (the graph's decisions, quoted and checked). Not
+built during judging; first in PLAN.md's next steps.
+
 ## Search by Meaning, Measured Before Merging (October 18 2026)
 
 Peter: "We've only used the graph side — we might need to embed on the vector side." The case was in
