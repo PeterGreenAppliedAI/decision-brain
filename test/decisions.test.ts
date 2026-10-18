@@ -26,11 +26,29 @@ Did not work.
 Replaced.
 `;
 
+describe('ISO-dated headings', () => {
+  it('take their date from the heading and drop it from the title', () => {
+    const log = '# D\n\n## 2026-10-16 — Retries on POST\n\nA timed-out POST may have reached the server.\n\n## 2026-09-02: Sandbox wording\n\nOnly disposable was true.\n';
+    const e = parseDecisions(log);
+    expect(e.map((x) => [x.id, x.title, x.date])).toEqual([
+      ['2026-10-16-retries-on-post', 'Retries on POST', '2026-10-16'],
+      ['2026-09-02-sandbox-wording', 'Sandbox wording', '2026-09-02'],
+    ]);
+  });
+});
+
 describe('parseDate', () => {
   it('reads day, range, month-only and month-range headings', () => {
     expect(parseDate('X (September 30 2026)')).toEqual({ date: '2026-09-30', precision: 'day' });
     expect(parseDate('X (August 11-12 2026)')).toEqual({ date: '2026-08-11', precision: 'day' });
     expect(parseDate('X (June 2026, AI Dev Summit)')).toEqual({ date: '2026-06', precision: 'month' });
+    // ISO dates, as ADR-style logs write them
+    expect(parseDate('2026-10-16 — Retries on POST')).toEqual({ date: '2026-10-16', precision: 'day' });
+    expect(parseDate('2026-10-16: Retries on POST')).toEqual({ date: '2026-10-16', precision: 'day' });
+    expect(parseDate('(2026-10-16) Retries on POST')).toEqual({ date: '2026-10-16', precision: 'day' });
+    expect(parseDate('Retries on POST (2026-10-16)')).toEqual({ date: '2026-10-16', precision: 'day' });
+    expect(parseDate('Version 2026-10-16 notes')).toBeNull();          // a date mid-title is not the entry's date
+    expect(parseDate('2026-13-01 — nonsense')).toBeNull();
     expect(parseDate('X (April-May 2026)')).toEqual({ date: '2026-04', precision: 'month' });
     expect(parseDate('Known Issues')).toBeNull();
   });

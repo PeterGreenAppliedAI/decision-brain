@@ -71,9 +71,19 @@ npm run trace -- --graph <name> --find "router"           # find a decision; the
 npm run mcp -- --graph <name>                             # the tools for any MCP client (stdio)
 npm run sync -- --graph <name> --repo <path>              # after a pull: redo only what changed; again → nothing
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
+npm run what-breaks -- --graph <name> <file> [--repo <path>]  # before changing a file: standing decisions, disproven attempts (no model)
 
 npm run eval:v2 -- run | score | sensitivity              # evaluation v2 (frozen set; needs the three graphs below)
 npm run eval:run                                          # v1 regression set (graphs invarail, content-publisher)
+```
+
+**Before every edit, automatically (Claude Code hook).** `scripts/hooks/pre-edit.mjs` runs `what-breaks` before the agent
+edits a file and hands it the decisions that rest on that file and what was already disproven there. It only informs:
+it never blocks an edit or changes permissions, stays silent when there is nothing recorded, and speaks once per file per
+session. In the edited repository's `.claude/settings.json`:
+```json
+{ "hooks": { "PreToolUse": [ { "matcher": "Edit|Write|MultiEdit", "hooks": [ { "type": "command",
+  "command": "DB_HOME=/path/to/decision-brain DB_GRAPH=<name> node /path/to/decision-brain/scripts/hooks/pre-edit.mjs" } ] } ] } }
 ```
 
 **MCP client** (e.g. Claude Desktop or Cursor) — run from the repository directory:

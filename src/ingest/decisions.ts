@@ -52,7 +52,18 @@ export function contentHash(title: string, body: string): string {
   return createHash('sha1').update(`${title}\n${body}`.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
 }
 
+// ISO dates, common in ADR-style logs: "2026-10-16 — Title", "2026-10-16: Title", "(2026-10-16) Title",
+// "Title (2026-10-16)". Only a date at the start of the heading or in brackets counts.
+const ISO_RE = /^\(?(\d{4})-(\d{2})-(\d{2})\)?(?=$|[\s:—–-])|\((\d{4})-(\d{2})-(\d{2})\)/;
+
 export function parseDate(heading: string): { date: string; precision: 'day' | 'month' } | null {
+  const iso = ISO_RE.exec(heading);
+  if (iso) {
+    const [y, mo, d] = iso[1] ? [iso[1], iso[2], iso[3]] : [iso[4], iso[5], iso[6]];
+    const mi = Number(mo) - 1;
+    if (mi < 0 || mi > 11) return null;
+    return Number(d) >= 1 && Number(d) <= DAYS_IN_MONTH[mi] ? { date: `${y}-${mo}-${d}`, precision: 'day' } : { date: `${y}-${mo}`, precision: 'month' };
+  }
   const m = DATE_RE.exec(heading);
   if (!m) return null;
   const mi = MONTHS.indexOf(m[1]);
@@ -108,7 +119,9 @@ export function deriveStatus(heading: string, body: string, parentHeading: strin
 }
 
 function titleOf(heading: string): string {
-  const m = DATE_RE.exec(heading);
+  const iso = ISO_RE.exec(heading);
+  if (iso?.index === 0) return heading.slice(iso[0].length).replace(/^[\s:—–-]+/, '').trim();   // "2026-10-16 — Title"
+  const m = iso ?? DATE_RE.exec(heading);
   const t = m ? heading.slice(0, m.index) : heading;
   return t.replace(/[\s—–-]+$/, '').trim();
 }

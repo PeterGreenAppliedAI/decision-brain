@@ -4,6 +4,22 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## After Judging: ISO-Dated Headings, and the Reason Before Every Edit (October 17 2026, branch post-judging)
+
+Decision Brain run on FlowMCP (a fourth repository, on another machine) worked without tuning — a review
+listed an old credential leak under "do not retry", and `disproven "retry"` returned the July lesson that a
+timed-out POST may already have written, which that project's agent had just rediscovered by hand. It
+also found two gaps. **Dates:** FlowMCP heads entries `## 2026-10-16 — title`; only `Title (October 16
+2026)` was read, so all 21 entries were undated and "newest first" was wrong. ISO dates at the start of a
+heading or in brackets now count and leave the title; Invarail's 151 entries parse identically (checked
+against the graph). **Remembering to ask:** the tool only helps if someone calls it. `npm run what-breaks`
+answers "what rests on this file?" from the command line, and `scripts/hooks/pre-edit.mjs` is a Claude
+Code PreToolUse hook that hands that answer to the agent before it edits — informing only (no
+permissionDecision; the documentation's example used "allow", which would have auto-approved every edit),
+silent when nothing is recorded, once per file per session, and silent on any failure. Kept off `main`
+during judging. Open: findings attach to every file an entry names, so a multi-finding entry warns on
+unrelated files — attach each finding to the files named near its quote.
+
 ## The Demo Runs in the Browser (October 17 2026)
 
 Peter: "I don't want to have to use the terminal — I want all the functionality in the front end for a
