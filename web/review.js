@@ -59,6 +59,7 @@ function render(p, d) {
     ${section('records', 'Decisions this change records', '', (i) => dec(i.decision) + measured(i.measurements))}
     ${section('recheck', 'Standing decisions this change rests on — re-check', 'Decisions whose reasoning rests on the files this change touches.', (i) => `<div class="file">${esc(i.file)}</div>${dec(i.decision)}${measured(i.measurements)}`)}
     ${section('disproven', 'Tried before and disproven — do not retry', '', (i) => `<div class="hyp">“${esc(i.experiment.hypothesis)}”</div><div class="src">from ${dec(i.decision)}</div>`)}
+    ${section('tested', 'Tested here and confirmed — read with its decision', '', (i) => `<div class="hyp">“${esc(i.experiment.hypothesis)}”</div><div class="src">from ${dec(i.decision)}</div>`)}
     ${section('superseded', 'Superseded reasoning — do not cite', '', (i) => `${dec(i.decision, (i.supersededBy ?? []).length > 0)}${(i.supersededBy ?? []).length ? `<div class="src">replaced by ${i.supersededBy.map((s) => `<a href="#" data-dec="${esc(s.id)}">${esc(s.title)}</a>`).join(', ')}</div>` : ''}${(i.triedThen ?? []).length ? `<div class="src">it had found disproven (history, not a current warning): ${i.triedThen.map((e) => `“${esc(e.hypothesis)}”`).join('; ')}</div>` : ''}`)}
     ${section('reviewer', 'Who knows these files', '', (i) => `<b>${esc(i.reviewer.name)}</b> <span class="src">— ${i.reviewer.commits} commits on ${esc(i.reviewer.files.join(', '))}</span>`)}
     ${p.items.length ? '' : '<div class="src">The graph holds no decisions about these files.</div>'}`;

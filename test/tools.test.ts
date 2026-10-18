@@ -70,6 +70,23 @@ describe.skipIf(!reachable)('graph tools', () => {
     expect(b.history.map((d) => d.id)).toEqual(['old']);
   });
 
+  it('review: confirmed experiments of standing decisions are listed beside the disproven ones', async () => {
+    // A later change to the prompt, and a confirmed test on the decision standing then.
+    await g.query(`MATCH (p:File {path: 'src/router/prompt.ts'}), (n:Decision {id: 'new'})
+      CREATE (c:Commit {sha: 'c5c5c5c5ee', date: '2026-10-10T10:00:00Z', message: 'tweak again'}), (c)-[:TOUCHED]->(p),
+             (:Person {name: 'Dee', kind: 'human'})-[:AUTHORED]->(c),
+             (n)-[:TESTED]->(:Experiment {id: 'e2', hypothesis: 'the old text keeps the 7B on memory', verdict: 'confirmed', quote: 'old text 16/20'})`);
+    try {
+      const p = await review(g, 'c5c5c5c');
+      expect(p.items.filter((i) => i.kind === 'tested').map((i) => [i.decision?.id, i.experiment?.id])).toEqual([['new', 'e2']]);
+      expect(renderPacket(p)).toContain('Tested here and confirmed');
+    } finally {
+      await g.query("MATCH (e:Experiment {id: 'e2'}) DETACH DELETE e");
+      await g.query("MATCH (c:Commit {sha: 'c5c5c5c5ee'}) DETACH DELETE c");
+      await g.query("MATCH (d:Person {name: 'Dee'}) DETACH DELETE d");
+    }
+  });
+
   it('what_breaks: an entry whose own text still says active is history once a later entry replaced it', async () => {
     await g.query("MATCH (d:Decision {id: 'old'}) SET d.status = 'active'");
     try {

@@ -25,7 +25,7 @@ import { disproven, whatBreaks, why, type DecisionRef, type Measured, type Tried
 
 export interface ReviewItem {
   id: string;
-  kind: 'records' | 'recheck' | 'disproven' | 'superseded' | 'reviewer';
+  kind: 'records' | 'recheck' | 'disproven' | 'tested' | 'superseded' | 'reviewer';
   file?: string;
   decision?: DecisionRef & { via?: string[]; statusThen?: string; evidence?: 'current' | 'omitted: entry edited since this commit' };
   measurements?: Measured[];
@@ -149,6 +149,17 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
       seen.add(`disproven|${e.id}`);
       items.push({ kind: 'disproven', file, decision: withThen(decision), experiment });
     }
+    // Confirmed experiments of standing decisions, beside the disproven ones: the extractor may phrase one
+    // fact either way round ("X leaks" confirmed, "X does not leak" disproven), so a lesson must not depend
+    // on which list it landed in.
+    for (const d of standing.filter((x) => !recordedHere.has(x.id) && evidenceOk(x.id))) {
+      for (const e of d.experiments.filter((x) => x.verdict === 'confirmed')) {
+        if (seen.has(`tested|${e.id}`)) continue;
+        seen.add(`tested|${e.id}`);
+        const { measurements: _m, experiments: _x, ...decision } = d;
+        items.push({ kind: 'tested', file, decision: withThen(decision), experiment: e });
+      }
+    }
     for (const { d, by } of settled.filter((x) => !recordedHere.has(x.d.id))) {
       if (seen.has(`superseded|${d.id}`)) continue;
       seen.add(`superseded|${d.id}`);
@@ -171,8 +182,8 @@ export async function review(g: Graph, ref: string, opts: { repo?: string; revie
   for (const p of people) items.push({ kind: 'reviewer', reviewer: { ...p, files: p.files.sort() } });
 
   // Fixed order, then ids: the same change on the same graph always yields the same ids.
-  const order = ['records', 'recheck', 'disproven', 'superseded', 'reviewer'];
-  const prefix: Record<string, string> = { records: 'C', recheck: 'R', disproven: 'D', superseded: 'S', reviewer: 'P' };
+  const order = ['records', 'recheck', 'disproven', 'tested', 'superseded', 'reviewer'];
+  const prefix: Record<string, string> = { records: 'C', recheck: 'R', disproven: 'D', tested: 'T', superseded: 'S', reviewer: 'P' };
   const counters: Record<string, number> = {};
   const sorted = items.map((it, i) => ({ it, i })).sort((a, b) =>
     order.indexOf(a.it.kind) - order.indexOf(b.it.kind) || a.i - b.i).map(({ it }) => it);
@@ -212,6 +223,8 @@ export function renderPacket(p: ReviewPacket, perDecision = 3): string {
   section('recheck', 'Standing decisions that rest on these files — re-check', (i) =>
     `\`${i.file}\` → ${dec(i.decision!)}${i.measurements?.length ? `; measured: ${few(i.measurements, (m) => `${m.metric} ${m.value}`)}` : ''}`);
   section('disproven', 'Tried before and disproven — do not retry', (i) =>
+    `\`${i.file}\` → "${i.experiment!.hypothesis}" — ${dec(i.decision!)}`);
+  section('tested', 'Tested here and confirmed — read with its decision', (i) =>
     `\`${i.file}\` → "${i.experiment!.hypothesis}" — ${dec(i.decision!)}`);
   section('superseded', 'Superseded reasoning — do not cite', (i) =>
     `\`${i.file}\` → ${dec(i.decision!, (i.supersededBy?.length ?? 0) > 0)}${i.supersededBy?.length ? `; replaced by ${i.supersededBy.map((s) => s.title).join(', ')}` : ''}` +

@@ -197,3 +197,4 @@ details.diff .add { color: var(--done); } details.diff .del { color: var(--faile
 .act.step.done { color: var(--dim); border-left-color: var(--done); }
 .act.step.done::after { content: " ✓"; color: var(--done); }
 .act.step.next { border-color: var(--agent); background: #58a6ff14; }
+.card.k-tested { border-left-color: var(--claimed); } .card.k-tested .tag { color: var(--claimed); }
