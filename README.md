@@ -34,6 +34,60 @@ real data.
 | **01 Agents on Connected Data** | Twelve MCP tools over Cypher, full-text search and FalkorDB algorithms (`algo.pageRank`, `algo.SPpaths`), chosen by a local tool-calling agent; the action is `review <commit>` — the decisions a change threatens, as of that commit — in the CLI, over MCP, and on the Review page. |
 | **02 Memory & Coordination** | The agents coordinate only through a FalkorDB board graph: atomic claims, expiry and takeover, dependency-ordered tasks, and handoffs a *second* agent must confirm with a verbatim quote. The shared memory stays honest: content hashes invalidate evidence when an entry changes; `sync` redoes only what changed. *Not built: memory of past questions.* |
 
+## The graph
+
+Each repository gets its own FalkorDB graph (the **brain**), plus **board** graphs the agents coordinate
+on. Every answer, review and warning comes from queries over these; the model only chooses which tool to
+call and words the result.
+
+```mermaid
+flowchart LR
+  subgraph brain["Brain graph — one per repository"]
+    D[Decision] -->|BECAUSE| M[Measurement]
+    D -->|TESTED| X[Experiment]
+    D -->|SUPERSEDES / REVISES / DISPROVES| D2[Decision]
+    D -->|RECORDED_IN · CITES| C[Commit]
+    D -->|MENTIONS| F[File]
+    D -->|ABOUT| K[Concept]
+    D -.->|RATIONALE, derived| F
+    P[Person] -->|AUTHORED| C
+    C -->|TOUCHED| F
+    MOD[Module] -->|CONTAINS| F
+    G[Guidance] -->|NAMES| F
+  end
+  subgraph board["Board graph — the agents' shared workspace"]
+    A[Agent] -->|CLAIMED| S[Section]
+    FI[Finding] -->|FROM| A
+    FI -->|ABOUT| S
+    FI -->|RAISED| H[Handoff]
+    H -->|FOR| S
+    S -->|PART_OF| S2[Section]
+  end
+  S -. "verified findings promoted" .-> D
+```
+
+- **Decisions** come from the decision log or ADRs; **measurements, experiments and relations between
+  decisions** are extracted by the agents, quote-checked, and promoted from the board only once verified
+  (a relation only after a second agent confirms it).
+- **RATIONALE** is derived: "this decision's reasoning rests on that file". PageRank (`load_bearing`)
+  and shortest paths (`connect`) run over it. Decisions also carry a full-text index and, optionally, a
+  vector index for search by meaning.
+- **Guidance** is every version of the repo's AI-agent instruction files, so "what was the agent told at
+  this commit" (`told`) is a query.
+
+**How the agent uses it** — `what_breaks src/router/prompt.ts` (and the review of any change to that
+file) starts from this query, then fetches each decision's measurements and experiments the same way:
+
+```cypher
+// abridged from why() in src/tools/graph-tools.ts
+MATCH (d:Decision)-[r:RATIONALE]->(:File {path: $p})
+WITH d, collect(DISTINCT r.via) AS via
+RETURN d {.id, .title, .date, .status, .source} AS d, via
+ORDER BY d.date DESC
+```
+
+Every property and relationship is listed in [The graph data model](#the-graph-data-model).
+
 ## Judge quick path
 
 | Needs a model server? | What |
