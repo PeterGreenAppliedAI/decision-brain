@@ -28,7 +28,8 @@
     "eval:draft": "tsx --env-file-if-exists=.env src/eval/label-draft.ts",
     "eval:v2": "tsx --env-file-if-exists=.env src/eval/v2.ts",
     "sync": "tsx --env-file-if-exists=.env src/sync/cli.ts",
-    "what-breaks": "tsx --env-file-if-exists=.env src/tools/what-breaks-cli.ts"
+    "what-breaks": "tsx --env-file-if-exists=.env src/tools/what-breaks-cli.ts",
+    "embed": "tsx --env-file-if-exists=.env src/graph/embed-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

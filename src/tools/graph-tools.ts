@@ -3,7 +3,10 @@
  * Read-only Cypher, deterministic ordering, and every item carries the id and source an answer must
  * cite. No model anywhere in here.
  */
+import { config } from '../config.js';
 import type { Graph } from '../graph/db.js';
+import { hasVectorIndex } from '../graph/embeddings.js';
+import { createEmbedder, type Embedder } from '../llm/embed.js';
 import { ancestors } from '../ingest/git.js';
 import { trace } from './trace.js';
 
@@ -65,7 +68,35 @@ async function assertSearchIndex(g: Graph): Promise<void> {
   indexed.set(g, true);
 }
 
-export async function search(g: Graph, text: string, limit = 8): Promise<Array<DecisionRef & { score: number; matched: 'all' | 'any' }>> {
+// Search by meaning, when embeddings are configured: the query is embedded and matched against the
+// decisions' vectors. A failure (no embedder, server down, graph never embedded) means words alone.
+let embedder: Embedder | null | undefined;
+export function setEmbedder(e: Embedder | null): void { embedder = e; }
+const vectorReady = new WeakMap<Graph, boolean>();
+let warned = false;
+
+async function byMeaning(g: Graph, text: string, limit: number): Promise<Array<{ decision: DecisionRef; distance: number }>> {
+  if (embedder === undefined) embedder = createEmbedder();
+  if (!embedder) return [];
+  try {
+    if (!vectorReady.has(g)) vectorReady.set(g, await hasVectorIndex(g));
+    if (!vectorReady.get(g)) return [];
+    const [v] = await embedder.embed([text]);
+    return (await rows<{ decision: DecisionRef; distance: number }>(g,
+      `CALL db.idx.vector.queryNodes('Decision', 'embedding', $k, vecf32($v)) YIELD node AS d, score
+       RETURN ${DECISION} AS decision, score AS distance ORDER BY distance, d.id`, { k: limit, v }))
+      .filter((r) => r.distance <= config.embedMaxDistance);
+  } catch (err) {
+    if (!warned) { warned = true; process.stderr.write(`[search] meaning search unavailable, words only: ${(err as Error).message}\n`); }
+    return [];
+  }
+}
+
+/**
+ * Decisions matching a question: every word first (the strongest signal), then matches by meaning and
+ * matches on any word, interleaved. "matched" says which: all | meaning | any.
+ */
+export async function search(g: Graph, text: string, limit = 8): Promise<Array<DecisionRef & { score: number; matched: 'all' | 'any' | 'meaning' }>> {
   const words = [...new Set(text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [])];
   if (!words.length) return [];
   await assertSearchIndex(g);
@@ -74,11 +105,19 @@ export async function search(g: Graph, text: string, limit = 8): Promise<Array<D
      RETURN ${DECISION} AS decision, score ORDER BY score DESC, d.id LIMIT $limit`, { q, limit });
   const all = (await run(words.join(' '))).map((x) => ({ ...x.decision, score: Math.round(x.score * 100) / 100, matched: 'all' as const }));
   const seen = new Set(all.map((d) => d.id));
+  const meaning = (await byMeaning(g, text, limit)).filter((x) => !seen.has(x.decision.id))
+    .map((x) => ({ ...x.decision, score: Math.round((1 - x.distance) * 100) / 100, matched: 'meaning' as const }));
+  meaning.forEach((d) => seen.add(d.id));
   const any = words.length > 1
     ? (await run(words.join('|'))).filter((x) => !seen.has(x.decision.id))
       .map((x) => ({ ...x.decision, score: Math.round(x.score * 100) / 100, matched: 'any' as const }))
     : [];
-  return [...all, ...any].slice(0, limit);
+  const mixed: typeof all = [];
+  for (let i = 0; i < Math.max(meaning.length, any.length); i++) {
+    if (meaning[i]) mixed.push(meaning[i] as never);
+    if (any[i]) mixed.push(any[i] as never);
+  }
+  return [...all, ...mixed].slice(0, limit);
 }
 
 async function evidence(g: Graph, ids: string[]) {

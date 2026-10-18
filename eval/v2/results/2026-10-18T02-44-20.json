@@ -1,0 +1,49 @@
+[
+  {
+    "id": "v2-inv-01",
+    "graph": "invarail",
+    "kind": "find",
+    "question": "Why was a fabrication gate added for research reports?",
+    "agent": {
+      "answer": "The fabrication gate was added after an incident where a manually-triggered weekly-news job produced a polished 15k-character \"report\" that was **entirely fabricated** — invented model names, version numbers, benchmarks, and URLs — and the `revision_pass` then spent 166s polishing the hallucination [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].\n\nThree causes stacked [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate]:\n1. The job's stored category was `\"cron\"` (mis-authored), so dispatch fell back to live routing and landed on the thin `web_search` pipeline instead of `research`.\n2. SearXNG's upstream engines had flagged the host (DDG CAPTCHA, Brave 429s, Wikidata 403s) after two days of unspaced eval+research bursts — so zero sources were fetched.\n3. Neither synthesis stage treated \"zero sources fetched\" as fatal.\n\nThe fix (commit [e5ca468]) added evidence gates: `research` and `web_search` pipelines now abort before synthesis when zero sources exist, with an honest \"search is down — I won't answer from memory\" message. The doctrine: **degrade honestly, never fabricate** — no verifier can rescue a report whose every source is imaginary [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].",
+      "status": "supported",
+      "cited": [
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate",
+        "e5ca468"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 20027,
+      "toolCalls": 2
+    },
+    "rag": {
+      "answer": "The fabrication gate was added after a manually-triggered weekly-news job produced a polished 15k-character report that was **entirely fabricated** — invented version numbers, benchmarks, and URLs for Qwen3-Next, Llama 4.5, Ollama v0.8.2, and an arxiv preprint. The model even admitted in its intro that live search returned no results and it had \"extrapolated,\" yet the `revision_pass` spent 166s polishing the hallucination anyway [2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate].\n\nThree stacked causes: (1) the job's stored category was `\"cron\"` (mis-authored), so dispatch fell to live routing and landed on the thin `web_search` pipeline instead of `research`; (2) SearXNG's upstream engines had flagged the host (DDG CAPTCHA, Brave 429s, Wikidata 403s) after two days of unspaced eval+research bursts; (3) neither synthesis stage treated \"zero sources fetched\" as fatal [2026-08-14].\n\nThe fix (commit e5ca468): `research` and `web_search` pipelines now abort (`ctx.abort`) before synthesis when zero sources exist, with an honest \"search is down — I won't answer from memory\" message. Doctrine: **degrade honestly, never fabricate** — extending the verification layer's principle (\"no claim should outrun its evidence\" [2026-06-evidence-verification-layer-for-research]) to the front door, because no verifier can rescue a report whose every source is imaginary [2026-08-14].",
+      "status": "supported",
+      "cited": [
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate",
+        "2026-08-14",
+        "2026-06-evidence-verification-layer-for-research"
+      ],
+      "figuresFlagged": [],
+      "premiseFigures": [],
+      "ms": 12069,
+      "retrieved": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate"
+      ]
+    },
+    "keyword": {
+      "top": [
+        "2026-08-18-pi-becomes-the-coding-substrate-localclaw-keeps-the-authorit",
+        "2026-07-05-small-model-hardening-bounded-autonomy-gates",
+        "2026-09-25-a-421m-encoder-out-routes-phi4-the-laya-experiment",
+        "2026-06-evidence-verification-layer-for-research",
+        "2026-08-14-zero-evidence-in-confident-report-out-the-fabrication-gate"
+      ],
+      "ms": 12
+    }
+  }
+]

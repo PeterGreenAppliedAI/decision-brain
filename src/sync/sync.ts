@@ -21,6 +21,8 @@ import { integrateSummaries } from '../files/integrate.js';
 import { dirId, fileId, planTasks, sourceFiles } from '../files/scan.js';
 import { runSummaryWorker } from '../files/worker.js';
 import { ingestRepo, type IngestReport } from '../ingest/repo.js';
+import { embedDecisions } from '../graph/embeddings.js';
+import { createEmbedder } from '../llm/embed.js';
 import type { JsonClient } from '../llm/openai.js';
 import type { IndexEntry } from '../team/extract.js';
 import { runWorker } from '../team/worker.js';
@@ -134,6 +136,12 @@ export async function sync(db: Db, graphName: string, repo: string, opts: { llm:
   const brain = db.selectGraph(graphName);
 
   const ing: IngestReport = await ingestRepo(brain, repo);
+  // Search by meaning: embed what changed (no-op when embeddings are not configured or not up).
+  const embedder = createEmbedder();
+  if (embedder) {
+    try { const e = await embedDecisions(brain, embedder, log); if (e.embedded) log(`embedded ${e.embedded} decision(s)`); }
+    catch (err) { log(`embeddings skipped: ${(err as Error).message}`); }
+  }
   const report: SyncReport = { ingest: { commits: ing.commits, decisions: (ing.decisions ?? 0) + (ing.adrs?.count ?? 0) || null }, decisions: null, files: null, modelCalls: 0 };
 
   // Decisions: only queued work runs.

@@ -19,6 +19,13 @@ export const config = {
   llmReasoningEffort: process.env.LLM_REASONING_EFFORT ?? 'low',
   /** Abort a request when no token has arrived for this long (thinking counts as tokens). */
   llmIdleTimeoutMs: Number(process.env.LLM_IDLE_TIMEOUT_MS ?? 120_000),
+  /** Embeddings for search by meaning (OpenAI-compatible /embeddings, e.g. Ollama's /v1). Unset: words only. */
+  embedUrl: process.env.EMBED_URL ?? '',
+  embedModel: process.env.EMBED_MODEL ?? 'qwen3-embedding:8b',
+  /** A meaning match counts only within this cosine distance (0 = same direction); set from measurement. */
+  embedMaxDistance: Number(process.env.EMBED_MAX_DISTANCE ?? 0.44),   // set on the v1 development questions
+  /** Characters of an entry's text embedded (its title always is). */
+  embedChars: Number(process.env.EMBED_CHARS ?? 6000),
   /** Extraction team: a claim lives this long without a heartbeat (workers beat every third of it). */
   claimTtlMs: Number(process.env.CLAIM_TTL_MS ?? 120_000),
   maxAttempts: Number(process.env.MAX_ATTEMPTS ?? 3),
