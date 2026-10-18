@@ -72,6 +72,7 @@ npm run mcp -- --graph <name>                             # the tools for any MC
 npm run sync -- --graph <name> --repo <path>              # after a pull: redo only what changed; again → nothing
 npm run integrate -- --graph <name>                       # re-promote the board without re-extracting
 npm run what-breaks -- --graph <name> <file> [--repo <path>]  # before changing a file: standing decisions, disproven attempts (no model)
+npm run embed -- --graph <name>                           # search by meaning: embed decisions (EMBED_URL); sync does it too
 
 npm run eval:v2 -- run | score | sensitivity              # evaluation v2 (frozen set; needs the three graphs below)
 npm run eval:run                                          # v1 regression set (graphs invarail, content-publisher)
@@ -105,7 +106,7 @@ them on every push against the same pinned FalkorDB version.
 
 | Tool | Answers | Graph work |
 |---|---|---|
-| `search(query)` | Which decisions are about this? | full-text index; all-words matches first |
+| `search(query)` | Which decisions are about this? | full-text index, all-words matches first; then matches by meaning from a vector index (optional, `EMBED_URL`) |
 | `why(target)` | Which decisions shaped this file / topic? | rationale + concept edges, newest first, with evidence |
 | `trace(decision_id)` | What does this decision say, and what is it connected to? | text, commits, files, people, relations with quotes |
 | `what_breaks(file)` | If I change this, what should I re-check? | standing vs settled decisions resting on the file |
@@ -177,25 +178,28 @@ and their directories — and a second sync does nothing.
 
 **v2** ([eval/v2/RESULTS.md](eval/v2/RESULTS.md)): 24 questions across the three repositories, frozen
 before any system saw them ([eval/v2/SPEC.md](eval/v2/SPEC.md)), answered by Decision Brain and by the same
-model given keyword-search results, judged blind against key facts. Two runs; run 2 judged by a fresh
-agent that saw only the anonymized sheet.
+model given keyword-search results, judged blind against key facts. Three runs: 1 and 2 with word search,
+3 with search by meaning added; runs 2 and 3 judged by fresh agents that saw only the anonymized sheet.
 
-| | Decision Brain | Same model + keyword search |
+| | Decision Brain (runs 1 · 2 · 3) | Same model + keyword search |
 |---|---|---|
-| Required evidence cited | 20/20 · 20/20 | 15/20 · 15/20 |
-| Answers passing the rubric | 17/20 · 16/20 | 11/20 · 10/20 |
-| False premises corrected | 4/4 · 4/4 | 2/4 · 2/4 |
-| Correct abstentions | 4/4 · 4/4 | 4/4 · 4/4 |
-| Median latency | 20.6 s · 22.9 s | 7.9 s · 7.8 s |
+| Required evidence cited | 20/20 · 20/20 · 20/20 | 15/20 · 15/20 · 15/20 |
+| Answers passing the rubric | 17/20 · 16/20 · 19/20 | 11/20 · 10/20 · 12/20 |
+| False premises corrected | 4/4 · 4/4 · 4/4 | 2/4 · 2/4 · 2/4 |
+| Correct abstentions | 4/4 · 4/4 · 4/4 | 4/4 · 4/4 · 4/4 |
+| Median latency | 20.6 · 22.9 · 23.0 s | 7.9 · 7.8 · 7.5 s |
 
 **The claim:** on this frozen set, Decision Brain passed more answer rubrics than the same model with
-keyword search, at roughly 2.6–2.9x the latency — because its tools find entries keyword search misses.
-With every borderline judging call decided against it, it still leads 14/20 vs 12/20
-(`npm run eval:v2 -- sensitivity` reproduces this from the saved sheet); the premise result does not
-survive that and is not claimed as robust. It measures the whole workflow, not the graph alone.
-**Limits:** 24 questions, one model; questions and key facts written by Claude, which built the system;
-run 1 judged by that same session (partly blind); owner spot-check pending. Details, every miss and the
-hand check of flagged figures are in RESULTS.md. The **v1** set ([eval/RESULTS.md](eval/RESULTS.md)) was
+keyword search in every run, at roughly 2.6–3x the latency — because its tools find entries keyword search
+misses. With every borderline judging call decided against it, it still leads (14/20 vs 12/20 in run 2,
+15/20 vs 13/20 in run 3; `npm run eval:v2 -- sensitivity`); the premise result does not survive that and
+is not claimed as robust. Run 3's three extra passes were trap questions, two of them borderline calls, so
+the gain is not attributed to search by meaning; what that search measurably adds is retrieval by meaning
+(the answering entry is the nearest match for 18 of 20 questions). **Limits:** 24 questions, one model;
+questions and key facts written by Claude, which built the system; run 1 judged by that same session
+(partly blind); one run-3 abstention was a borderline call; owner spot-check pending. Details, every miss
+and the hand check of flagged figures are in RESULTS.md and the per-run files beside it.
+The **v1** set ([eval/RESULTS.md](eval/RESULTS.md)) was
 used while developing and is kept as a regression set only.
 
 ## Limitations (known, not yet fixed)
@@ -213,6 +217,9 @@ used while developing and is kept as a regression set only.
   after its commits can mislead.
 - **A figure the answer repeats from the question is "unverified"**, whether the answer rejects or
   endorses it — code does not try to tell them apart.
+- **Search by meaning depends on an embedding server** (`EMBED_URL`). Without it, search uses words only,
+  and nothing else changes. Distance cannot tell "no record" from "a related record", so declining to
+  answer still rests on the agent.
 - **No "why" without a written source.** A repo with no decision log, ADRs or agent-instruction files
   gets ownership, history and file summaries — not reasons. Commit messages and PR descriptions are
   not mined yet.

@@ -96,26 +96,27 @@ async function byMeaning(g: Graph, text: string, limit: number): Promise<Array<{
  * Decisions matching a question: every word first (the strongest signal), then matches by meaning and
  * matches on any word, interleaved. "matched" says which: all | meaning | any.
  */
-export async function search(g: Graph, text: string, limit = 8): Promise<Array<DecisionRef & { score: number; matched: 'all' | 'any' | 'meaning' }>> {
+type Hit = DecisionRef & { score: number; matched: 'all' | 'any' | 'meaning' };
+export async function search(g: Graph, text: string, limit = 8): Promise<Hit[]> {
   const words = [...new Set(text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [])];
   if (!words.length) return [];
   await assertSearchIndex(g);
   const run = (q: string) => rows<{ decision: DecisionRef; score: number }>(g,
     `CALL db.idx.fulltext.queryNodes('Decision', $q) YIELD node AS d, score
      RETURN ${DECISION} AS decision, score ORDER BY score DESC, d.id LIMIT $limit`, { q, limit });
-  const all = (await run(words.join(' '))).map((x) => ({ ...x.decision, score: Math.round(x.score * 100) / 100, matched: 'all' as const }));
+  const all: Hit[] = (await run(words.join(' '))).map((x) => ({ ...x.decision, score: Math.round(x.score * 100) / 100, matched: 'all' as const }));
   const seen = new Set(all.map((d) => d.id));
-  const meaning = (await byMeaning(g, text, limit)).filter((x) => !seen.has(x.decision.id))
+  const meaning: Hit[] = (await byMeaning(g, text, limit)).filter((x) => !seen.has(x.decision.id))
     .map((x) => ({ ...x.decision, score: Math.round((1 - x.distance) * 100) / 100, matched: 'meaning' as const }));
   meaning.forEach((d) => seen.add(d.id));
-  const any = words.length > 1
+  const any: Hit[] = words.length > 1
     ? (await run(words.join('|'))).filter((x) => !seen.has(x.decision.id))
       .map((x) => ({ ...x.decision, score: Math.round(x.score * 100) / 100, matched: 'any' as const }))
     : [];
-  const mixed: typeof all = [];
+  const mixed: Hit[] = [];
   for (let i = 0; i < Math.max(meaning.length, any.length); i++) {
-    if (meaning[i]) mixed.push(meaning[i] as never);
-    if (any[i]) mixed.push(any[i] as never);
+    if (meaning[i]) mixed.push(meaning[i]);
+    if (any[i]) mixed.push(any[i]);
   }
   return [...all, ...mixed].slice(0, limit);
 }

@@ -4,6 +4,27 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## Search by Meaning, Measured Before Merging (October 18 2026)
+
+Peter: "We've only used the graph side — we might need to embed on the vector side." The case was in
+hand: on Decision Brain's own graph, "why are invalid handoff confirmations retried?" got "I don't know"
+because the entry says "a mis-copied quote", not those words. Decisions are now embedded (qwen3-embedding
+on the LAN, `EMBED_URL`) into a FalkorDB vector index, re-embedded only when their text changes, and
+search takes all-words matches first, then meaning matches interleaved with any-word matches. No
+embedder, or one that fails: words only.
+**The cutoff was set on v1, not v2.** On v2 a cutoff of 0.39 would have separated answerable from
+abstain questions perfectly — which is tuning on the test. On the v1 development questions answerable
+entries lie within 0.434 and one abstain question's nearest entry is at 0.344: distance cannot separate
+"no record" from "a related record", so the cutoff (0.44) limits noise and abstaining stays the agent's
+job. Measured on v2: the answering entry is the nearest match for 18/20 questions.
+**Run 3 of v2** (words + meaning, judged blind by a fresh agent): 19/20 vs 12/20, premises 4/4, abstentions
+4/4, 23.0 s; all borderline calls against it, 15/20 vs 13/20. The three extra passes were trap questions,
+two of them borderline, none a keyword miss — so no regression and possibly a gain, not attributed to
+meaning search. v2-cp-07's abstention was itself a borderline call (3/4 read strictly). Merged on that
+basis; the README claims only what holds in all three runs.
+Embedding Invarail first failed at 80 of 151: 16 long entries per request outlasted a 60 s timeout on the
+CPU-bound embedding host. Batches of 4, five minutes per request; it resumes where it stopped.
+
 ## A Lesson Must Not Depend on How the Model Phrased It (October 17 2026, branch post-judging)
 
 Rebuilding FlowMCP's graph, the redirect credential leak dropped out of "do not retry": the first

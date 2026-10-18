@@ -18,6 +18,9 @@ https://decision-brain.devmesh.tech (read-only).
 **After submitting, before the deadline (Oct 17, merged to main):** ISO-dated headings, `npm run what-breaks`,
 the pre-edit hook (scripts/hooks/pre-edit.mjs), and confirmed experiments shown beside disproven ones — all found
 by running it on FlowMCP. The extraction prompt was *not* changed (measured: inconclusive; the eval used the old one).
+**Oct 18, merged:** search by meaning (FalkorDB vector index, embeddings from qwen3-embedding on the .221
+Mac's Ollama, `EMBED_URL`) — so that Mac's Ollama should stay up through judging (search falls back to words
+if not). Eval v2 run 3: 19/20 vs 12/20. Decision Brain's own repo is a graph (`decision-brain`).
 Not built: question memory; long-entry reading section by section; findings scoped to the files near their quote.
 
 ## Running things
