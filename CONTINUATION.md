@@ -15,7 +15,10 @@ https://decision-brain.devmesh.tech (read-only).
 `tunnel` (Cloudflare tunnel `decision-brain`, config ~/.cloudflared/decision-brain.yml), `awake`
 (caffeinate); plus FalkorDB and the GLM server. `web` (4100, local actions) is local only.
 **After judging:** `cloudflared tunnel delete decision-brain`, remove the CNAME in Cloudflare's DNS.
-Not built: question memory; long-entry reading section by section.
+**After submitting, before the deadline (Oct 17, merged to main):** ISO-dated headings, `npm run what-breaks`,
+the pre-edit hook (scripts/hooks/pre-edit.mjs), and confirmed experiments shown beside disproven ones — all found
+by running it on FlowMCP. The extraction prompt was *not* changed (measured: inconclusive; the eval used the old one).
+Not built: question memory; long-entry reading section by section; findings scoped to the files near their quote.
 
 ## Running things
 
