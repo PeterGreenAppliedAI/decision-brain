@@ -4,6 +4,19 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## A Lesson Must Not Depend on How the Model Phrased It (October 17 2026, branch post-judging)
+
+Rebuilding FlowMCP's graph, the redirect credential leak dropped out of "do not retry": the first
+extraction phrased it "spec fetches do not leak credentials on redirect" → disproven, the second "spec
+fetches leak credentials on redirect" → confirmed. Same fact, flipped polarity, and only disproven
+experiments were listed — so whether the lesson reached the agent was a coin toss. `what-breaks` (and so
+the edit hook) now lists every experiment tried on the file with its verdict, disproven first; the reader
+sees the lesson however it was phrased. Still open: the review packet's "do not retry" list is
+disproven-only, and the extraction prompt never says which way to phrase a hypothesis ("something tried
+or hypothesized and then judged"). Phrasing it as the idea tried or believed before the test would make
+"disproven" consistently mean "don't do this again" — but it changes extraction everywhere, so it is to be
+measured first (re-extract entries with experiments twice under each prompt; count verdict flips).
+
 ## After Judging: ISO-Dated Headings, and the Reason Before Every Edit (October 17 2026, branch post-judging)
 
 Decision Brain run on FlowMCP (a fourth repository, on another machine) worked without tuning — a review
