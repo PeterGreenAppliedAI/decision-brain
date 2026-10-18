@@ -12,6 +12,11 @@ const EXAMPLES = {
     'If I change src/memory/fact-store.ts, what decisions should I re-check?',
     'What has been tried and disproven about memory?',
   ],
+  'decision-brain': [
+    'Why does Decision Brain set reasoning effort to low for GLM?',
+    'Why does review use commit ancestry instead of timestamps for reviewers?',
+    'Which files carry the most reasoning in this repository?',
+  ],
   log4brains: [
     'Why does log4brains identify an ADR by its slug instead of a number?',
     'What branching strategy does the project use, and why did it change?',
