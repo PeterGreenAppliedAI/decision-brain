@@ -4,6 +4,17 @@ What we decided while building, what failed, and why. Newest first. (The blog po
 
 ---
 
+## The Meaning Cutoff Did Not Carry Over to FlowMCP (October 18 2026, after the deadline)
+
+On FlowMCP (another machine, its own graph), search by meaning returned nothing in practice: the right
+entries scored 0.447 and 0.51, past the 0.44 cutoff set on Invarail and content-publisher. Distance
+depends on how a log is written, so one fixed number does not travel. That machine now runs with
+EMBED_MAX_DISTANCE=0.52 (configuration only; the evaluated system and the live site keep 0.44). With it,
+"when a lookup comes back empty the whole thing blows up" — almost no words in common with its entry —
+finds that decision first by meaning: the clearest real-world case yet for meaning search. Next: a cutoff
+that adapts (within a margin of the best match, with a ceiling, or calibrated per graph from its own
+distances) so no one has to tune it.
+
 ## Next: Explain This Change — What From the Diff, Why Labelled by Where It Came From (October 18 2026)
 
 Decision Brain's largest limit is that it only knows *why* where a team wrote it down, and most teams

@@ -55,16 +55,19 @@ starts.
 3. **Experiment phrasing, measured where it failed.** Test "phrase the idea as it stood before the test"
    on FlowMCP's entries, where a lesson flipped polarity between extractions; change the prompt only if
    it measurably helps, and re-run the evaluation if it does.
-4. **What meaning search adds, as a number.** Rephrase the 20 answerable v2 questions away from their
+4. **A meaning cutoff that adapts.** 0.44 (from Invarail and content-publisher) dropped FlowMCP's right
+   answers (0.447, 0.51); it is tuned per deployment for now. Keep matches within a margin of the best
+   one, with a ceiling — or calibrate each graph from its own distance spread when it is embedded.
+5. **What meaning search adds, as a number.** Rephrase the 20 answerable v2 questions away from their
    entries' words; measure how often search returns the required entry with words alone vs words +
    meaning. No judge needed.
-5. **Draft decisions from history.** Reverts ("tried and undone"), commit messages and pull-request
+6. **Draft decisions from history.** Reverts ("tried and undone"), commit messages and pull-request
    discussions that state a reason → drafted entries, quoted, confirmed by a second agent, approved by a
    person before they join the log. Benchmark: content-publisher's history without its 16 ADRs — how many
    does it rediscover, and how many drafts are wrong?
-6. **Review on every pull request** — a GitHub Action posting the review packet.
-7. **Question memory** — answered questions the next agent can reuse (Track 02's unbuilt half).
-8. **Beyond code** — the same memory layer for documents, spreadsheets and policies.
+7. **Review on every pull request** — a GitHub Action posting the review packet.
+8. **Question memory** — answered questions the next agent can reuse (Track 02's unbuilt half).
+9. **Beyond code** — the same memory layer for documents, spreadsheets and policies.
 
 ## The rules boundary (read first)
 
